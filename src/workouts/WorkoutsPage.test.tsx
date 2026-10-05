@@ -174,7 +174,7 @@ describe('<WorkoutsPage> with the bundled source', () => {
       }
     }
     expect(combinations).toBe(63)
-  })
+  }, 30_000) // 63 renders: ~1 s alone, ~5 s under full-suite load (measured 2026-10-06)
 
   it.each(['en', 'el'] as const)('speaks %s: headings and every selector label', async (lang) => {
     const t = dictionaries[lang]
