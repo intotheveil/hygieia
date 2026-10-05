@@ -96,3 +96,14 @@ get offline and install behaviour there.
 **Consequences.** `start_url`/`scope` are `/hygieia/` and must follow Vite `base` if the site ever moves
 to a root domain. The SW precaches the bundle: a deploy is picked up on the next visit (autoUpdate),
 never instantly. `navigateFallback` serves `index.html` offline for deep links.
+
+## 2026-10-05 — per-user writes never send `user_id`; the DB default supplies it
+
+**Decision (P2.4).** The client never includes `user_id` in any INSERT/UPSERT payload to `fridge_lists`,
+`saved_plans` or `favourites`, and never filters on it: the column is `not null default auth.uid()` and RLS
+(`user_id = auth.uid()` on every verb, proven in `db:gate`) scopes every read and write to the caller.
+The payload types in `src/user/source.ts` have no `user_id` member, so sending it is a type error, and
+`src/user/source.test.ts` sweeps every recorded call for it. **Why:** the server is the single authority on
+who owns a row — a client-supplied id is at best redundant and at worst a spoof attempt RLS has to refuse;
+a client-side `eq('user_id', …)` would duplicate the policy and invite a false sense of safety when it is
+forgotten. Same discipline as P2.3's `is_admin` (never sent; the column grant forbids it).
