@@ -8,9 +8,9 @@
 import { useCallback, useState } from 'react'
 import { PRICE_PER, type PricePer } from '../content/enums.ts'
 import { useLang } from '../i18n/LangProvider'
+import { useAsyncResult } from '../lib/useAsync.ts'
 import type { AdminContentSource, PricePatch } from './adminSource.ts'
 import { checkDraft, draftOf, sortByName, type PriceDraft } from './prices.ts'
-import { useSettled } from './useSettled.ts'
 
 const INPUT =
   'w-full rounded-lg border border-olive-900/20 bg-paper-50 px-2 py-1 text-sm text-olive-900 aria-[invalid=true]:border-clay-500'
@@ -28,19 +28,20 @@ type Outcome = 'idle' | 'busy' | 'saved' | 'failed'
 export function PriceTable({ source }: PriceTableProps) {
   const { t, lang } = useLang()
   const load = useCallback(() => source.listAll('ingredients'), [source])
-  const loaded = useSettled(load)
+  // `ok: false` and a rejection are both `status: 'error'` → the load-failed line.
+  const loaded = useAsyncResult(load)
   // Rows saved in this session, applied over the loaded rows (no reload needed).
   const [saved, setSaved] = useState<Record<string, PricePatch>>({})
   const [editing, setEditing] = useState<{ id: string; draft: PriceDraft } | null>(null)
   const [outcome, setOutcome] = useState<Outcome>('idle')
 
-  if (loaded === null)
+  if (loaded.status === 'loading')
     return (
       <p role="status" className="text-olive-700">
         {t.loading}
       </p>
     )
-  if (!loaded.ok) return <p role="alert">{t.adminLoadFailed}</p>
+  if (loaded.status === 'error') return <p role="alert">{t.adminLoadFailed}</p>
 
   const rows = sortByName(
     loaded.data.map((row) => (saved[row.id] ? { ...row, ...saved[row.id] } : row)),

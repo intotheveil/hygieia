@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { fakeClient, type FakeClient } from '../auth/fake-client'
 import { LangProvider } from '../i18n/LangProvider'
 import { el, en, type Lang } from '../i18n/dictionary'
-import { PRICE_COLUMNS, adminSource } from './adminSource.ts'
+import { PRICE_COLUMNS, adminSource, type AdminContentSource } from './adminSource.ts'
 import { checkDraft, draftOf, sortByName, type IngredientRow } from './prices.ts'
 import { PriceTable } from './PriceTable'
 
@@ -253,5 +253,21 @@ describe('PriceTable', () => {
       </LangProvider>,
     )
     expect(await screen.findByRole('alert')).toHaveTextContent(en.adminLoadFailed)
+  })
+
+  it('shows the load-failed line when the read REJECTS, instead of loading forever', async () => {
+    // The real adapter catches every throw (`ok: false`), so a rejection needs a source of its own.
+    const source: AdminContentSource = {
+      ...adminSource(fakeClient().client),
+      listAll: () => Promise.reject(new Error('transport')),
+    }
+    render(
+      <LangProvider initial="en">
+        <PriceTable source={source} />
+      </LangProvider>,
+    )
+    expect(await screen.findByRole('alert')).toHaveTextContent(en.adminLoadFailed)
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
   })
 })

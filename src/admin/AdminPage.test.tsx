@@ -6,8 +6,20 @@ import { CONTENT_TABLES } from '../content/enums.ts'
 import { LangProvider } from '../i18n/LangProvider'
 import { el, en, type Lang } from '../i18n/dictionary'
 import type { HygieiaClient } from '../lib/supabase'
-import { LOCKED_COLUMNS } from './adminSource.ts'
+import { LOCKED_COLUMNS, adminSource, type AdminContentSource } from './adminSource.ts'
 import { AdminPage } from './AdminPage'
+
+// The real adapter (`adminSource` → `run`) catches every throw and answers `ok: false`, so a read
+// that REJECTS can only come from a source that bypasses it. This seam hands the page such a source
+// for the one test that sets it; with `seam.source` null every other test gets the real one.
+const seam = vi.hoisted(() => ({ source: null as AdminContentSource | null }))
+vi.mock('./adminSource.ts', async (importOriginal) => {
+  const mod = await importOriginal<typeof import('./adminSource.ts')>()
+  return {
+    ...mod,
+    adminSource: (client: HygieiaClient) => seam.source ?? mod.adminSource(client),
+  }
+})
 
 const UID = '55555555-5555-4555-8555-555555555555'
 const LANGS: ReadonlyArray<[Lang, typeof en]> = [
@@ -382,5 +394,29 @@ describe('AdminPage — paired line editor', () => {
     fireEvent.change(lineInputs('pros_el')[1] as HTMLInputElement, { target: { value: 'Γεύση' } })
     fireEvent.change(lineInputs('pros_en')[1] as HTMLInputElement, { target: { value: 'Taste' } })
     expect(screen.getByRole('button', { name: en.saveChanges })).toBeEnabled()
+  })
+})
+
+describe('AdminPage — a rejecting read', () => {
+  afterEach(() => {
+    seam.source = null
+  })
+
+  it('shows the load-failed line (no counts) when the pending read REJECTS, instead of loading forever', async () => {
+    const fake = fakeClient({
+      session: fakeSession(UID),
+      profiles: { rows: [adminRow] },
+      contentTables: { rows: rows() },
+    })
+    // `seam.source` is still null here, so this is the real source; only `listPending` rejects.
+    seam.source = {
+      ...adminSource(fake.client),
+      listPending: () => Promise.reject(new Error('transport')),
+    }
+    renderPage(fake.client)
+    expect(await screen.findByRole('alert')).toHaveTextContent(en.adminLoadFailed)
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    for (const table of CONTENT_TABLES)
+      expect(screen.getByRole('tab', { name: en.kinds[table] })).toBeInTheDocument()
   })
 })
