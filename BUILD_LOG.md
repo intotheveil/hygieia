@@ -211,6 +211,48 @@ check:pwa` OK.
 
 **Next:** P3.5 wires `/workouts` and `/tips` into `routes.tsx` + `SiteHeader`; the data lane lands the regenerated seed
 SQL (clears the 3 red tests); `e2e/local/workouts.spec.ts` / `tips.spec.ts` once the routes exist.
+## 2026-10-06 — P3.4 Fridge UI `/fridge` (page, picker, dictionary) — DONE (builder, worktree `wt/e`; not yet committed)
+
+**Scope:** the React half of P3.4 over the already-landed pure modules (`fridge/match.ts` P3.3, `fridge/storage.ts`). No route, no
+`App.tsx`, no `dictionary.ts` edit (P3.5 wires navigation; the dictionary is composed through `src/i18n/features/index.ts`).
+
+**Files:** `src/fridge/FridgePage.tsx`, `src/fridge/IngredientPicker.tsx`, `src/fridge/FridgePage.test.tsx` (16 tests),
+`src/fridge/IngredientPicker.test.tsx` (12), `src/i18n/features/fridge.ts` (`FridgeDictionary`, `fridgeEn`, `fridgeEl`),
+`src/i18n/features/index.ts` (one import, `extends FridgeDictionary`, one spread per language), `src/i18n/fill.ts` + test (4) —
+`fill('{have}/{total}', { have, total })`, unknown tokens left visible — and `src/lib/useAsync.ts` + test (4) — outcome state
+keyed by the `run` identity, loading derived, no set-state-in-effect. `fill`/`useAsync` may duplicate the recipes lane's; reconcile at merge.
+
+**Page:** intro → `IngredientPicker` (WAI-ARIA combobox: `role=combobox` + `aria-activedescendant` → `listbox`/`option`;
+ArrowDown/Up wrap, Enter adds, Escape closes; typeahead over BOTH languages' names through `normalizeForSearch`, prefix matches
+first, already-selected excluded, 8 max; picking clears and keeps focus) → chips with a labelled remove button + `clearAll` →
+"ignore pantry staples" checkbox with `aria-describedby` hint → results: `DraftRibbon` once (bundled), `role=status aria-live=polite`
+count (`matchesCount` / `noMatches`), cards from `matchRecipes` in its order: title linking `/recipes/:slug`, `youHave {have}/{total}`
+(have + substitutions over have + substitutions + missing), `role=progressbar` coverage bar + %, `missing: a, b`, substitution lines
+`feta → use ricotta`. Empty state (`fridgeEmpty` + hint) when no ingredient. Every change (add/remove/clear/toggle/load list) goes
+through one `commit()` that sets state AND `saveFridgeState(localStorage)` — `window.localStorage` access itself is guarded.
+"Save list": `useUserData().fridgeLists.save({ name, ingredient_slugs })`; `SignedOutNote` + disabled controls when the source is
+disabled (local-only → `userDataUnavailableLocal`; signed-out → sign-in link back to `/fridge`); `listSaved` status on success,
+`listSaveFailed` alert on failure; `savedLists` lists the server's lists (via `fridgeLists.list()`, honestly empty when disabled)
+plus this session's saves, each with a `loadList` button that replaces the fridge.
+
+**Dictionary keys beyond the brief (both languages):** `fridgeLoadFailed` (content source returned an error — the page needs an
+honest message, not a spinner), `listSaveFailed`, `loadList`.
+
+**Gates (in `wt/e`):** `npm run lint` → 0 errors (8 pre-existing fast-refresh warnings + 1 new of the same kind on
+`IngredientPicker.tsx` for the exported `ingredientName` helper) · `npm run typecheck` clean · `npm test` → **44 files / 2157 tests
+green; 1 file / 3 tests RED, PRE-EXISTING and out of scope:** `scripts/gen-seed-sql.test.ts` — `wt/e` HEAD lacks
+`supabase/migrations/20261006000900_hygieia_seed_workouts.sql` (main has it) and `…000700_hygieia_seed_recipes.sql` differs from the
+TS seeds (`npm run seed:check` → `FAIL — 2 file(s) out of step`). Nothing under `supabase/` or `scripts/` was touched here; the
+lead's sync of `wt/e` to main should clear it · `npm run build` → `✓ built`, PWA 24 precache entries · `npm run check:pwa` →
+`check:pwa OK — Hygieia · Υγίεια, 3 icons, sw.js present` · Prettier clean on every touched file.
+
+**Runnable artifact (§5):** the page has no route until P3.5, so it is not reachable in the built site (and is tree-shaken from the
+bundle); the observable is the jsdom suite: `ντομ` → `Ντομάτα` offered; tomato+cucumber+feta → ranked cards equal to `matchRecipes`'
+order with `You have n/m` and a `Missing:` list; a real-seed substitution line renders; the staples toggle changes the progressbar
+values exactly as the matcher predicts; reload restores chips and the switch; `localStorage` throwing loses only persistence.
+
+**Not done / next:** nothing committed (the lead merges `wt/e`). P3.5 adds the `/fridge` route + header nav; P3.7 the e2e. When the
+recipes lane's `RecipesDictionary` lands, drop the `no-empty-object-type` disable in `features/index.ts` (the rule allows multi-extends).
 
 ## 2026-10-05 — P3.1 `filterRecipes` + P3.4 `fridge/storage.ts` (PURE halves, pulled forward) — DONE (builder, worktree `wt/b`; not yet committed)
 

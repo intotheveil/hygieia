@@ -211,3 +211,25 @@ effect`) and asserts A's rows unchanged — instead of adding new checks — bec
 - **`FeatureDictionary` parents stay one per line under `// prettier-ignore`.** Prettier collapses a short `extends`
   list onto one line, which would turn every concurrent lane's addition into a merge conflict; the ignore keeps the
   `merge=union` guarantee the barrel was designed for.
+## 2026-10-06 — P3.4 Fridge UI: identity-keyed `useAsync`, one `commit()` for persistence, honest failure copy
+
+- **`useAsync(run)` keys its outcome by the `run` function's identity and DERIVES loading** (`settled.run !== run`)
+  instead of setting a loading flag inside the effect: it satisfies react-hooks `set-state-in-effect`, a new `run`
+  shows loading on the render it arrives, and a stale resolution after unmount is dropped. Callers memoize `run`
+  (module-level for the catalogue; `useCallback([source])` for the user's lists). The recipes lane may land its own;
+  reconcile to one at merge — the contract to keep is `{ status: 'loading' | 'ready' | 'error' }`.
+- **The fridge persists through a single `commit(next)`** (set state, then `saveFridgeState(localStorage)`), called
+  by every mutation (add, remove, clear, staples toggle, load a saved list) rather than a `useEffect` on state: no
+  effect-driven write on mount (which would re-save what was just loaded), no set-state-in-effect, and the write
+  happens exactly once per user action. `window.localStorage` ACCESS is guarded too (blocked storage throws on
+  the getter, not only on `setItem`).
+- **Three dictionary keys beyond the plan's list** — `fridgeLoadFailed`, `listSaveFailed`, `loadList`: the content
+  source and the user-data source both return `Result` failures, and an outcome the UI can reach must have copy in
+  both languages (ADR-0002); `loadList` makes `savedLists` actionable (restore a saved list into the fridge) instead
+  of a dead list of names.
+- **`FeatureDictionary extends FridgeDictionary {}` carries a `no-empty-object-type` disable** only while it has one
+  parent; typescript-eslint stops flagging the interface once a second lane adds its parent. Prettier collapses the
+  `extends` onto one line, so "one parent per line" is not enforceable here — the lead reconciles the one-line
+  `extends A, B` at merge (the file is `merge=union`).
+- **`savedLists` always calls `fridgeLists.list()`** regardless of `kind`: the disabled source answers an honest
+  empty list, so the page has one code path and no `kind` branch around the fetch.

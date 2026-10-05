@@ -25,4 +25,17 @@ export const featuresEn: FeatureDictionary = {
 export const featuresEl: FeatureDictionary = {
   ...workoutsEl,
   ...tipsEl,
+import { fridgeEl, fridgeEn, type FridgeDictionary } from './fridge.ts'
+
+// Lanes add their parent here (`extends FridgeDictionary, RecipesDictionary`). The disable below is
+// needed only while there is ONE parent; drop it when the second lands (the rule allows multi-extends).
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- a bag of parents only; members live in each feature module
+export interface FeatureDictionary extends FridgeDictionary {}
+
+export const featuresEn: FeatureDictionary = {
+  ...fridgeEn,
+}
+
+export const featuresEl: FeatureDictionary = {
+  ...fridgeEl,
 }
