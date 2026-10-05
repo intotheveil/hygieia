@@ -35,11 +35,20 @@ export default defineConfig({
     tailwindcss(),
     spaFallback(),
     // Installable PWA (ADR-0004). The plugin injects <link rel="manifest"> and the SW registration
-    // into index.html; `check:pwa` verifies the built artifact in CI. Fonts are cached at runtime
-    // so the installed app renders Greek text offline after the first visit.
+    // into index.html; `check:pwa` verifies the built artifact in CI. Fonts are self-hosted
+    // (src/index.css) and precached with the bundle, so the installed app renders Greek text
+    // offline from the first visit.
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'icons/apple-touch-icon-180.png', 'brand/*.jpg'],
+      // `defer` on the injected registerSW.js: Lighthouse counted the default blocking script as
+      // ~300 ms of render-blocking time on every route (PLAN P5.3); registration can wait for parse.
+      injectRegister: 'script-defer',
+      includeAssets: [
+        'favicon.svg',
+        'icons/apple-touch-icon-180.png',
+        'brand/*.jpg',
+        'brand/*.webp',
+      ],
       manifest: {
         id: '/hygieia/',
         name: 'Hygieia · Υγίεια',
@@ -58,28 +67,18 @@ export default defineConfig({
         icons: [
           { src: 'icons/pwa-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'icons/pwa-512.png', sizes: '512x512', type: 'image/png' },
-          { src: 'icons/maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          {
+            src: 'icons/maskable-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,jpg,webmanifest}'],
+        // woff2: the self-hosted font subsets; webp: the hero variants (scripts/brand.mjs).
+        globPatterns: ['**/*.{js,css,html,svg,png,jpg,webp,woff2,webmanifest}'],
         navigateFallback: '/hygieia/index.html',
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-            handler: 'StaleWhileRevalidate',
-            options: { cacheName: 'google-fonts-css', expiration: { maxEntries: 8, maxAgeSeconds: 60 * 60 * 24 * 30 } },
-          },
-          {
-            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'google-fonts-files',
-              expiration: { maxEntries: 32, maxAgeSeconds: 60 * 60 * 24 * 365 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-        ],
       },
     }),
   ],

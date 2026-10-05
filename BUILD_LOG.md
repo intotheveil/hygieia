@@ -3,6 +3,60 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+## 2026-10-06 — RECONCILIATION: one `useAsync` for four lanes, one `fill`, seven-dictionary barrel — DONE (builder, worktree `wt/e`; merge of `main` left uncommitted for the lead)
+
+**Why.** Four parallel lanes (workouts/tips, fridge, diets/plans/account, recipes) each shipped their own `src/lib/useAsync.ts`
+(and three their own `src/i18n/fill.ts`); main held one variant and 25 typecheck errors in the other lanes' callers.
+
+**Delivered.**
+- **`src/lib/useAsync.ts` (canonical).** `useAsync<T>(run, deps?) → { status: 'loading' | 'ready' | 'error'; data; error; reload }`
+  as a discriminated union (`status === 'ready'` narrows `data` to `T`). Only the SETTLED outcome is state, tagged with the `run`
+  identity + attempt; loading is derived (no `set-state-in-effect`); stale resolutions dropped; rejection AND synchronous throw →
+  `error` (run starts on a microtask, the recipes lane's idea); `reload()` re-runs the same `run`; the returned object is memoised per
+  outcome. `deps` keys the run like `useCallback(run, deps)` via the React "store information from previous renders" pattern (a hook's
+  dependency array must be a literal — the compiler-based lint rule rejects `useMemo(fn, deps)`). Thin `useAsyncResult<T, E>(run)`
+  unwraps both `Result` shapes (`content/source.ts` and `user/source.ts`): `ok:false` → `error` with the error code.
+- **Callers adapted** (no page behaviour change): WorkoutsPage, TipsPage, DietsPage, DietPage, RecipesPage, RecipePage (incl.
+  FavouriteButton) → `useAsyncResult`; AccountPage and FridgePage → `useAsync` (plain promises). AccountPage gained an explicit
+  `error` branch (a rejected `loadAll` now shows the same `LoadFailed` + retry the per-tab failure already used — previously a
+  rejection was unhandled); `LoadFailed` extracted once. FridgePage needed no edit.
+- **`src/lib/useAsync.test.ts` rewritten** (12 tests): loading → ready; rejection → error without throwing; sync throw → error;
+  new run identity → loading then new data; stale result dropped; post-unmount drop; `reload` re-runs; `deps` keying; stable
+  state object; `useAsyncResult` ok / not-ok / rejection + reload. The recipes lane's `useAsync.test.tsx` deleted (exactly ONE
+  test file).
+- **`src/i18n/fill.ts`** = the recipes lane's (`fill`, `PluralForms {one, other}`, `pluralForm`, `plural`); fridge/tips callers
+  compile unchanged; the two `fill.test.ts` merged into one (both lanes' cases kept).
+- **`src/i18n/features/index.ts`**: seven parents/imports/spreads, alphabetical (Admin, Diets, Fridge, Plans, Recipes, Tips,
+  Workouts), no eslint-disable. Two key collisions surfaced by the seventh dictionary: `minutes` (recipes `PluralForms` vs workouts
+  `string` — a TYPE error) → workouts key renamed `minutesUnit` (WorkoutsPage only caller); `loadFailed`/`retry` declared by both
+  plans and recipes (same type, LAST spread wins silently — recipes' copy would have replaced the account/diets copy) → removed from
+  `recipes.ts`, plans owns them. Rule recorded in the barrel's header. `sourcePending` (diets/tips) is identical copy, left.
+- **`src/auth/guards.test.tsx`** "lists what the user has saved, per tab": plan row = diet name or raw `diet_id` over
+  "Week of 5 October 2026"; fridge row = Weekend over "2 items"; the "reads only the three tables, select only" assertions kept.
+  main's `adminIntro` re-point kept too (auto-merged).
+- **`src/i18n/dictionary.test.ts`** (pre-existing red on main, not caused here): sweep allow-lists extended with `kcal`, `ml`
+  (units stay Latin-script in Greek) and `searchIngredientsPlaceholder` (the fridge hint shows one example per script in BOTH
+  languages). Copy untouched; the allow-list is the test's own mechanism.
+- Fixed the two implicit-`any` errors in `src/diets/*` (they came from the hook typing) and three more in `src/recipes/*`.
+
+**Merges in this worktree.** `wt/c` (recipes UI) folded in and CONCLUDED as merge commit `2c5a0e7` on `wt/e` — a second merge
+cannot start while one is open, and the lead asked for `main` next. `main` (admin + Lighthouse lanes) then merged; its one conflict
+(the barrel's comment block) resolved and staged; **that merge is left uncommitted** for the lead. `npm ci` was needed after it
+(`@fontsource-variable/literata`).
+
+**Not changed, noted.** `src/admin/useSettled.ts` is NOT a drop-in for the canonical hook (returns `T | null`, never handles a
+rejection, starts `load` synchronously in the effect), so it stays. Equivalence for a follow-up: `useSettled(load)` ≡
+`useAsync(load).data ?? null` (modulo the microtask start); AdminPage ×2 and PriceTable ×1 are the callers, all tested.
+
+**Gates (worktree, after `main` merge):** `npm run lint` → 0 errors, 21 warnings (all pre-existing `react-refresh/only-export-components`) ·
+`npm run typecheck` → clean, exit 0 · `npm test` → Test Files 60 passed (60) · Tests 3123 passed (3123) · `npm run build` →
+built in 269ms, `dist/assets/index-D1L_Jn9Y.js` 1,204.32 kB (gzip 305.13 kB), PWA precache 42 entries ·
+`npm run check:pwa` → `check:pwa OK — Hygieia · Υγίεια, 3 icons, sw.js present`. Prettier clean on every touched file
+(`--end-of-line auto`; the checkout is `autocrlf=true`, so a bare `--check` flags every CRLF file on main too).
+
+**Next:** lead commits the `main` merge on `wt/e` and merges `wt/e` → `main`; optional follow-up to fold `useSettled` into
+`useAsync` with the admin tests as the net.
+
 ## 2026-10-06 — P1.15 CI + docs: data-spine gate steps in the workflow, commands in the constitution/README, the operator migration runbook — DONE (builder, worktree `wt/a`; not yet committed)
 
 **Scope:** no code, no migration, no test change. Four files edited/added so CI runs the data spine on every push and the operator has
@@ -55,6 +109,80 @@ PLAN §0 — their expected lines are quoted from the scripts, and OP1 records t
 **Files:** `.github/workflows/deploy.yml`, `README.md`, `docs/ops/migrations.md` (new), `.claude/CLAUDE.project.md`, `BUILD_LOG.md`.
 No DECISIONS.md entry (no architectural choice; step order and limits come from PLAN P1.15 / the Themis BRAIN). Not committed.
 **Next:** test-writer (nothing testable beyond the YAML parse — recorded above) → reviewer → P1.QA; lead recomposes the kit after merge.
+## 2026-10-06 — P4.10 Admin review page `/admin` + P4.11 price table editor — DONE (builder, worktree `wt/b`; not yet committed)
+
+**Scope:** the review workbench behind `RequireAdmin` (P2.5's placeholder body replaced; export name kept; routes untouched) and
+the ingredient price editor as its "Prices" tab. Everything goes through a new `AdminContentSource` that can read every status and
+UPDATE content columns + `status`, and nothing else — no INSERT/DELETE method exists, matching the migration's grants.
+
+**`src/admin/adminSource.ts` (new):** `AdminContentSource { listPending(table); listAll(table, status?); update(table, id, patch);
+setStatus(table, id, status) }` over a typed adapter (`adminClientFor`: `select('*') → eq(…) → order('slug')`, `update(values) →
+eq('id', id)`), `AdminResult<T>` with errors `network | locked | empty | unknown`. `EDITABLE_COLUMNS` per table = the migration's
+UPDATE grant lists minus `status` (a test parses `20261006000300_hygieia_content.sql` via `?raw` and compares literally, order included).
+`LOCKED_COLUMNS = id, slug, created_at, updated_at, reviewed_at, reviewed_by` are refused at the type level (`AdminPatch<T>` maps them
+to `never`) AND at runtime (`pickContentColumns` → `locked`, nothing sent); `status` is refused by `update` too (that is `setStatus`'s
+job); an empty patch → `empty`. `setStatus` sends exactly `{ status }` — the DB trigger stamps `reviewed_by/at`.
+
+**`src/admin/fields.ts` (new, pure):** field model for the form — `EDITABLE_COLUMNS[table]` grouped into `x_el`/`x_en` pairs + singles
+in grant order; kind per column (text / long textarea / number / boolean / select over the enums.ts literals / date / lines for
+`string[]`); edit ⇄ column conversion (`toEdit`/`fromEdit`: numbers and dates edit as text; blank required text is invalid; the four
+nullable text columns save blank as `null`); `diffDraft` yields ONLY the changed columns + the invalid ones. `headingColumn/headingOf`
+for the list (title_* for recipes/templates/tips, name_* otherwise).
+
+**`src/admin/ReviewForm.tsx` (new):** slug/id read-only, status + review stamp (`reviewedBy`/`reviewedAt` or `notReviewedYet`), every
+pair in one `<fieldset>` side by side (el left with `lang="el"`, en right), paired `string[]` share ONE line editor (add appends to both,
+remove index i deletes from both → lengths can never differ; `evenLengths` pads defensively), `aria-invalid` on unsaveable inputs, Save
+disabled until dirty && valid and sends only the diff; Approve/Reject → `setStatus`; `role="status"` line `adminSaved`/`adminSaveFailed`.
+**`PendingList.tsx`** (slug + both headings per row, button opens the form). **`AdminPage.tsx`** (replaced): `client === null` →
+`adminUnavailable`; profile loading → `loading`; `!isAdmin` → 403 copy (defensive twin of RequireAdmin); then tabs per
+`CONTENT_TABLES` with pending-count badges + "Prices"; status filter pending/approved/rejected; after every write the lists re-read
+(`version` bump → new loader identity → `useSettled` re-runs). **`useSettled.ts`** (new, admin-local): derived-loading hook keyed by
+loader identity (no `set-state-in-effect`); NOT `src/lib/useAsync.ts` — four other lanes each add their own copy of that path, so the
+admin lane avoids a fifth. **`prices.ts` + `PriceTable.tsx`** (new): all ingredients (no status filter), sorted by `name_<lang>` with
+`localeCompare(lang)`, one row in edit mode at a time (other Edit buttons disabled), inputs with `sr-only` labels, `checkDraft` (both
+prices finite ≥ 0, `min ≤ max`, ISO date) → `role="alert"` `priceMinMaxError`/`priceNumberError` + `aria-invalid`, Save sends exactly
+the five price columns; the saved row is reflected locally without a reload.
+
+**`src/i18n/features/admin.ts` (new) + `index.ts`:** `AdminDictionary` (adminIntro, adminUnavailable, sideBySideHint, pending/approved/
+rejectedTab, `kinds: Record<ContentTable, string>`, noPending, noRowsForStatus, adminLoadFailed, backToList, approve, reject,
+saveChanges, adminSaved, adminSaveFailed, reviewedBy, reviewedAt, notReviewedYet, addLine, removeLine, lineNumber, prices, priceMin,
+priceMax, pricePer, asOf, priceNote, priceMinMaxError, priceNumberError, editRow, cancel). `adminTitle` and the 403 copy are reused
+from the base dictionary. Deviation from the brief: `saved`/`saveFailed` are named `adminSaved`/`adminSaveFailed` because lane `wt/f`
+(plans.ts) already defines `saveFailed` with plan-specific copy — same-named keys across feature modules would silently last-win in the
+spread. `index.ts` extends on its own line (prettier-ignore block, as lane `wt/d` does) with an `eslint-disable-next-line
+no-empty-object-type` that is only needed while the interface has one parent.
+
+**`src/auth/fake-client.ts` (shared double, extended):** `contentTables: { rows, error, updateError }` routes the six content tables to a
+builder that records `select/order/eq/update`, APPLIES the recorded `.eq` filters to the rows (so `status = pending` narrows like the DB)
+and applies an `update` payload to the matching rows (so a reload sees the change). `RecordedCall.op` gains `'update'`.
+
+**Out-of-scope edit (flagged):** `src/auth/guards.test.tsx` asserted the P2.5 placeholder copy (`adminPlaceholder`) for an admin; P4.10
+replaces that page by definition, so the three assertions now point at `adminIntro` (test name updated). No other file outside the task's
+scope was touched; `adminPlaceholder` stays in the base dictionary unused (`dictionary.ts` is off-limits to lanes).
+
+**Tests (4 new files, 80 tests):** `adminSource.test.ts` (filters per table; `listAll` unfiltered by default; parse failures → unknown;
+error classification; update sends only given columns / drops undefined / refuses each LOCKED column, `status`, another table's column,
+empty; setStatus exact payload; no insert/delete method; the real adapter over the fake client records `update → eq('id')`; grant-list
+contract vs the migration), `fields.test.ts` (grouping per table covers every editable column once; kinds; conversions; diff never carries
+identity/review columns), `AdminPage.test.tsx` (adminUnavailable + 403 + loading in both languages; six `status = pending` queries and
+counts; both-language tab labels; list shows slug + both titles; status filter re-queries with `status = approved`; form renders pairs in
+one fieldset with `lang`, textarea/select/checkbox/readonly; approve/reject exact payloads and list refresh; save sends only changed
+columns; blank required blocks Save; refused save shows the failure line; approved row shows the stamp and no Approve; paired line
+editor removes/adds in both languages and saves equal-length arrays), `PriceTable.test.tsx` (model: five columns exactly, min>max /
+negative / NaN / non-ISO blocked; UI: unfiltered read, en vs el sort order, bilingual headers, min>max alert + aria-invalid + nothing
+sent, valid save = exactly the five price columns by id + row reflects it, one row at a time + cancel restores, refused save, load failed).
+
+**Gates (2026-10-06, `D:/projects/hygieia-wt/b`):** `npm run lint` 0 errors (7 pre-existing react-refresh warnings: LangProvider,
+routes, DraftRibbon, …) · `npm run typecheck` clean · `npm test` 45/46 files, **2920 passed, 3 failed — all three in
+`scripts/gen-seed-sql.test.ts` (`seed:check: differs 20261006000700_hygieia_seed_recipes.sql`, `missing
+20261006000900_hygieia_seed_workouts.sql`), a PRE-EXISTING drift on the merged base: this task touches no file under
+`src/content/seed/**` or `supabase/migrations/**`; `npm run seed:gen` on the lead's side settles it** · `npm run build` green (PWA
+precache 24 entries) · `check:pwa OK — Hygieia · Υγίεια, 3 icons, sw.js present` · `prettier --check` on every touched file clean.
+
+**Not done / next:** nothing committed (the lead merges `wt/b`). The live half of P4.10's acceptance (approve one recipe on the operator
+machine, `db:live-check` extended to assert `recipes?status=eq.approved ≥ 1`, ribbon gone in configured mode) is an OPERATOR step after
+OP1/OP2. BRAIN.md left to the lead (shared across lanes, not `merge=union`). P4.12 e2e specs may drive `/admin` through the fake-free
+path only once a configured backend exists.
 
 ## 2026-10-05 — P5.5 bilingual completeness sweep (dictionary + seed tests; pulled forward) — DONE (builder, worktree `wt/b`; not yet committed)
 
@@ -691,6 +819,123 @@ green** · `npm run build` green (chunk-size warning is pre-existing; seed data 
 group stubs. (2) BRAIN.md §5 candidates (not edited — out of this task's scope): "Database Row/Insert types must be `type`
 aliases, not `interface`s, or supabase-js collapses `Insert` to `never`"; "`src/**` tests have no node types — no `node:crypto`
 in Vitest jsdom tests, pin vectors instead". (3) `listRecipes` diet filter is a UNION (DECISIONS.md) — P3.1 should match.
+## 2026-10-06 — P5.3 Lighthouse mobile gate `npm run check:lighthouse` — DONE: fonts self-hosted, hero WebP, home 91 / auth 95 three runs in a row (builder, worktree `wt/g`; not yet committed)
+
+**Pulled forward** by the lead (route list data-driven so P3/P4 routes slot in). The gate runs Lighthouse 12.8.2 (mobile form factor,
+412×823 @1.75 emulation, simulated slow-4G) programmatically against the PRODUCTION `dist/` for every route in **`e2e/support/routes.ts`**
+(`[{ path: '/hygieia/', name: 'home' }, { path: '/hygieia/auth', name: 'auth' }]`; P5.2's a11y matrix imports the same list), categories
+performance / accessibility / best-practices / seo, thresholds **90 / 90 / 90**, seo informational; in CI (`process.env.CI`) a documented
+**−5 on PERFORMANCE only** (header: measurement vs checklist; shared runners vary). Prints `route · perf · a11y · bp · seo`, writes
+`lighthouse-report/<name>.{html,json}` (gitignored; CI uploads it `always()`), exit 1 names route + category + top 3 failing audits
+(weight desc, score asc), exit 2 = setup failure (no Chrome, build failed, port 4175 taken). `process.exitCode`, never `process.exit()`.
+Builds when `dist/index.html` is missing or `--build` is passed (local-only mode, Supabase names blanked like playwright.config.ts).
+Chrome: `CHROME_PATH` → `PLAYWRIGHT_CHROMIUM` → `@playwright/test`'s `chromium.executablePath()` → its headless-shell sibling
+(`chromium_headless_shell-<rev>/chrome-headless-shell-<platform>/…`; CI installs only the shell). **A fresh Chrome per route.**
+
+**Delivered:** `scripts/check-lighthouse.mjs` · `scripts/check-lighthouse.test.ts` (`// @vitest-environment node`, **47 tests**: route list
+shape + validation (base, kebab names, duplicates), thresholds/evaluate (pass; 89 fails each gating category; seo never; CI 85 passes / 84
+fails / a11y+bp get NO tolerance / 85 fails locally; null score fails; multi-route order), `isFailingAudit` table, `summarise` (rounding,
+top-3 by weight then score, passed/informative/unknown refs skipped, absent category → null/[]), `formatTable` exact lines incl. a fake-LHR
+fixture → `/hygieia/auth (auth) ·   97 ·  100 · 100 · 100`, `formatFailure` lines, `headlessShellDir` Windows/POSIX/null, audit-server
+helpers, and the audit server on a temp dist (gzip + Vary for text, identity without accept-encoding, images never gzipped, deep link →
+404.html bytes with status 200, 301 for the bare base, plain 404 outside)) · `e2e/support/routes.ts` · `package.json` (devDeps
+`lighthouse ^12.8.2`, `chrome-launcher ^1.2.2` — declared explicitly because the script imports it directly; script `check:lighthouse`) ·
+`package-lock.json` (follows) · `.github/workflows/deploy.yml` (step after e2e + `lighthouse-report` artifact on `always()`, 14 days) ·
+`.gitignore` (`lighthouse-report/`) · `src/App.tsx` (first pass, hero `<img>` attribute only: `fetchPriority="high"` — it IS the mobile LCP
+element at `top: 517px` of an 823 px viewport, so `loading="lazy"` would have HURT and was not added; second pass → `<picture>`, see
+"Fixes landed" below).
+
+**Two deliberate departures from `e2e/support/pages-server.mjs` (the audit server reuses its exported `resolveRequest`; lead → DECISIONS.md / BRAIN §7):**
+
+1. **Text responses are gzipped** when accepted (Pages gzips; the e2e server does not). Uncompressed, the 506 kB bundle alone cost an estimated
+   1.75 s FCP / 1.9 s LCP in Lighthouse's simulation that production never sees (home 65 → 78 from this alone).
+2. **The deep-link fallback (`404.html`) is served with status 200.** Pages answers deep links with 404 (PLAN §4; e2e asserts it) and Lighthouse
+   refuses an errored document (`ERRORED_DOCUMENT_REQUEST` → no scores at all for `/hygieia/auth`). Bytes identical; only the status differs;
+   the 404 contract stays proven by `npm run e2e`.
+   Also: **a fresh Chrome per route** — Lighthouse feeds observed per-origin latency into the simulated FCP, so in one shared Chrome the first
+   route paid the cold DNS/TLS to fonts.googleapis.com alone (507 ms vs 81 ms warm) and later routes inherited its storage (run warning).
+
+**BEFORE (local, no CI env, `npm run build && npm run check:lighthouse`, Playwright Chromium 1243; five runs; Google Fonts stylesheet still render-blocking):**
+
+```
+route                · perf · a11y ·  bp · seo
+/hygieia/ (home)     ·   79 ·  100 · 100 · 100     (runs 1–4: 79, 79, 79, 79; run 5: 93)
+/hygieia/auth (auth) ·   97 ·  100 · 100 · 100     (all runs 97)
+FAIL  /hygieia/ (home): performance 79 < 90
+      - largest-contentful-paint (score 0.45, weight 25): Largest Contentful Paint — 4.2 s
+      - first-contentful-paint (score 0.37, weight 10): First Contentful Paint — 3.4 s
+      - speed-index (score 0.89, weight 10): Speed Index — 3.4 s
+```
+
+Headless shell (CI's binary, forced with `CHROME_PATH`): home 78 · auth 85, a11y/bp/seo 100 — the shell drives fine. `CI=1` run: home 93 ·
+auth 97, prints `performance >= 85 (CI: 90 − 5 tolerance, see header)`, exit 0.
+
+**AFTER (same command, same machine, final build; three consecutive runs, identical):**
+
+```
+route                · perf · a11y ·  bp · seo
+/hygieia/ (home)     ·   91 ·  100 · 100 · 100      ×3   (FCP 2.55 s · LCP 3.0 s · SI 2.55 s · TBT 0 · CLS 0.02)
+/hygieia/auth (auth) ·   95 ·  100 · 100 · 100      ×3   (FCP 2.25 s · LCP 2.4 s · TBT 0 · CLS 0.00)
+check:lighthouse OK — 2 route(s) at or above every threshold; reports in lighthouse-report/
+```
+
+Intermediate states, for the record: fonts + WebP `<picture>` + hero preload → home 90/90/90, auth 93/93/96; + `registerSW.js` deferred → home
+91 ×3, auth 94 ×3; preload removed (measured below) → home 91 ×3, auth 95 ×3. The remaining home deficit is the SPA's own first paint
+(`first-contentful-paint` 0.65, `largest-contentful-paint` 0.78; `unused-javascript` 104 KiB est. 750 ms) — code-splitting, a later task.
+
+**Root cause (diagnostic, home only, `blockedUrlPatterns`, same server, fresh Chrome each):** baseline **79** (FCP 3.4 s, LCP 4.1 s) ·
+Google Fonts origins blocked → **94** (FCP 2.0 s, LCP 2.9 s) · hero image blocked → 84 · both → 97. The render-blocking cross-origin
+`<link rel="stylesheet" href="https://fonts.googleapis.com/…">` in `index.html` is the cause (observed 215–507 ms depending on cold DNS/TLS,
+which is also why home is **bimodal 79 ↔ 93** run to run: the gate is NOT deterministic while that link is render-blocking). `display=swap`
+does not help FCP here: the stylesheet itself blocks the first paint. Main chunk is 146.8 kB gzip (< the ~200 kB code-split trigger) —
+`unused-javascript` est. LCP 400 ms, secondary; not split (later task, as instructed). No entrance animation in `src/`.
+
+**First pass stopped here (home 79, threshold NOT weakened):** within the original scope — gzip (65 → 78), `fetchPriority="high"`, fresh
+Chrome per route — home stayed at 79. The lead then approved fixing the cause and brought the three items into scope.
+
+**Fixes landed (lead-approved scope extension; DECISIONS.md 2026-10-06 "fonts self-hosted; Lighthouse gate at 90 kept"):**
+
+- (a) **Fonts self-hosted.** `index.html`: the Google Fonts `<link rel="stylesheet">` and both `preconnect`s removed. `src/index.css`: `@import
+'@fontsource-variable/inter'` + `'@fontsource-variable/literata'` (devDeps `@fontsource-variable/inter ^5.3.0`, `@fontsource-variable/literata
+^5.3.0`); `@theme` tokens → `'Inter Variable'` / `'Literata Variable'`. VERIFIED: both v5 variable packages ship `greek` + `greek-ext` (plus
+  latin, latin-ext, cyrillic, vietnamese) as separate woff2 files selected by `unicode-range` inside the single `index.css` (no per-subset CSS
+  file exists in v5, so one import per family is the complete import); Literata's Greek range is `U+0370-03FF`, so the Greek hero renders in
+  Literata (no serif swap needed). A page downloads only the subsets it uses: home fetched latin + greek for both families (Inter 48 + 19 kB,
+  Literata 52 + 19 kB). `vite.config.ts`: `woff2` and `webp` added to the workbox `globPatterns` (precache 24 → 42 entries, 1340 KiB) and
+  `brand/*.webp` to `includeAssets`; the two Google Fonts `runtimeCaching` rules removed (dead); `injectRegister: 'script-defer'` so the
+  injected `registerSW.js` no longer counts as ~300 ms render-blocking on every route. `grep googleapis|gstatic dist/` → 0 files.
+- (b) **Hero preload — deliberately NOT kept (deviation from the instruction, measured):** with the `<link rel="preload" as="image"
+type="image/webp" imagesrcset=… imagesizes=…>` in place, home's LCP was 3004 ms; with it stripped from the built HTML (dist-only edit, same
+  build), 3006 ms — identical, because the LCP phases are TTFB 452 / load delay 0 / load 56 / **render delay 2496 ms**: the image waits for
+  React to render the `<picture>`, not for its bytes. Meanwhile `index.html` is shared by every route, so the preload made `/auth` download a
+  42 kB image it never shows: auth 94 with the preload vs 97 without. Net negative → removed; an HTML comment in `index.html` records why so
+  it is not re-added. (The preload targeted the WebP set with `type="image/webp"` rather than the JPEG `href` the instruction spelled out,
+  because the `<picture>` would otherwise double-download on every modern browser.)
+- (c) **Hero variants.** New `scripts/brand.mjs` (`npm run brand`, sharp, quality 80) emits `public/brand/hero-plate-800.webp` (800×421, 42 kB)
+  and `hero-plate-1216.webp` (1216×640, 81 kB) from the committed JPEG master; `og-hygieia.jpg` untouched. `src/App.tsx` hero → `<picture>`
+  with a WebP `<source>` (800w/1216w, same `sizes`) over the JPEG `<img>` (608w/1216w fallback, `fetchPriority="high"`, width/height kept).
+  On the 412 css px @1.75 phone the browser now takes the 800w WebP (42 kB) instead of the 1216w JPEG (124 kB); `modern-image-formats` and
+  `prioritize-lcp-image` pass; `uses-responsive-images` still suggests 13 KiB (a ~670w candidate) — not worth a fourth file.
+- **Note for the lead:** `e2e/local/offline.spec.ts` does not exist in this worktree (only `smoke.spec.ts`), so there was no fonts console
+  filter to leave alone; whoever lands P5.4 should not add one (no third-party font request exists any more).
+
+**Gates (2026-10-06, final state, `D:/projects/hygieia-wt/g`):** `npm run build` green (main chunk 506.07 kB / 146.85 kB gzip; 14 woff2 subsets
+emitted, a page loads 4) · `npm run check:lighthouse` exit 0 three times in a row (AFTER table) · `npm run lint` 0 errors (6 pre-existing
+react-refresh warnings, none in this task's files) · `npm run typecheck` clean · `tsc -p e2e/support/tsconfig.json` clean (routes.ts strict) ·
+`npm test` 29 files / **1421 tests** green (47 new) · `check:pwa OK — Hygieia · Υγίεια, 3 icons, sw.js present` · `check:bundle: OK, no
+secret-looking value or server-only name in 10 files (887420 bytes) in dist` · `npm run e2e` 7 passed · prettier clean on every file this
+task touched (deploy.yml differs from prettier only by CRLF in this checkout). Lessons (→ BRAIN §5): never run two Lighthouse jobs on one
+machine — a concurrent run produced 93/79 and 87 and `NO_FCP`/`metrics` errors; pages-server's `root` must be a native absolute path (a
+forward-slash root 404s every asset on Windows; `startAuditServer` now `path.resolve`s it); Lighthouse feeds OBSERVED per-origin latency into
+its simulated FCP, so a third-party render-blocking resource makes the score depend on the machine's DNS/TLS luck.
+
+**Files this task touched:** `scripts/check-lighthouse.mjs` `scripts/check-lighthouse.test.ts` `scripts/brand.mjs` `e2e/support/routes.ts`
+`public/brand/hero-plate-800.webp` `public/brand/hero-plate-1216.webp` (new) · `package.json` `package-lock.json` `.github/workflows/deploy.yml`
+`.gitignore` `index.html` `src/index.css` `src/App.tsx` `vite.config.ts` `DECISIONS.md` `BUILD_LOG.md` (modified).
+
+**Not done / next:** nothing committed (the lead merges `wt/g`). BRAIN.md §3/§5/§7 are the lead's to update from this entry and DECISIONS.md.
+P3/P4 routes are added to `e2e/support/routes.ts` as they land (each new route must clear 90/90/90 mobile). Home's remaining gap to the high
+90s is the single 147 kB gzip chunk (`unused-javascript` est. 750 ms) — route-level code-splitting, a later task.
 
 ## 2026-10-05 — P6.2 Bundle secret scan `npm run check:bundle` — DONE (builder, worktree `wt/e`; not yet committed)
 

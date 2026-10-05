@@ -134,7 +134,7 @@ describe('RequireAdmin at /admin', () => {
     renderAt('/admin', fake.client, lang)
     expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent(t.notAllowedTitle)
     expect(screen.getByText(t.notAllowedBody)).toBeInTheDocument()
-    expect(screen.queryByText(t.adminPlaceholder)).not.toBeInTheDocument()
+    expect(screen.queryByText(t.adminIntro)).not.toBeInTheDocument()
     expect(screen.getByTestId('location')).toHaveTextContent('/admin')
   })
 
@@ -152,11 +152,11 @@ describe('RequireAdmin at /admin', () => {
     expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent(en.notAllowedTitle)
   })
 
-  it.each(LANGS)('renders the placeholder for an admin (%s)', async (lang, t) => {
+  it.each(LANGS)('renders the review workbench for an admin (%s)', async (lang, t) => {
     const fake = fakeClient({ session: fakeSession(UID), profiles: { rows: [adminRow] } })
     renderAt('/admin', fake.client, lang)
-    expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent(t.adminTitle)
-    expect(screen.getByText(t.adminPlaceholder)).toBeInTheDocument()
+    expect(await screen.findByText(t.adminIntro)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(t.adminTitle)
     expect(screen.queryByText(t.notAllowedTitle)).not.toBeInTheDocument()
   })
 
@@ -168,7 +168,7 @@ describe('RequireAdmin at /admin', () => {
     }))
     renderAt('/admin', fake.client, lang)
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(t.loading))
-    expect(screen.queryByText(t.adminPlaceholder)).not.toBeInTheDocument()
+    expect(screen.queryByText(t.adminIntro)).not.toBeInTheDocument()
     expect(screen.queryByText(t.notAllowedTitle)).not.toBeInTheDocument()
   })
 

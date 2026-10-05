@@ -15,6 +15,9 @@ playwright-report/
 test-results/
 blob-report/
 
+# --- Lighthouse (check:lighthouse) output; CI uploads it as an artifact ---
+lighthouse-report/
+
 # --- Editor / OS ---
 .vscode/*
 .idea

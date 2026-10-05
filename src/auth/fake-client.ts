@@ -1,9 +1,11 @@
-// TEST DOUBLES for the Supabase client, shared by the auth and user-data tests. No network, no
-// real client: a plain object with the few `auth` methods, the `profiles` table the auth modules
-// use, and the three per-user tables (P2.4) with every call RECORDED so tests can assert on
-// table names and payloads. Imported only from *.test.* files; never from app code.
+// TEST DOUBLES for the Supabase client, shared by the auth, user-data and admin tests. No network,
+// no real client: a plain object with the few `auth` methods, the `profiles` table the auth modules
+// use, the three per-user tables (P2.4) and the six content tables (P4.10) with every call
+// RECORDED so tests can assert on table names, filters and payloads. Imported only from *.test.*
+// files; never from app code.
 
 import type { AuthChangeEvent, Session } from '@supabase/supabase-js'
+import { CONTENT_TABLES } from '../content/enums.ts'
 import type { HygieiaClient } from '../lib/supabase'
 import type { ProfileInsert } from './profile'
 
@@ -20,10 +22,10 @@ export interface ProfilesTableOptions {
   insertError?: string
 }
 
-/** One query-builder chain against a per-user table, as the fake saw it. */
+/** One query-builder chain against a per-user or content table, as the fake saw it. */
 export interface RecordedCall {
   table: string
-  op: 'select' | 'insert' | 'upsert' | 'delete'
+  op: 'select' | 'insert' | 'upsert' | 'update' | 'delete'
   payload?: unknown
   /** Every `.eq(column, value)` in the chain, in order. */
   filters: Array<[string, string]>
@@ -38,6 +40,19 @@ export interface UserTablesOptions {
   reject?: unknown
 }
 
+export interface ContentTablesOptions {
+  /**
+   * Rows by content table. A `select` answers with the rows matching every recorded `.eq` filter
+   * (so `status = pending` narrows like the DB would); an `update` applies its payload to the rows
+   * matching the filters, so a reload sees the change. The arrays are mutated in place.
+   */
+  rows?: Partial<Record<string, Array<Record<string, unknown>>>>
+  /** Make every content query answer with this error (PostgREST shape). */
+  error?: { message: string; code?: string }
+  /** Make only `update` chains answer with this error (reads still work). */
+  updateError?: { message: string; code?: string }
+}
+
 export interface FakeClient {
   client: HygieiaClient
   /** Fire an `onAuthStateChange` event at every live subscriber. */
@@ -50,7 +65,7 @@ export interface FakeClient {
   signInWithOAuth: ReturnType<typeof vi.fn>
   from: ReturnType<typeof vi.fn>
   inserts: ProfileInsert[]
-  /** Every chain against a per-user table (never `profiles`), in call order. */
+  /** Every chain against a per-user or content table (never `profiles`), in call order. */
   calls: RecordedCall[]
 }
 
@@ -61,6 +76,7 @@ export function fakeClient(
     oauthError?: string
     profiles?: ProfilesTableOptions
     userTables?: UserTablesOptions
+    contentTables?: ContentTablesOptions
   } = {},
 ): FakeClient {
   const live = new Set<Listener>()
@@ -169,7 +185,54 @@ export function fakeClient(
     return builder
   }
 
-  const from = vi.fn((table: string) => (table === 'profiles' ? profilesTable() : userTable(table)))
+  // The content tables (P4.10): the same thenable builder plus `update`, with the recorded `.eq`
+  // filters APPLIED to the rows, so the fake narrows by status / id like the DB would.
+  const contentRows = opts.contentTables?.rows ?? {}
+  const contentTable = (table: string) => {
+    const call: RecordedCall = { table, op: 'select', filters: [] }
+    calls.push(call)
+    const matching = () =>
+      (contentRows[table] ?? []).filter((row) =>
+        call.filters.every(([column, value]) => String(row[column]) === value),
+      )
+    const settle = async (): Promise<{ data: unknown; error: unknown }> => {
+      if (opts.contentTables?.error) return { data: null, error: opts.contentTables.error }
+      if (call.op === 'update') {
+        if (opts.contentTables?.updateError)
+          return { data: null, error: opts.contentTables.updateError }
+        const payload = (call.payload ?? {}) as Record<string, unknown>
+        for (const row of matching()) Object.assign(row, payload)
+        return { data: null, error: null }
+      }
+      return { data: matching(), error: null }
+    }
+    const builder = {
+      select: () => builder,
+      order: () => builder,
+      eq: (column: string, value: string) => {
+        call.filters.push([column, value])
+        return builder
+      },
+      update: (values: unknown) => {
+        call.op = 'update'
+        call.payload = values
+        return builder
+      },
+      then: <A, B>(
+        onFulfilled?: (value: { data: unknown; error: unknown }) => A | PromiseLike<A>,
+        onRejected?: (reason: unknown) => B | PromiseLike<B>,
+      ) => settle().then(onFulfilled, onRejected),
+    }
+    return builder
+  }
+
+  const from = vi.fn((table: string) =>
+    table === 'profiles'
+      ? profilesTable()
+      : (CONTENT_TABLES as readonly string[]).includes(table)
+        ? contentTable(table)
+        : userTable(table),
+  )
 
   const client = {
     auth: { getSession, onAuthStateChange, signOut, signInWithOtp, signInWithOAuth },

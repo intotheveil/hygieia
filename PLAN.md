@@ -374,7 +374,7 @@ Summary in `BUILD_LOG.md`: gate counts, prove-red count, seed volumes, the §1 d
 ### OPERATOR-P1 (not crew tasks; after the P1 gate)
 
 - **OP1.a** Export `SUPABASE_ACCESS_TOKEN` and `HYGIEIA_SUPABASE_PROJECT_REF=jenbakghoiaiwceyrshz` in the shell; run `npm run db:apply`
-  (dry-run) → expect `DRY-RUN PASSED — 7 pending file(s)`; then `npm run db:apply -- --apply` → `APPLY PASSED — 7 file(s) committed`.
+  (dry-run) → expect `DRY-RUN PASSED — 10 pending file(s)` (4 schema + 6 generated seed files; lead-corrected from 7 on 2026-10-06); then `npm run db:apply -- --apply` → `APPLY PASSED — 10 file(s) committed`.
   Paste both verdict lines into `BUILD_LOG.md`.
 - **OP1.b** Supabase Dashboard → Project Settings → Data API → Exposed schemas: add `hygieia` (ADR-0003 rule 5; BRAIN §4 O1).
 - **OP1.c** Verify read: `curl -H "apikey: <anon>" -H "Accept-Profile: hygieia" "<VITE_SUPABASE_URL>/rest/v1/recipes?select=slug&limit=1"` → `200 []`
@@ -614,8 +614,8 @@ Every remaining module on the P3 pattern (pure domain module + page + tests + e2
 
 - **Files:** `D:/projects/hygieia/src/diets/DietsPage.tsx`, `D:/projects/hygieia/src/diets/DietPage.tsx`, `D:/projects/hygieia/src/diets/DietsPage.test.tsx`, `D:/projects/hygieia/src/routes/routes.tsx`,
   `D:/projects/hygieia/src/components/SiteHeader.tsx` (nav item), `D:/projects/hygieia/src/i18n/dictionary.ts` (`dietsTitle`, `whatItIs`, `allowed`, `avoided`, `pros`, `cons`, `whoShouldAvoid`, `recipesForDiet`, `source`).
-- **Approach:** list of 8 cards; detail with the five sections, the medical disclaimer, and the recipes tagged with the diet (reuse `RecipeCard`). Diet chips on recipes now link here.
-- **Acceptance:** `G3` green; tests: 8 cards; detail renders all sections in both languages; `avoid_if` list present; recipes list non-empty for every seeded diet.
+- **Approach:** list of 16 cards (the seed shipped 16 diets, operator: "as many as you can"); detail with the five sections, the medical disclaimer, and the recipes tagged with the diet (reuse `RecipeCard`). Diet chips on recipes now link here.
+- **Acceptance:** `G3` green; tests: 16 cards; detail renders all sections in both languages; `avoid_if` list present; recipes list non-empty for every seeded diet.
 - **Depends on:** P1.13, P3.1.
 
 ### P4.5 Weekly meal-plan generator — pure domain ∥ F

@@ -11,6 +11,7 @@
 // type error here (`minutes`, 2026-10-06); with the same type the LAST spread silently wins — so
 // shared copy (`loadFailed`, `retry`, `loading`…) has one owner (plans) and the others reuse it.
 
+import { adminEl, adminEn, type AdminDictionary } from './admin.ts'
 import { dietsEl, dietsEn, type DietsDictionary } from './diets.ts'
 import { fridgeEl, fridgeEn, type FridgeDictionary } from './fridge.ts'
 import { plansEl, plansEn, type PlansDictionary } from './plans.ts'
@@ -21,6 +22,7 @@ import { workoutsEl, workoutsEn, type WorkoutsDictionary } from './workouts.ts'
 // prettier-ignore
 export interface FeatureDictionary
   extends
+    AdminDictionary,
     DietsDictionary,
     FridgeDictionary,
     PlansDictionary,
@@ -29,6 +31,7 @@ export interface FeatureDictionary
     WorkoutsDictionary {}
 
 export const featuresEn: FeatureDictionary = {
+  ...adminEn,
   ...dietsEn,
   ...fridgeEn,
   ...plansEn,
@@ -38,6 +41,7 @@ export const featuresEn: FeatureDictionary = {
 }
 
 export const featuresEl: FeatureDictionary = {
+  ...adminEl,
   ...dietsEl,
   ...fridgeEl,
   ...plansEl,

@@ -265,3 +265,64 @@ effect`) and asserts A's rows unchanged — instead of adding new checks — bec
   through the filter instead of the page re-joining by slug.
 - **`FeatureDictionary extends RecipesDictionary {}` keeps a reasoned `no-empty-object-type` disable** until a second feature
   module is spread in: the interface form (one supertype per line) is what lets parallel lanes append under `merge=union`.
+## 2026-10-06 — P5.3 Lighthouse mobile gate: fonts self-hosted; gate at 90 kept
+
+- **Fonts self-hosted; Lighthouse gate at 90 kept.** The render-blocking Google Fonts stylesheet in
+  `index.html` cost the home page ~15 Lighthouse mobile performance points (79 baseline → 94 with the
+  fonts origins blocked, nothing else changed) and made the score bimodal (79 ↔ 93) with the cold
+  DNS/TLS latency to a third party. Inter and Literata now ship as `@fontsource-variable/*` (one woff2 per
+  script subset selected by `unicode-range`, Greek included, `font-display: swap`), imported at the top of
+  `src/index.css`, bundled by Vite and precached by the service worker — the installed app renders Greek
+  offline from the first visit, and no third party sits on the first-paint path. The thresholds stay
+  performance / accessibility / best-practices ≥ 90 mobile (CI: −5 on performance only, documented in
+  `scripts/check-lighthouse.mjs`); a lower bar was rejected in favour of fixing the cause.
+- **The Lighthouse audit server differs from the e2e server on purpose** (`scripts/check-lighthouse.mjs`
+  reuses `resolveRequest` from `e2e/support/pages-server.mjs`): text is gzipped like Pages does (the e2e
+  server serves identity, which inflated the simulated LCP by ~1.9 s), and the deep-link fallback
+  (`404.html`) is served with status 200 because Lighthouse refuses to audit an errored document. Bytes
+  identical; the 404 contract stays proven by `npm run e2e`. One fresh Chrome per route, so no route
+  inherits another's warm connections or storage.
+- **No `<link rel="preload">` for the hero.** Measured: it left home's LCP unchanged (render-bound: the
+  image waits for React, not for bytes) and made every other route download a 42 kB image it never shows
+  (−3 points on `/auth`). The hero is a `<picture>` (WebP 800w/1216w from `npm run brand`, JPEG fallback,
+  `fetchPriority="high"`); `registerSW.js` is injected with `defer` (`injectRegister: 'script-defer'`).
+## 2026-10-06 — P4.10/P4.11 admin: status-only review, column-exact writes, no insert/delete
+
+- **The admin never inserts or deletes content; approve = a status update stamped by the DB.** `AdminContentSource` has
+  `listPending / listAll / update / setStatus` and no other method; `setStatus` sends exactly `{ status }` and the BEFORE UPDATE
+  trigger writes `reviewed_at` / `reviewed_by`. Content is born by seed migration (PLAN.md §1.6) and only ever edited or
+  re-statused by a reviewer — the client holds no grant for anything else, and the UI offers nothing the grant forbids.
+- **Writes are column-exact and refused twice.** `update` sends only the keys given; `id`, `slug`, `created_at`, `updated_at`,
+  `reviewed_at`, `reviewed_by` are `never` in `AdminPatch<T>` AND rejected at runtime (`locked`, nothing sent), as is `status`
+  (that is `setStatus`'s path) and any column outside `EDITABLE_COLUMNS[table]`, which a test keeps literally equal to the
+  migration's `grant update (…)` lists. Reason: the grant is the real guard, but a refused request would surface as an opaque
+  PostgREST 42501 — refusing before the request keeps the UI honest and the contract visible in TypeScript.
+- **The review form's field set is derived from the grant, rendered by kind, and pairs share one line editor.** `x_el`/`x_en`
+  arrays are edited in one component whose add/remove act on both languages, so equal length is structural, not validated.
+- **The price table sends the whole five-column price group, the review form sends only the diff.** A price quote
+  (`min/max/per/as_of/note`) is one fact — saving it as a unit keeps `as_of` honest even when only `max` moved; a content edit is
+  a correction to specific columns and must not re-send the rest.
+- **Admin dictionary keys are prefixed where another lane owns the plain name** (`adminSaved`, `adminSaveFailed`; `plans.ts` has a
+  plan-specific `saveFailed`): feature modules are spread into one `Dictionary`, so a shared key would silently last-win.
+- **`src/admin/useSettled.ts` instead of a shared `src/lib/useAsync.ts`:** four lanes each add their own copy of that path
+  concurrently; the admin lane keeps its (smaller) hook local to avoid a fifth conflicting file. The lead may fold it into the
+  survivor after merge.
+
+## 2026-10-06 — Reconciliation: one `useAsync` with status/data/error/reload; `useAsyncResult` unwraps `Result`
+
+- **One `useAsync` with `status`/`data`/`error`/`reload`; `useAsyncResult` unwraps `Result`.** Four lanes wrote four hooks with the
+  same core idea (settled outcome as the only state, tagged by loader identity, loading derived). The canonical one is the superset so no
+  caller lost anything: the fridge lane's data+rejection, the diets lane's `reload`, the recipes lane's microtask start (a synchronous
+  throw is an `error`, never an unhandled promise). `Result`-returning reads go through `useAsyncResult` so pages stay one-liners and
+  `ok:false` is simply `status: 'error'` with the code as `error`.
+- **`deps` is keyed with the "store information from previous renders" pattern, not `useMemo(fn, deps)`.** The compiler-based
+  react-hooks rules reject a non-literal dependency array ("Expected the dependency list for useMemo to be an array literal"); a
+  comparison-guarded `setState` during render is the React-documented alternative and keeps the hook lint-clean without a disable.
+- **A dictionary key has ONE owning feature module.** Same key, different type = type error in the barrel (`minutes` → workouts
+  `minutesUnit`); same key, same type = the last spread wins silently (`loadFailed`/`retry` → plans owns them, recipes reuses). The
+  rule is written in `features/index.ts` so the next lane reads it before adding a key.
+- **`fill.ts` is the recipes lane's version** (`fill` + `PluralForms`/`pluralForm`/`plural`): the only variant other dictionaries
+  depend on by TYPE (`resultsCount`, `portions`, `minutes`, `units.*`); `fill` itself is the same contract in every lane.
+- **The bilingual sweep's allow-lists are the right place for `kcal`, `ml` and the two-script fridge hint** — the copy is deliberate
+  (units are Latin-script in Greek; the hint shows one example per script in both languages), so the test's own exception list grows,
+  the strings do not change.

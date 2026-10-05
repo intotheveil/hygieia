@@ -19,17 +19,19 @@
       content="Health tips, diets, recipes, calories, meal cost and workouts — in Greek and English."
     />
     <meta property="og:url" content="https://intotheveil.github.io/hygieia/" />
-    <meta property="og:image" content="https://intotheveil.github.io/hygieia/brand/og-hygieia.jpg" />
+    <meta
+      property="og:image"
+      content="https://intotheveil.github.io/hygieia/brand/og-hygieia.jpg"
+    />
     <meta property="og:image:width" content="1216" />
     <meta property="og:image:height" content="640" />
     <meta name="twitter:card" content="summary_large_image" />
     <title>Hygieia · Υγίεια</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Literata:opsz,wght@7..72,500;7..72,600;7..72,700&display=swap"
-      rel="stylesheet"
-    />
+    <!-- Fonts are self-hosted (src/index.css); no third-party stylesheet on the first-paint path. -->
+    <!-- No <link rel="preload"> for the home hero (PLAN P5.3, measured 2026-10-06): this document is
+         shared by every route, so a preload downloads a 42 kB image on pages that never show it
+         (-3 Lighthouse points on /auth) while home's LCP did not move (it waits for React to render
+         the <picture>, not for the bytes). Revisit only if the hero becomes server-rendered. -->
   </head>
   <body>
     <div id="root"></div>
