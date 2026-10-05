@@ -2,7 +2,7 @@
      CORE    (§0 §3 §4 §5 §6 §7 §9 §10) come from .zeus/kit/CLAUDE.core.md and are synced fleet-wide.
      PROJECT (§1 §2 §8 §11) come from this repo's .claude/CLAUDE.project.md and are yours.
      Edit a CORE section in the kit, not here, or the next sync will overwrite it.
-     Composed 2026-10-05T18:32:02.012Z for hygieia. -->
+     Composed 2026-10-05T20:18:56.551Z for hygieia. -->
 
 # PROJECT CONSTITUTION — hygieia
 
@@ -76,8 +76,10 @@ informed as the chat that got too big. Start new chats freely — nothing is los
   RLS on every per-user table.
 - Auth: shared Supabase Auth of the `alyssos` project — email magic link + Google (operator ruling
   2026-10-05). No trigger on `auth.users`.
-- Tests: Vitest + Testing Library (jsdom). e2e: not defined yet (first milestone after P0).
-  A feature without tests is not done.
+- Tests: Vitest + Testing Library (jsdom). e2e: Playwright (`npm run e2e`) against the PRODUCTION
+  build (`dist/`) served with GitHub Pages semantics at `/hygieia/` by `e2e/support/pages-server.mjs`
+  (a file, else `404.html` WITH status 404) — never `vite preview`; assert the rendered app, never
+  `response.ok()`, for deep links. A feature without tests is not done.
 - Package manager: **npm** — npm only, never introduce pnpm/yarn/bun lockfiles.
 - Hosting/deploy: **GitHub Pages** via `.github/workflows/deploy.yml` on push to `main`; project
   site at `/hygieia/` (Vite `base`), SPA fallback = `404.html` copy of `index.html`. **Installable
@@ -195,7 +197,7 @@ install:    npm install
 dev:        npm run dev
 build:      npm run build
 test:       npm test
-e2e:        not defined yet
+e2e:        npm run e2e        (builds dist/ first unless E2E_PREBUILT=1; chromium via npx playwright install chromium)
 migrate:    not defined yet — P1 adds db:gate + db:apply (ADR-0003); never supabase db push
 lint+types: npm run lint && npm run typecheck
 ```
