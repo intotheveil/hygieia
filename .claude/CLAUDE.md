@@ -2,7 +2,7 @@
      CORE    (§0 §3 §4 §5 §6 §7 §9 §10) come from .zeus/kit/CLAUDE.core.md and are synced fleet-wide.
      PROJECT (§1 §2 §8 §11) come from this repo's .claude/CLAUDE.project.md and are yours.
      Edit a CORE section in the kit, not here, or the next sync will overwrite it.
-     Composed 2026-10-05T20:18:56.551Z for hygieia. -->
+     Composed 2026-10-05T21:38:18.884Z for hygieia. -->
 
 # PROJECT CONSTITUTION — hygieia
 
@@ -198,7 +198,9 @@ dev:        npm run dev
 build:      npm run build
 test:       npm test
 e2e:        npm run e2e        (builds dist/ first unless E2E_PREBUILT=1; chromium via npx playwright install chromium)
-migrate:    not defined yet — P1 adds db:gate + db:apply (ADR-0003); never supabase db push
+migrate:    npm run db:check && npm run db:gate (rehearse) → npm run db:apply (dry-run) → npm run db:apply -- --apply (operator's go) — never supabase db push
+            (runbook: docs/ops/migrations.md; red-proof: npm run db:gate:prove-red; live read-only check: npm run db:live-check)
+seed:       npm run seed:gen → npm run seed:check
 lint+types: npm run lint && npm run typecheck
 ```
 <!-- KIT:PROJECT:END §8 -->
