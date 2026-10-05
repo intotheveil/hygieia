@@ -3,6 +3,48 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+## 2026-10-05 — P5.5 bilingual completeness sweep (dictionary + seed tests; pulled forward) — DONE (builder, worktree `wt/b`; not yet committed)
+
+**Scope:** the test-hardening half of P5.5 only (PLAN.md §0 bilingual rule, ADR-0002). UI copy review and the P5.2 a11y-matrix H1
+assertions stay with P5.2/P5.5-UI; no component, route or dictionary KEY was touched. Seed SQL is still the P1.12 stub, so a seed
+copy fix drifts no tracked artifact.
+
+**`src/test/bilingual.ts` (new, pure, never bundled):** `leaves(obj)` (every string leaf with its dotted path, arrays indexed, non-strings
+skipped), `hasGreek(s)` / `GREEK_SCRIPT` (`\p{Script=Greek}`), `looksUntranslated(el, en, allow)` (el repeats en, trimmed + case-insensitive,
+unless en is an allow-listed brand/loanword; two blanks do NOT count — blankness is its own rule), `containsPlaceholderMarkers(s)` /
+`PLACEHOLDER_MARKERS` (`TODO ??? xxx lorem placeholder FIXME`, case-insensitive). Own suite `src/test/bilingual.test.ts` (23 tests,
+incl. Cyrillic/Latin look-alikes, lone `?`/Greek `;` not flagged).
+
+**Rules added (every existing `it` kept verbatim; nothing loosened):**
+- `src/i18n/dictionary.test.ts` (+6): (a) no `el` leaf repeats its `en` twin except `SAME_VALUE_ALLOWLIST` (Hygieia, Atkins, Whole30, DASH,
+  calisthenics, keto, paleo); (b) no leaf carries a placeholder marker; (c) every `el` leaf ≥ 12 chars has Greek script unless key-allow-listed
+  (`switchTo`); (d) no `en` leaf has Greek script unless key-allow-listed (`switchTo` = Ελληνικά); allow-list hygiene (keys exist and still need
+  the exception); (e) `Object.keys` order identical in `en`/`el` at every nesting level (`keyOrder`). The local `leaves` was replaced by the shared one.
+- Seeds (f)/(g): `diets` (+4 per diet × 16): `*_en` Latin, `*_el` Greek (name allow-listed by slug via the existing `GREEK_NAME_ALLOWLIST`), no
+  el=en repeat except the allow-listed brand, no markers in any leaf. `tips` (+3): `title_en`/`body_en` Latin, no repeats, no markers. `exercises`
+  (+6): `name_en`/`cue_en`/`equipment_en` Latin; `equipment_el` Greek unless on the NEW `LATIN_EQUIPMENT_EL_ALLOWLIST` (`kettlebell-swing`,
+  `pull-buoy-freestyle` — loanwords the same rows already use in their Greek names/cues) with a stale-entry guard; repeats only where allow-listed
+  (name via the existing `LATIN_NAME_EL_ALLOWLIST`); no markers; `muscle_groups` no blanks. `workouts` (+3): `notes_en` Latin, no repeats, no
+  markers. `ingredients` (+4): `name_en` Latin, no repeats except the (empty) loanword list, no markers in any leaf, `substitute_slugs` no blanks.
+  `recipes` (+4 per recipe × 152): `title_en`/`steps_en` Latin, no repeats (title allow-listed by slug via the existing `LATIN_TITLE_EL_ALLOWLIST`,
+  steps never), line notes Greek in `note_el` / Latin in `note_en` / never identical, no markers in any leaf.
+
+**Copy fixes found by the sweep (the only two real defects in 764 seed rows + the dictionary):** `src/content/seed/recipes/group2.ts` —
+`keto-avocado-egg-feta-bowl` line `spinach` `note_el: 'baby'` → `'τρυφερά φύλλα'` (en `baby leaves`); `keto-pork-chops-mustard-cream-sauce`
+line `mustard` `note_el: 'Dijon'` → `'Ντιζόν'` (en `Dijon`). Everything else the sweep surfaced is a legitimate loanword/brand already
+allow-listed (`Whole30`, the exercise names list, the two equipment rows).
+
+**Red-proof:** reintroducing `note_el: 'Dijon'` and setting `el.loading = 'Loading… TODO'` → exactly 3 failures (`placeholder marker`,
+`el leaf ≥ 12 chars … no Greek script`, `note_el "Dijon"`), restored afterwards.
+
+**Gates (2026-10-05, `D:/projects/hygieia-wt/b`):** `npm run lint` 0 errors (6 react-refresh warnings, identical to the baseline) ·
+`npm run typecheck` clean · `npm test` **37 files / 2745 tests** green (baseline on the same tree before this task: 36 / 2028 → **+717 tests**:
+23 helper + 6 dictionary + 64 diets + 3 tips + 6 exercises + 3 workouts + 4 ingredients + 608 recipes) · `npm run build` green,
+`dist/404.html` byte-equal to `index.html` · `check:pwa OK — Hygieia · Υγίεια, 3 icons, sw.js present`.
+
+**Not done / next:** nothing committed (the lead merges `wt/b`). `BRAIN.md` §3/§6 not touched by this lane (lead's merge step). The
+H1-per-route language assertions of P5.5 remain with P5.2's a11y matrix; the UI copy review half of P5.5 waits for the pages.
+
 ## 2026-10-05 — P3.1 `filterRecipes` + P3.4 `fridge/storage.ts` (PURE halves, pulled forward) — DONE (builder, worktree `wt/b`; not yet committed)
 
 **Scope:** the React-free halves of P3.1 and P3.4 only — `src/recipes/filter.ts` + `filter.test.ts`, `src/fridge/storage.ts` +

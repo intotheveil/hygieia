@@ -1,3 +1,9 @@
+import {
+  containsPlaceholderMarkers,
+  hasGreek,
+  leaves,
+  looksUntranslated,
+} from '../../test/bilingual'
 import { SLUG_RE, TIP_TOPICS } from '../enums'
 import type { TipTopic } from '../enums'
 import { HEALTH_TIPS } from './tips'
@@ -136,6 +142,30 @@ describe('health tips seed (PLAN.md §2 health_tips, P4.9)', () => {
     for (const topic of TIP_TOPICS) {
       const sourced = HEALTH_TIPS.filter((t) => t.topic === topic && t.source_url !== null)
       expect(sourced.length, topic).toBeGreaterThanOrEqual(1)
+    }
+  })
+})
+
+describe('health tips seed — bilingual completeness sweep (PLAN.md P5.5)', () => {
+  it('title_en and body_en carry no Greek script', () => {
+    for (const tip of HEALTH_TIPS) {
+      expect(hasGreek(tip.title_en), `${tip.slug} title_en`).toBe(false)
+      expect(hasGreek(tip.body_en), `${tip.slug} body_en`).toBe(false)
+    }
+  })
+
+  it('the Greek column never repeats the English one (title, body)', () => {
+    for (const tip of HEALTH_TIPS) {
+      expect(looksUntranslated(tip.title_el, tip.title_en), `${tip.slug} title`).toBe(false)
+      expect(looksUntranslated(tip.body_el, tip.body_en), `${tip.slug} body`).toBe(false)
+    }
+  })
+
+  it('no leaf carries a placeholder marker', () => {
+    for (const tip of HEALTH_TIPS) {
+      for (const [path, value] of leaves(tip)) {
+        expect(containsPlaceholderMarkers(value), `${tip.slug} ${path} "${value}"`).toBe(false)
+      }
     }
   })
 })

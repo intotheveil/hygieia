@@ -1,3 +1,9 @@
+import {
+  containsPlaceholderMarkers,
+  hasGreek,
+  leaves,
+  looksUntranslated,
+} from '../../test/bilingual'
 import { SLUG_RE } from '../enums'
 import type { DietSeed } from '../types'
 import { ASK_DOCTOR_EL, ASK_DOCTOR_EN, DIETS } from './diets'
@@ -95,6 +101,51 @@ describe('DIETS seed (PLAN.md P1.10)', () => {
     it('has a Greek-script name_el unless allow-listed', () => {
       if (GREEK_NAME_ALLOWLIST.includes(diet.slug)) return
       expect(diet.name_el).toMatch(GREEK_SCRIPT)
+    })
+  })
+})
+
+describe('DIETS seed — bilingual completeness sweep (PLAN.md P5.5)', () => {
+  const asList = (v: string | string[]) => (Array.isArray(v) ? v : [v])
+  const PAIRS = [...STRING_PAIRS, ...ARRAY_PAIRS] as const
+
+  describe.each(DIETS.map((d) => [d.slug, d] as const))('%s', (_slug, diet) => {
+    it('writes every *_en leaf without Greek script', () => {
+      for (const key of PAIRS) {
+        asList(pair(diet, key).en).forEach((s, i) => {
+          expect(hasGreek(s), `${key}_en[${i}] "${s}" contains Greek script`).toBe(false)
+        })
+      }
+    })
+
+    it('writes every *_el leaf in Greek script (name_el allow-listed by slug for brand names)', () => {
+      for (const key of PAIRS) {
+        if (key === 'name' && GREEK_NAME_ALLOWLIST.includes(diet.slug)) continue
+        asList(pair(diet, key).el).forEach((s, i) => {
+          expect(hasGreek(s), `${key}_el[${i}] "${s}" has no Greek script`).toBe(true)
+        })
+      }
+    })
+
+    it('never repeats the English in the Greek column, except the allow-listed brand name', () => {
+      const nameAllow = GREEK_NAME_ALLOWLIST.includes(diet.slug) ? [diet.name_en] : []
+      for (const key of PAIRS) {
+        const el = asList(pair(diet, key).el)
+        const en = asList(pair(diet, key).en)
+        el.forEach((s, i) => {
+          const allow = key === 'name' ? nameAllow : []
+          expect(
+            looksUntranslated(s, en[i] ?? '', allow),
+            `${key}[${i}] el repeats en "${s}"`,
+          ).toBe(false)
+        })
+      }
+    })
+
+    it('carries no placeholder marker in any leaf', () => {
+      for (const [path, value] of leaves(diet)) {
+        expect(containsPlaceholderMarkers(value), `${path} "${value}"`).toBe(false)
+      }
     })
   })
 })
