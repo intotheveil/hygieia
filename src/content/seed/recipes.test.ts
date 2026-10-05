@@ -8,14 +8,14 @@ import { RECIPES } from './recipes'
 // --- Floors the lead raises after the three group files are merged -----------------------------
 
 /** PLAN.md §P1.11 asks ≥ 40; one group alone ships ≥ 30. Raise to 40 once every group has landed. */
-const MIN_RECIPES = 30
+const MIN_RECIPES = 120
 
 /**
  * When true, EVERY diet in DIETS must have ≥ 2 recipes for each of breakfast/lunch/dinner (the
  * P4.5 week-filler guarantee). False until the three groups are merged, because a single group
  * cannot cover sixteen diets on its own.
  */
-const REQUIRE_FULL_COVERAGE = false
+const REQUIRE_FULL_COVERAGE = true
 
 /** Per-diet-cell minimum used by the strict check above. */
 const FULL_COVERAGE_MIN_PER_MEAL = 2
