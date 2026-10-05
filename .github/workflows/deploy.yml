@@ -40,21 +40,33 @@ jobs:
           PROVE_RED_JOBS: '4'
         timeout-minutes: 10
       - run: npm run seed:check
-      # No Supabase env in CI: the build runs in local-only mode (src/lib/env.ts), so the
-      # artifact below carries no backend configuration and no secret.
-      - run: npm run build
+      # TWO BUILDS, ON PURPOSE (PLAN P6.4; DECISIONS.md 2026-10-06). The browser-driven gates below
+      # (e2e, Lighthouse) must never reach the live backend from a CI runner, so they test a
+      # LOCAL-ONLY build: the Supabase names are blanked explicitly (src/lib/env.ts then selects
+      # local-only mode, and nothing is sent anywhere). The artifact that Pages serves is built a
+      # second time at the end of the job, in CONFIGURED mode from the repository variables, and is
+      # itself bundle-scanned and PWA-checked before upload. Same source, same commit; the only
+      # difference between the two dist/ is the inlined env.
+      - name: Build, local-only mode (test build)
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ''
+          VITE_SUPABASE_ANON_KEY: ''
+          VITE_FLEET_URL: ''
+          VITE_FLEET_KEY: ''
+          VITE_FLEET_PRODUCT_ID: ''
       # Bundle secret scan (PLAN P6.2, CLAUDE.md §3 #1): every text file in dist/ is public. Fails on a
       # secret-looking value (sk-ant-, sbp_, a service_role JWT, a PEM private key, …), the literal
       # `service_role` or a server-only env NAME. The anon key is public by design and not a finding.
       - run: npm run check:bundle
       # Installability gate: manifest fields, every icon the manifest names, the service worker.
       - run: npm run check:pwa
-      # e2e (PLAN P3.6): Playwright against the dist/ just built and PWA-checked, served with GitHub
-      # Pages semantics at /hygieia/ (e2e/support/pages-server.mjs --base /hygieia: a file, else
-      # 404.html with status 404), so the SPA fallback is really exercised. E2E_PREBUILT=1 tests THIS
-      # artifact, the one uploaded below, with no second build. No backend and no secret: the build
-      # has no Supabase env (local-only mode). Only the headless shell is installed, cached per
-      # Playwright version; system deps come from apt.
+      # e2e (PLAN P3.6): Playwright against the local-only dist/ just built and PWA-checked, served
+      # with GitHub Pages semantics at /hygieia/ (e2e/support/pages-server.mjs --base /hygieia: a
+      # file, else 404.html with status 404), so the SPA fallback is really exercised. E2E_PREBUILT=1
+      # tests that dist/ as is, with no rebuild. No backend and no secret: the build has no Supabase
+      # env (local-only mode). Only the headless shell is installed, cached per Playwright version;
+      # system deps come from apt.
       - name: Playwright version (browser cache key)
         id: playwright
         run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
@@ -77,8 +89,9 @@ jobs:
           path: test-results/
           retention-days: 7
       # Lighthouse mobile gate (PLAN P5.3, §1 item 10): performance, accessibility and best-practices
-      # >= 90 on every route in e2e/support/routes.ts, against the same dist/ (no rebuild), served
-      # with Pages semantics and gzip like Pages. CI applies a documented −5 tolerance on PERFORMANCE
+      # >= 90 on every route in e2e/support/routes.ts, against the same local-only dist/ (no
+      # rebuild), served with Pages semantics and gzip like Pages. Local-only also keeps the
+      # performance score free of live-backend latency. CI applies a documented −5 tolerance on PERFORMANCE
       # only (scripts/check-lighthouse.mjs header: shared runners vary). Drives the headless shell
       # installed above. The HTML + JSON reports are uploaded always, so a near-miss can be read
       # without re-running the job.
@@ -93,6 +106,31 @@ jobs:
           path: lighthouse-report/
           if-no-files-found: ignore
           retention-days: 14
+      # THE PAGES ARTIFACT: the same source built again in CONFIGURED mode (PLAN P6.4). The five
+      # names come from repository VARIABLES (Settings → Secrets and variables → Actions → Variables;
+      # OPERATOR-P2 OP2.c sets the Supabase pair, OPERATOR-P6 OP6.a the fleet trio), NOT from
+      # secrets: every value is public by design (Vite inlines them into the public bundle; the anon
+      # key is RLS-bound, the fleet key is write-only), and a secret would only make the value
+      # invisible in these logs while it sits in plain text in dist/. Until the operator sets them,
+      # and on pull requests from forks (which see no variables), the expressions resolve to empty
+      # strings and the artifact is local-only — the correct behaviour, not a failure. Vite empties
+      # dist/ first, so no file of the test build survives into the artifact.
+      - name: Build, configured mode (Pages artifact)
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+          VITE_FLEET_URL: ${{ vars.VITE_FLEET_URL }}
+          VITE_FLEET_KEY: ${{ vars.VITE_FLEET_KEY }}
+          VITE_FLEET_PRODUCT_ID: ${{ vars.VITE_FLEET_PRODUCT_ID }}
+      # The scans again, on the artifact that actually ships: the anon key and the fleet key must NOT
+      # be findings (check-bundle-secrets.mjs flags secret-looking prefixes, a service_role JWT and
+      # server-only names; a publishable key is none of those), and a service-role key pasted into
+      # the wrong variable fails the job here, before anything is uploaded.
+      - name: Bundle secret scan of the Pages artifact (npm run check:bundle)
+        run: npm run check:bundle
+      - name: Installability check of the Pages artifact (npm run check:pwa)
+        run: npm run check:pwa
       - uses: actions/upload-pages-artifact@v3
         if: github.event_name != 'pull_request'
         with:

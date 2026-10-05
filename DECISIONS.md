@@ -341,3 +341,21 @@ effect`) and asserts A's rows unchanged — instead of adding new checks — bec
 - **A recipe with no priced line shows no range.** `€0.00–€0.00` would read as "free"; the `unpriced` list already explains the gap.
 - **`costRange` copy is "About {min}–{max}" / "Περίπου {min}–{max}"**, not a bare `{min}–{max}` template: the bilingual sweep rejects an
   `el` leaf identical to its `en` twin, and "about" is honest copy for a range anyway.
+## 2026-10-06 — P6.4: two CI builds (local-only for the browser gates, configured for the Pages artifact), variables not secrets
+
+- **CI builds twice from the same commit; the uploaded artifact is the second build.** e2e and Lighthouse drive a real browser
+  against `dist/`. Once the Pages build inlines the Supabase and fleet names (configured mode), a browser-driven gate against
+  that artifact would reach the live backend from every CI run — anon traffic against production tables, telemetry rows from CI
+  as if from users, live latency in the performance score. So the first `npm run build` blanks all five `VITE_*` names
+  explicitly (the e2e and Lighthouse builds already did so locally) and feeds `check:bundle` → `check:pwa` → e2e →
+  `check:lighthouse` unchanged (`E2E_PREBUILT=1`, no rebuild, no second dist dir); then a second `npm run build` with
+  `${{ vars.* }}` produces the artifact, which gets its own `check:bundle` + `check:pwa` before `upload-pages-artifact`.
+  Chosen over the "separate `dist-e2e/` + `E2E_DIST` env" variant because `check-lighthouse.mjs` also hard-codes `dist/` and
+  would have kept hitting the live backend; two builds in order need no change to `playwright.config.ts`, `pages-server.mjs`,
+  `.gitignore` or the Lighthouse script, and cost one extra `tsc -b && vite build` (~30 s incremental). The e2e'd bytes differ
+  from the shipped bytes only by the inlined env; `smoke:live` (P6.3) is the proof against the shipped artifact.
+- **Repository VARIABLES, not secrets, for the five browser names.** Every value is public by design (Vite writes it into the
+  bundle; the anon key is RLS-bound, the fleet key write-only). A secret would mask the value in the log while it sits in plain
+  text in `dist/`, and would hide the exact thing `check:bundle` exists to show. Unset variables resolve to `''` → local-only
+  mode, so the deploy is correct before OP2.c/OP6.a and on pull requests from forks; the operator's variables, not a code
+  change, flip the live site to configured mode.
