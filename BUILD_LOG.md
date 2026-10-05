@@ -3,6 +3,55 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+## 2026-10-05 — P3.1 `filterRecipes` + P3.4 `fridge/storage.ts` (PURE halves, pulled forward) — DONE (builder, worktree `wt/b`; not yet committed)
+
+**Scope:** the React-free halves of P3.1 and P3.4 only — `src/recipes/filter.ts` + `filter.test.ts`, `src/fridge/storage.ts` +
+`storage.test.ts`. No page, no dictionary keys, no routes (those remain the UI halves of P3.1/P3.4). `normalizeForSearch` is
+REUSED from `src/fridge/match.ts` (P3.3), not duplicated.
+
+**`src/recipes/filter.ts`:** `filterRecipes(recipes, { dietSlugs?, mealTypes?, query?, lang })` — any-of within each criterion,
+all-of across them; empty/undefined criterion = match all; title match on the CURRENT language only (not ingredients — predictable
+from what the card shows), accent- and case-insensitive via `normalizeForSearch` (`σαλατα` finds `Σαλάτα`, `GREEK` finds `greek`);
+preserves input order; never mutates. `sortRecipes(recipes, lang)` — new array, code-point compare on the normalized localized
+title, tie → slug (total order). URL state: `parseRecipeFilterParams(URLSearchParams, { knownDietSlugs? })` ↔
+`serializeRecipeFilterParams(params): URLSearchParams` over `?diet=a,b&meal=lunch&q=…`; parse accepts commas AND repeated keys,
+trims, dedupes, drops blanks, non-slug diet tokens (`/^[a-z0-9][a-z0-9-]*$/`), diets outside `knownDietSlugs` when supplied, and
+non-`MealType` meals; serialize omits empty criteria (clean filter → `''`). Also `recipeTitle(recipe, lang)`, `isEmptyRecipeFilter`,
+`RECIPE_FILTER_PARAM_KEYS`.
+
+**`src/fridge/storage.ts`:** `FRIDGE_STORAGE_KEY = 'hygieia.fridge'`, `FRIDGE_STATE_VERSION = 1`, `FridgeState = { slugs, ignoreStaples }`,
+`defaultFridgeState()` (fresh object; `{ slugs: [], ignoreStaples: true }`). Wire shape `{ v: 1, slugs, ignoreStaples }`.
+`parseFridgeState(raw: unknown)` never throws: accepts the JSON string or an already-parsed value; junk JSON / non-object / `v !== 1`
+→ default; otherwise each field validated independently (non-array slugs → `[]`, non-boolean `ignoreStaples` → `true`); slugs keep
+non-blank strings, trimmed, first-seen order, duplicates dropped. `serializeFridgeState` dedupes too. `loadFridgeState(Pick<Storage,'getItem'>)`
+→ default on throw; `saveFridgeState(Pick<Storage,'setItem'>, state)` → `false` on throw, `true` otherwise.
+
+**Tests (62 new; suite 33 → 35 files, 1990 tests):** `filter.test.ts` (31) — fixtures + the REAL 152-recipe seed: any-of/all-of
+semantics, Greek accent/case (`σαλατα`, `ΣΑΛΆΤΑ`, `φασολαδα` → `fasolada-white-bean-soup`), English case, language-exclusivity of
+the match, whitespace collapse, no mutation, keto subset check on the seed, union ≥ each + corpus order preserved, every real
+recipe found by its own full title in both languages; sort order EL/EN, slug tie-break, deterministic permutation on the seed;
+parse (commas + repeated keys, dedupe, trim, unknown meal/diet drop, `knownDietSlugs`, junk never throws), serialize (empty → `''`,
+dedupe), round-trip both directions incl. a Greek query and `a&b=c,d`. `storage.test.ts` (31) — constants, fresh default,
+round-trip, 13-case junk table (null/undefined/number/boolean/empty string/junk JSON/JSON array/string literal/number literal/
+array/no version/unknown version/string version → default), per-field validation, slug cleaning, extra keys, never-throws sweep
+(Symbol/function/bigint/Date/RegExp), load/save through an in-memory storage, other keys untouched, throwing `getItem` → default,
+throwing `setItem` → `false`, real jsdom `window.localStorage`; `normalizeForSearch` on the real titles (unaccented `φασολαδα`
+finds `Φασολάδα`, upper/final-sigma agree, every title found by its stripped form).
+
+**Gates (worktree, 2026-10-05):** `npm run lint` → `0 errors, 6 warnings` (all pre-existing `react-refresh/only-export-components`
+in `AuthProvider.tsx` / `LangProvider.tsx` / `routes.tsx`; none in the new files), exit 0 · `npm run typecheck` clean, exit 0 ·
+`npm test` → `Test Files 35 passed (35) · Tests 1990 passed (1990)`, exit 0 · `npm run build` green (`precache 24 entries`,
+`dist/sw.js`), exit 0 · `npm run check:pwa` → `check:pwa OK — Hygieia · Υγίεια, 3 icons, sw.js present`, exit 0. Prettier
+clean (`--write` reported all four files unchanged).
+
+**Decisions (non-obvious, also for DECISIONS.md if the lead keeps them):** title-only search (ingredient names deliberately NOT
+searched — PLAN §P3.1 wording + predictability); `parseFridgeState` is STRICT on version (`v !== 1` → default, no legacy
+unversioned branch — no shipped data exists yet, so leniency buys nothing and a future bump gets an explicit migration branch);
+`knownDietSlugs` is optional so the pure parser needs no catalogue and the page can tighten it once `contentSource` has loaded.
+
+**Not done / next:** nothing committed (the lead merges `wt/b`). UI halves — `RecipesPage.tsx`, `RecipeCard.tsx`, `FridgePage.tsx`,
+`IngredientPicker.tsx`, their page tests and the P3.1/P3.4 dictionary keys — are still open and consume these modules.
+
 ## 2026-10-05 — P6.1 Fleet telemetry behind `VITE_FLEET_*` (no-op without env) — DONE (builder, worktree `wt/e`; not yet committed)
 
 **Pulled forward** by the lead (independent of P5). Donor is **Enodia** (`D:/projects/enodia-transit/src/lib/telemetry/*` +
