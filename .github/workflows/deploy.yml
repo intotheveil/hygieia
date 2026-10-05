@@ -27,6 +27,8 @@ jobs:
       # No Supabase env in CI: the build runs in local-only mode (src/lib/env.ts), so the
       # artifact below carries no backend configuration and no secret.
       - run: npm run build
+      # Installability gate: manifest fields, every icon the manifest names, the service worker.
+      - run: npm run check:pwa
       - uses: actions/upload-pages-artifact@v3
         if: github.event_name != 'pull_request'
         with:

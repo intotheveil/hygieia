@@ -2,7 +2,7 @@
      CORE    (§0 §3 §4 §5 §6 §7 §9 §10) come from .zeus/kit/CLAUDE.core.md and are synced fleet-wide.
      PROJECT (§1 §2 §8 §11) come from this repo's .claude/CLAUDE.project.md and are yours.
      Edit a CORE section in the kit, not here, or the next sync will overwrite it.
-     Composed 2026-10-05T18:03:12.207Z for hygieia. -->
+     Composed 2026-10-05T18:32:02.012Z for hygieia. -->
 
 # PROJECT CONSTITUTION — hygieia
 
@@ -70,19 +70,24 @@ informed as the chat that got too big. Start new chats freely — nothing is los
 - Frontend: React 19 + Vite 8 + TypeScript (strict) + Tailwind 4; react-router-dom (declarative).
 - i18n: one typed `Dictionary` in `src/i18n/dictionary.ts`, Greek (`el`) and English (`en`) as
   peers; a missing translation is a type error (ADR-0002). Greek is the default language.
-- Backend/data: **Supabase client wired, NO project yet** (ADR-0001). With no env the app runs
-  local-only and makes no request. When created: EU region, RLS on every tenant table.
-- Auth: Supabase Auth (arrives with P2, deferred not skipped).
+- Backend/data: **Supabase, schema `hygieia` only**, in Alyssos's LIVE shared project `alyssos`
+  (ref `jenbakghoiaiwceyrshz`, eu-west-1) — ADR-0003. Nothing in `public`, `auth`, `storage` or
+  `supabase_migrations`. Client pinned to schema `hygieia`. With no env the app runs local-only.
+  RLS on every per-user table.
+- Auth: shared Supabase Auth of the `alyssos` project — email magic link + Google (operator ruling
+  2026-10-05). No trigger on `auth.users`.
 - Tests: Vitest + Testing Library (jsdom). e2e: not defined yet (first milestone after P0).
   A feature without tests is not done.
 - Package manager: **npm** — npm only, never introduce pnpm/yarn/bun lockfiles.
 - Hosting/deploy: **GitHub Pages** via `.github/workflows/deploy.yml` on push to `main`; project
-  site at `/hygieia/` (Vite `base`), SPA fallback = `404.html` copy of `index.html`.
-- Migrations: none yet — this repo owns no schema until ADR-0001 is superseded. Then: plain
-  timestamped SQL under `supabase/migrations/`, committed, forward-only.
+  site at `/hygieia/` (Vite `base`), SPA fallback = `404.html` copy of `index.html`. **Installable
+  PWA** (ADR-0004): `vite-plugin-pwa`, `npm run check:pwa` gates CI on the built manifest + SW.
+- Migrations: plain timestamped SQL `supabase/migrations/YYYYMMDDHHMMSS_hygieia_NAME.sql`, committed,
+  forward-only, tracked in `hygieia.schema_migrations`, rehearsed by `db:gate` (PGlite), applied ONLY
+  by the Management-API applier with the operator's go. **Never `supabase db push`** (ADR-0003 rule 1).
 
-**Deviations from the house stack:** ADR-0001 in DECISIONS.md — GitHub Pages instead of Netlify,
-and no Supabase project until a phase needs persistence.
+**Deviations from the house stack:** ADR-0001 (GitHub Pages instead of Netlify) and ADR-0003 (shared
+Supabase project, own schema, no `db push`) in DECISIONS.md.
 <!-- KIT:PROJECT:END §2 -->
 
 <!-- KIT:CORE:BEGIN §3 -->
@@ -191,7 +196,7 @@ dev:        npm run dev
 build:      npm run build
 test:       npm test
 e2e:        not defined yet
-migrate:    not applicable yet — no schema (ADR-0001)
+migrate:    not defined yet — P1 adds db:gate + db:apply (ADR-0003); never supabase db push
 lint+types: npm run lint && npm run typecheck
 ```
 <!-- KIT:PROJECT:END §8 -->
@@ -259,8 +264,10 @@ production errors — investigate a fingerprint once, record the close-out, neve
 - **Everything in `src/` is public.** Vite inlines `import.meta.env.*`; the lint allow-list permits
   only `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` and `VITE_FLEET_*`. An AI estimate (calories,
   cost) needs a server-side proxy, never a browser key.
-- **Vite `base` is `/hygieia/`.** Assets and the router basename derive from it; a root-served
-  custom domain would change it to `/` (see Themis ADR-0003 for the sequence).
+- **Vite `base` is `/hygieia/`.** Assets, the router basename and the PWA `start_url`/`scope` derive
+  from it; a root-served custom domain would change it to `/` (see Themis ADR-0003 for the sequence).
+- **This repo shares Alyssos's Supabase project.** Only schema `hygieia`; never `supabase db push`,
+  `link` or `reset`; applies go through the Management-API applier with the operator's go (ADR-0003).
 - **Health content is informational, not medical advice.** Keep the disclaimer on every page that
   gives guidance, in both languages, and cite sources for health tips.
 - **Secrets:** env var NAMES only in tracked files. `.env` is gitignored; never stage it.

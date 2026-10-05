@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Full-bleed app icon: cream paper, olive heart (health), sage leaf (food). Safe zone for
+       maskable icons is the central 80%, so the mark stays inside 52..460. -->
+  <rect width="512" height="512" fill="#f6f3ea"/>
+  <path d="M256 404c-74-50-132-92-132-166a74 74 0 0 1 132-42 74 74 0 0 1 132 42c0 74-58 116-132 166z"
+        fill="none" stroke="#4b6e3f" stroke-width="30" stroke-linejoin="round"/>
+  <path d="M256 148v-50" fill="none" stroke="#7fa36b" stroke-width="22" stroke-linecap="round"/>
+  <path d="M256 112c0-34 26-56 62-56 0 36-26 56-62 56z" fill="#7fa36b"/>
+</svg>

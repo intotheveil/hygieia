@@ -43,3 +43,56 @@ append it (zeus BRAIN §4 B5). Recorded so the absence is not mistaken for a ski
 The kit guard blocks Greek script in commits by default (it reads as raw client data). Hygieia ships
 Greek copy in `src/i18n/dictionary.ts` by design, so the marker disables that single rule. The other
 guard rules still run.
+
+## ADR-0003 — 2026-10-05 — shared Supabase project: Alyssos's `alyssos`, own schema `hygieia`
+
+**Decision.** Hygieia persists to **Alyssos's LIVE Supabase project `alyssos`** (ref
+`jenbakghoiaiwceyrshz`, eu-west-1), not a project of its own. Every Hygieia object lives ONLY in schema
+**`hygieia`**; nothing is created, altered or granted in `public`, `auth`, `storage`, `extensions` or
+`supabase_migrations`. Operator ruling 2026-10-05 ("if you can't create a new one, use Alyssos database
+as shared") after three attempts to create a dedicated project were cancelled by the permission UI.
+This **supersedes ADR-0001's "no Supabase" clause**; the GitHub Pages hosting part stands.
+
+**Rules that make sharing safe (the Themis ADR-0002 rulebook, applied here).**
+
+1. **No `supabase db push`, `supabase link`, `supabase db reset` or `supabase migration *`** against
+   this project. Alyssos owns `supabase_migrations.schema_migrations`; a Hygieia version recorded there
+   would break Alyssos's next push.
+2. **Tracking in `hygieia.schema_migrations`.** Migrations are plain timestamped files
+   `supabase/migrations/YYYYMMDDHHMMSS_hygieia_<name>.sql`, forward-only, checksummed.
+3. **Applied only by a Management-API applier** (`npm run db:apply`, to be lifted from Themis/Pluto),
+   reading `SUPABASE_ACCESS_TOKEN` and `HYGIEIA_SUPABASE_PROJECT_REF` from the shell env. Dry-run is the
+   default; `--apply` commits, and only with the operator's go.
+4. **Rehearsed first by `npm run db:gate`** (PGlite, throwaway, no credential), with a RED-proof.
+5. **The browser client is pinned to schema `hygieia`** (`db: { schema: 'hygieia' }`), so `.from('x')` can
+   never reach Alyssos's `public` tables by accident. `hygieia` must be added to the project's exposed
+   schemas (PostgREST `db-schemas`) before the client can read it — an operator dashboard setting.
+6. **Shared `auth.users`.** A Hygieia account IS an Alyssos auth user (2 exist today). Hygieia's
+   `hygieia.profiles` keys on `auth.users.id`; no trigger on `auth.users`. Email templates and OAuth
+   providers (Google) are project-wide and must be configured so both apps' redirect URLs are allowed.
+7. **Alyssos's data is never read or written by Hygieia**, and Alyssos's brain gets a §5 warning that
+   a second product lives in its project (owed: `alyssos` is not yet a brained fleet repo).
+
+**Why.** The operator's call. It avoids a 14th project's cost and setup for a product whose data is
+small (content tables + per-user saved plans). Alyssos is also EU-hosted (eu-west-1), so the house
+"EU project" rule holds.
+
+**Consequences.** (1) P1 starts with the applier + gate scaffolding before any table. (2) Exposing the
+`hygieia` schema and the Google OAuth app are operator dashboard steps. (3) **Noted during inspection:
+`public.spatial_ref_sys` has RLS disabled** — that is PostGIS's reference table in Alyssos's own
+schema, not Hygieia's concern, but it is flagged to the operator (Supabase advisory, 2026-10-05).
+
+## ADR-0004 — 2026-10-05 — installable PWA on GitHub Pages
+
+**Decision.** The site is an installable Progressive Web App: `vite-plugin-pwa` (Workbox) generates
+`manifest.webmanifest` and `sw.js` (`autoUpdate`), icons live in `public/icons/` (SVG source,
+PNGs via `npm run icons` / sharp), Google Fonts are runtime-cached, and `npm run check:pwa` gates CI
+on the BUILT artifact (manifest fields, every icon present, service worker, registration).
+
+**Why.** Operator request ("make the GitHub page an installable app"). A phone home-screen app suits
+"what's in my fridge" and workout sessions; Pages is static, so a service worker is the only way to
+get offline and install behaviour there.
+
+**Consequences.** `start_url`/`scope` are `/hygieia/` and must follow Vite `base` if the site ever moves
+to a root domain. The SW precaches the bundle: a deploy is picked up on the next visit (autoUpdate),
+never instantly. `navigateFallback` serves `index.html` offline for deep links.

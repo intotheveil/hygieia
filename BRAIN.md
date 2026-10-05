@@ -6,7 +6,7 @@
 > marked **❓ needs human input**.
 
 **Last updated:** 2026-10-05 by Claude Code (Fable 5.1, Windows desktop, run from zeus) — P0 scaffold.
-**Status:** in-development (P0 Foundation).
+**Status:** in-development (P0 Foundation done; P1 decisions taken 2026-10-05).
 **Repo:** `intotheveil/hygieia` (public) · `D:\projects\hygieia` · **Deployed:** https://intotheveil.github.io/hygieia/ (GitHub Pages, from `main` via CI)
 
 ---
@@ -43,10 +43,13 @@ intensities."_ Named for the goddess of health and preventive wellbeing (source 
   `404.html` at build (GitHub Pages has no rewrites).
 - **Env / backend:** `src/lib/env.ts` is the ONLY reader of `VITE_SUPABASE_URL` /
   `VITE_SUPABASE_ANON_KEY`; `resolveAppEnv` never throws → `configured | local`. `src/lib/supabase.ts`
-  `supabase` is **null** in local-only mode. **No Supabase project exists** (ADR-0001). The
+  `supabase` is **null** in local-only mode. **DB = Alyssos's shared Supabase project, own schema `hygieia`, shared auth — see DECISIONS.md ADR-0003** (supersedes ADR-0001's no-Supabase clause). Nothing provisioned yet. The
   eslint config blocks server-only names and non-allow-listed `VITE_*` reads in `src/**`.
 - **Env var NAMES** (`.env.example`): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`,
   `VITE_FLEET_URL`, `VITE_FLEET_KEY`, `VITE_FLEET_PRODUCT_ID` (telemetry, not wired yet).
+- **PWA (ADR-0004):** `vite-plugin-pwa` in `vite.config.ts` (manifest + Workbox SW, autoUpdate, fonts
+  runtime-cached); icons `public/icons/` (SVG source → `npm run icons` via sharp); `npm run check:pwa`
+  gates CI on the BUILT artifact.
 - **CI/deploy:** `.github/workflows/deploy.yml` — `verify` (npm ci → lint → typecheck → test →
   build → upload-pages-artifact, Node 24) then `deploy` (actions/deploy-pages, main only).
   Pages `build_type=workflow`.
@@ -71,24 +74,35 @@ intensities."_ Named for the goddess of health and preventive wellbeing (source 
 - **Brand imagery landed (F3 closed):** `public/brand/og-hygieia.jpg` (Greek-salad table, `og:image`,
   1216×640) and `hero-plate(-sm).jpg` (salmon plate, hero `<img>` with `srcSet`), rendered on the operator's
   ComfyUI with RealVisXL V5. A workout render was rejected (merged objects).
+- **Installable PWA landed (2026-10-05):** manifest + SW generated at build, `check:pwa` green, in CI.
+- **Operator decisions taken 2026-10-05 (interview; closes Q1, Q2):** content AI-drafted + human-reviewed
+  (nutrition from USDA FoodData Central); **accounts from the start**; curated EUR price table edited by
+  the operator; **all seven workout types** (home, gym, calisthenics, running, swimming, cycling,
+  mobility); auth = email magic link + Google; metric + EUR only; keep the P0 brand; **review flow =
+  operator approves in an admin page**. DB = Alyssos's shared project (ADR-0003) because a dedicated
+  project could not be created through the permission UI. Full table: zeus `specs/HYGIEIA_SPEC.md` §5a.
 - **In progress:** nothing. P0 is the handover point.
-- **Next, in order:** (1) operator reviews `zeus/specs/HYGIEIA_SPEC.md` and answers its open
-  questions; (2) `planner` turns it into PLAN.md on the §9 arc — P3 core slice is likely
+- **Next, in order:** (1) spec v0.2 is decided — planner may start; (2) `planner` turns it into PLAN.md on the §9 arc — P3 core slice is likely
   **Diets + Recipes with diet tags** (the data model everything else hangs off), with "What's in
-  my fridge" as the first interactive feature; (3) decide when persistence starts (supersedes
-  ADR-0001 → EU Supabase project).
+  my fridge" as the first interactive feature; (3) P1 begins with the applier + PGlite gate lifted from Themis, then
+  the ingredient catalogue and profiles (ADR-0003 rules); operator items O1/O2 below.
 
 ## 4. OUTSTANDING (bugs · feedback · requests · known issues — the triage queue)
 
 | id  | sev | type     | summary                                                                                                                                                                                      | status          | added      |
 | --- | --- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | ---------- |
-| Q1  | 🟠  | question | ❓ Content source for diets, recipes, calories and prices: curated by hand, licensed dataset, or AI-generated with human review? Price estimation needs a Greek grocery price basis — which? | open (operator) | 2026-10-05 |
-| Q2  | 🟠  | question | ❓ Accounts needed in v1 (saved plans, fridge lists) or anonymous/local-first? Decides when ADR-0001 is superseded                                                                           | open (operator) | 2026-10-05 |
+| Q1 | 🟠 | question | ~~Content source~~ **CLOSED 2026-10-05:** AI-drafted + operator-reviewed in an admin page; nutrition from USDA FoodData Central; curated EUR price table | closed | 2026-10-05 |
+| Q2 | 🟠 | question | ~~Accounts~~ **CLOSED 2026-10-05:** accounts from the start, email magic link + Google, on the shared project (ADR-0003) | closed | 2026-10-05 |
+| O1 | 🟠 | operator | Before P2: expose schema `hygieia` in the shared project's API settings and register the Google OAuth app with both apps' redirect URLs (ADR-0003 rules 5–6) | open (operator) | 2026-10-05 |
+| O2 | 🟡 | note | Supabase advisory seen while inspecting the shared project: Alyssos's PostGIS reference table has RLS disabled. Alyssos's call — flagged, not touched | open (operator) | 2026-10-05 |
 | F1  | 🔵  | feature  | e2e runner (Playwright against the production build, Themis pattern) — "not defined yet" in §8; first milestone after P0                                                                     | open            | 2026-10-05 |
 | F2  | 🔵  | feature  | Fleet telemetry (`VITE_FLEET_*`) — names reserved, client not wired                                                                                                                          | open            | 2026-10-05 |
 
 ## 5. GOTCHAS (hard-won "don't do X, it breaks Y" — the knowledge that dies in old chats)
 
+- **`spaFallback` and `vite-plugin-pwa` both write into `dist/` at `writeBundle`.** Keep the plugin order
+  react → tailwind → spaFallback → VitePWA and check `dist/404.html` still equals `index.html` after a
+  build (the copy must carry the manifest link and SW registration).
 - **A string added to `en` and not `el` (or vice versa) is a TYPE error** — on purpose (ADR-0002).
   Do not "fix" it by widening the type; add the translation.
 - **Greek loanwords stay Latin:** keto, paleo, Atkins, calisthenics are written as-is in `el`.
@@ -104,6 +118,14 @@ intensities."_ Named for the goddess of health and preventive wellbeing (source 
   house stack (oxlint, no `strict`) — this repo's configs come from Themis instead.
 
 ## 6. CHANGELOG (append-only — what happened, newest first)
+
+### 2026-10-05 (later) — decisions interview, shared-DB ruling, installable PWA
+- Did: operator interview (8 decisions, §3 / spec §5a); ADR-0003 shared project, schema `hygieia`;
+  ADR-0004 installable PWA (`vite-plugin-pwa`, icons via sharp, `check:pwa` CI gate); constitution
+  §2/§8/§11 updated and recomposed; `.env.example` annotated.
+- Decided: see ADR-0003/0004 and §7.
+- Resolved: Q1, Q2. Opened O1, O2 (operator).
+- Left off: planner can start from spec v0.2; P1 = applier + gate + schema tracking + catalogue.
 
 ### 2026-10-05 — NEW PRODUCT: Hygieia created greenfield (Zeus, Fable 5.1)
 
@@ -122,6 +144,11 @@ intensities."_ Named for the goddess of health and preventive wellbeing (source 
   nothing; create an EU project when a phase needs it. (`DECISIONS.md`)
 - **2026-10-05 ADR-0002:** bilingual by type (one `Dictionary`, two literals), no i18n library in
   P0 — a missing translation must be a compile error. (`DECISIONS.md`)
+- **2026-10-05 ADR-0003:** DB = Alyssos's shared Supabase project, own schema `hygieia`, the Themis
+  rulebook (no `db push`, own schema_migrations, Management-API applier, PGlite gate). Operator ruling.
+- **2026-10-05 ADR-0004:** installable PWA on Pages; `check:pwa` gates the built artifact.
+- **2026-10-05 (interview):** AI-drafted + admin-reviewed content; accounts from day one (magic link +
+  Google); curated EUR price table; 7 workout types; metric/EUR; keep P0 brand.
 - **2026-10-05:** Greek is the default language (`lang="el"`), English for everyone else; a
   stored choice wins — the operator and first users are Greek-speaking.
 
