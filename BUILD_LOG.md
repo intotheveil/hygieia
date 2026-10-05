@@ -3,6 +3,84 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+## 2026-10-05 — P4.8 (data + domain half) workout templates seed + session resolver — DONE (builder, worktree `wt/d`; not yet committed)
+
+The DATA + DOMAIN half of P4.8: the 63 templates and the resolver with their tests. The `/workouts`
+page, `gen-seed-sql.mjs` kinds, migration `…000900_hygieia_seed_workouts.sql`, `catalogue.mjs`
+counts, dictionary keys and `e2e/local/workouts.spec.ts` are NOT in this entry — they belong to the
+UI lane that follows.
+
+- `src/content/seed/workouts.ts` — `export const WORKOUT_TEMPLATES: readonly WorkoutTemplateSeed[]`,
+  **exactly 63 rows**, one per `WORKOUT_TYPES × LEVELS × INTENSITIES`, ordered as the enums list
+  them; `slug = <type>-<level>-<intensity>`. **579 block items** in total, every `exercise_slug`
+  from the P4.7 library (131 of the 136 exercises appear; unused: `threshold-run-2x15min`,
+  `long-run-easy`, `over-under-intervals`, `threshold-ride-2x20min`, `long-endurance-ride` — the
+  long/threshold efforts that do not fit beside intervals in one session), always of the template's own type and at
+  or below its level; no exercise repeats inside a template. Authored from a per-(type, level)
+  design table (`DESIGN`) of warm-up / main / cool-down `ItemSpec`s whose numbers are either fixed
+  or `[low, moderate, high]` tuples: strength (`home`/`gym`/`calisthenics`) = sets 2/3/4, lifts 8/10/12
+  reps, bodyweight 10/12/15, skills (pull-ups, dips, pistols) 5/6/8, holds 30/40/50 s, rest 90/60/45 s;
+  endurance (`running`/`swimming`/`cycling`) = more and longer efforts with shorter recoveries
+  (all `seconds`-based); mobility = 1/1/2 rounds × 30/40/50 s. Warm-ups are `seconds`-based
+  (gym/calisthenics add one light `activate` reps set), stretches are 2 sides × 30 s at every
+  intensity. `duration_min` is ESTIMATED from the blocks (sets × (seconds | reps × 3 s) + rest, plus
+  30 s transition per movement) rounded up to 5 min: home 25→55, gym 30→55, calisthenics 20→45,
+  running 35→65, swimming 20→65, cycling 40→80, mobility 10→30 — monotone with intensity in every
+  (type, level). Titles `"Home · Intermediate · High intensity"` / `"Σπίτι · Μεσαίο · Υψηλή ένταση"`
+  (`Calisthenics` stays Latin in `el` per PLAN §0; the rest of the title is Greek). Notes = 3
+  sentences composed per template: WHO (21 type×level pairs, EN+EL), SCALE (3 families × 3
+  intensities) and the common STOP line (sharp pain / dizziness / chest discomfort → stop; see a
+  doctor first if you have a condition). Erasable syntax; imports verified under plain
+  `node --input-type=module` (type stripping).
+- `src/content/seed/workouts.test.ts` (**14 tests**): exactly 63 · unique slugs = `<type>-<level>-<intensity>`
+  and `SLUG_RE` · every combination exactly once · enum values only · every slug resolves in `EXERCISES` ·
+  exercise type = template type · exercise level ≤ template level · no repeat within a template · ≥ 1
+  warm-up / ≥ 3 main / ≥ 1 cool-down with block index never decreasing along the array · sets ≥ 1,
+  rest ≥ 0, reps XOR seconds (both ≥ 1 when set) · `duration_min` ∈ [10, 90] and non-decreasing
+  low → moderate → high per (type, level) · strength main-block set totals strictly increase with
+  intensity · locale pairs non-blank, Greek script in `title_el`/`notes_el`, none in `title_en` ·
+  notes ≥ 2 sentences ending in the stop line in both languages.
+- `src/workouts/session.ts` — pure domain. `templateFor(templates, type, level, intensity)` → the
+  matching template or `null`; `resolveSession(templates, exercises, type, level, intensity)` →
+  `{ template, blocks: { block, items: { exercise, sets, reps, seconds, rest_seconds }[] }[] } | null`.
+  Always emits all three blocks in `BLOCKS` order (warm-up → main → cool-down), items grouped by block
+  in template array order (= `position`). Returns `null` when the template is missing OR any slug is
+  unknown — a session renders whole or not at all, never with a hole. No mutation of inputs.
+- `src/workouts/session.test.ts` (**9 tests**): fixture template with deliberately interleaved blocks
+  → grouped correctly, items carry the resolved exercise OBJECTS (identity) and verbatim numbers ·
+  unknown combination / empty catalogue → `null` · one missing slug → `null`, not a partial · inputs
+  not mutated · `templateFor` finds all 63 seeded slugs · `resolveSession` resolves all 63 against
+  `EXERCISES` with item count = template block count and every exercise of the selected type.
+
+**Deviations from the brief (library-bound, recorded for the reviewer):** the brief asked for 2–3
+warm-up and 2–3 cool-down items per template; eight (type, level) cells have fewer because the P4.7
+library has no more suitable same-type, level-eligible movements: `cycling/beginner` has 1 warm-up
+(`easy-spin`), and `home/beginner`, `gym/beginner`, `gym/intermediate`, `calisthenics/beginner`,
+`running/beginner`, `swimming/beginner`, `mobility/beginner` have 1 cool-down item (gym has no
+stretch below `advanced`; home/beginner's only stretch is `standing-quad-stretch`). Tests assert the
+PLAN's floor (≥ 1 / ≥ 3 / ≥ 1). `mobility/beginner` has 4 main items (brief said 5–8; the cell has 7
+exercises in total); `cycling/advanced` has 3 main efforts (brief said 3–5). `cycling/intermediate/high` (80 min) runs longer than `cycling/advanced/high`
+(75): monotonicity is only required within a (type, level), and the intermediate tempo + climb set is
+long by design.
+
+**Environment note:** the worktree's `node_modules` predated the merge that brought the P1
+`scripts/db-*.test.ts` suites, so `@electric-sql/pglite` (already in `package.json` + lockfile) was
+missing: typecheck showed 13 errors and 3 test files failed to import, none in `src/`. Fixed with
+`npm install` (added 4 packages; `package-lock.json` unchanged, no tracked file touched). Writing this entry triggered the worktree's format-on-write hook, which also
+normalised whitespace in older entries (P2 lane: de-indented continuation lines, one `+` list marker → `-`,
+blank lines after headings); content unchanged, and `prettier --check BUILD_LOG.md` now passes.
+
+**Gates (G0, in `wt/d`):** `npm run lint` 0 errors (6 pre-existing react-refresh warnings, none in
+`src/content` or `src/workouts`) · `npm run typecheck` clean · `npm test` **26 files / 578 tests
+green** (555 → 578) · `npm run build` green (PWA precache 24 entries) · `check:pwa OK — Hygieia ·
+Υγίεια, 3 icons, sw.js present` · Prettier clean on the four new files. G3/`seed:check`/`db:gate`
+are the UI lane's gates once the seed migration exists.
+
+**Next (UI lane of P4.8):** `WorkoutsPage.tsx` three selectors → `resolveSession(...)` card with the
+disclaimer; `gen-seed-sql.mjs` kinds `exercises` + `workout_templates` (`position` = block array
+index); migrations `…000800` / `…000900`; `catalogue.mjs` `workout_templates = 63`; dictionary keys;
+`e2e/local/workouts.spec.ts`.
+
 ## 2026-10-05 — P3.6 Playwright e2e harness on the PRODUCTION build, Pages semantics — DONE (builder, worktree `wt/f`; not yet committed)
 
 **Pulled forward** by the lead (P3.5's header/nav does not exist yet), so the smoke spec asserts the
@@ -102,6 +180,7 @@ sw.js present` · Prettier clean on both files.
 `topics.*`, `sourcePending`, `readSource`), `gen-seed-sql.mjs` kind `health_tips` +
 `20261006001000_hygieia_seed_tips.sql`, `catalogue.mjs`, `db:gate` `health_tips ≥ 30`,
 `e2e/local/tips.spec.ts`. An admin reviewing the 17 `needs_source` rows can attach a URL in P4.10.
+
 ## 2026-10-05 — P4.5 Weekly meal-plan generator (pure domain) — DONE (builder, worktree `wt/b`; not yet committed)
 
 **Pulled forward from P4** by the lead: the generator depends only on the P1.4 types, P4.1's
@@ -158,6 +237,7 @@ in `scripts/db-apply.test.ts`, untouched since P1.1); `npm ci` fixed it — no l
 recipe at lunch AND dinner on one day) is deliberately not enforced — the contract is per meal;
 revisit in P4.6 if the UI wants it. The recipes seed (P1.11) must give every diet ≥ 1 recipe per
 breakfast/lunch/dinner for the "every slot filled" acceptance to hold on real content.
+
 ## 2026-10-05 — P1.5 + P1.6 + P1.7 + P1.8 — profiles/admin primitives, content tables, per-user tables, gate catalogue (builder, worktree `wt/a`; not yet committed)
 
 **Done (P1.5 — `supabase/migrations/20261006000200_hygieia_profiles.sql`):** `hygieia.profiles`
@@ -254,6 +334,7 @@ counts (the `fx-*` rows are added AFTER the archive, so seed counts are archive-
 
 **Next:** P1.9–P1.11 seeds, P1.12 generator (catalogue reference counts), P1.14 prove-red (the three
 sabotages above are ready-made entries).
+
 ## 2026-10-05 — P4.7 Seed content: exercises — DONE (builder, worktree `wt/d`; not yet committed)
 
 **Pulled forward from P4** by the lead: depends only on the P1.4 types. Delivers the bilingual
@@ -450,8 +531,8 @@ free — this lane never touched that file.
 ### P2.4 `UserDataSource`: fridge lists, saved plans, favourites — DONE (builder, `wt/e`; not yet committed)
 
 - `src/user/source.ts` — the contract: `UserDataSource { kind: 'supabase' | 'disabled'; reason?;
-  userId?; fridgeLists { list, save, remove }; favourites { list, add, remove }; savedPlans { list, save,
-  remove } }`, `Result<T> = { ok: true; data } | { ok: false; error: 'disabled' | 'network' | 'unknown' }`
+userId?; fridgeLists { list, save, remove }; favourites { list, add, remove }; savedPlans { list, save,
+remove } }`, `Result<T> = { ok: true; data } | { ok: false; error: 'disabled' | 'network' | 'unknown' }`
   (nothing throws), row types (`FridgeList`, `SavedPlan`, `Favourite`) and WRITE payload types
   (`FridgeListInput { id?, name, ingredient_slugs }`, `SavedPlanInput { diet_id, week_start, plan }`,
   `FavouriteInput { recipe_id }`) — none has a `user_id` member, so sending it is a type error.
@@ -479,9 +560,9 @@ free — this lane never touched that file.
 - `src/auth/fake-client.ts` — EXTENDED (not a second fake): `from(table)` keeps the `profiles` behaviour
   and gives every other table a thenable builder (`select/order/single/maybeSingle/eq/insert/upsert/delete`)
   that RECORDS `{ table, op, payload, filters }` into `fake.calls`; options `userTables: { rows, error,
-  reject }`. A written row comes back WITH `user_id` (simulating the DB default).
+reject }`. A written row comes back WITH `user_id` (simulating the DB default).
 - Dictionary: 5 keys under `// user data (P2.4)`: `userDataUnavailableLocal, userDataSignInToSave, saved,
-  save, remove` (both languages; parity test green).
+save, remove` (both languages; parity test green).
 - Tests `src/user/source.test.ts` (14): disabled impl for both reasons (7 writes refused, 3 lists empty);
   supabase impl targets exactly `{fridge_lists, saved_plans, favourites}` and never `profiles`; sweep over
   10+ recorded calls: no `user_id` in any payload, no `user_id` filter, uid absent from the serialised calls,
@@ -511,12 +592,12 @@ free — this lane never touched that file.
   (no synchronous setState in the effect). A disabled source renders `SignedOutNote`. A failed list shows as
   empty — P4.6 owns the error state and editing (no key was added for it).
 - `src/admin/AdminPage.tsx` — placeholder: `adminTitle` + `adminPlaceholder` ("review tools arrive in P4")
-  + home link. P4.10 replaces the file.
+  - home link. P4.10 replaces the file.
 - `src/App.tsx` — header right side is now `<div class="flex items-center gap-2"><AccountMenu/><LangSwitch/></div>`;
   nothing else changed. `src/routes/routes.tsx` — `/account` → `<RequireAuth><AccountPage/></RequireAuth>`,
   `/admin` → `<RequireAdmin><AdminPage/></RequireAdmin>`, appended before `*`.
 - Dictionary: 10 keys under `// guards (P2.5)`: `account, notAllowedTitle, notAllowedBody, adminTitle,
-  adminPlaceholder, savedPlans, savedFridgeLists, favourites, nothingSavedYet, loading`. `adminTitle` is ONE
+adminPlaceholder, savedPlans, savedFridgeLists, favourites, nothingSavedYet, loading`. `adminTitle` is ONE
   key beyond the lead's list — the admin page needed an `h1` and the bilingual rule forbids a literal.
 - Tests `src/auth/guards.test.tsx` (29, through the real `AppRoutes` + a `LocationProbe`): anonymous at
   `/account` → location `/auth?next=%2Faccount` and the sign-in page renders; query string preserved
@@ -556,7 +637,7 @@ here is proven against the fake only.
   1. `ledger` — `compareLedger(local, applied)` (pure, reused helpers `loadMigrations`/`readApplied`/`LEDGER`):
      ledger table absent → `ledger absent — nothing applied yet (hygieia.schema_migrations does not exist …)`;
      then per archive file `MISSING:` / `CHECKSUM MISMATCH: <file> was applied with sha256 A but the file now hashes
-     to B`; then `EXTRA: live ledger holds version X (name) which has no file in this archive`. First problem is
+to B`; then `EXTRA: live ledger holds version X (name) which has no file in this archive`. First problem is
      THE mismatch; the rest are listed indented under it.
   2. `GET /rest/v1/recipes?select=id&status=eq.pending` and 3. `GET /rest/v1/profiles?select=user_id`, headers
      `apikey` + `Authorization: Bearer <anon>` + `Accept-Profile: hygieia` → must be HTTP 200 and `[]`. Rows →
@@ -662,6 +743,7 @@ sw.js present` · Prettier check clean on `src/content/seed/`.
 
 **Next:** P1.10 diets (∥ B), P1.11 recipes use these slugs; P1.12 generates
 `20261006000500_hygieia_seed_ingredients.sql` from this module (gate asserts ≥ 160 → will see 322).
+
 ### P1.10 Seed content: diets (16, EL+EN) — DONE (builder, worktree `wt/c`; not yet committed)
 
 **Landed:** `src/content/seed/diets.ts` exporting `DIETS: readonly DietSeed[]` (plus the shared
