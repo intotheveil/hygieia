@@ -21,6 +21,7 @@ export interface Dictionary {
   tagline: string
   heroTitle: string
   heroLead: string
+  heroImageAlt: string
   statusTitle: string
   statusBody: string
   roadmap: string
@@ -38,6 +39,8 @@ export const en: Dictionary = {
   heroTitle: 'Health, food and movement — explained simply.',
   heroLead:
     'Hygieia brings together health tips, every major diet, recipes tagged by diet, what you can cook from what is already in your fridge, what a meal costs and contains, and workouts for home, gym or calisthenics at three levels.',
+  heroImageAlt:
+    'A plate of grilled salmon with roasted vegetables and quinoa salad on a linen tablecloth.',
   statusTitle: 'Early build',
   statusBody:
     'This is the foundation of the product. The modules below describe what is coming; none of them holds content yet.',
@@ -85,6 +88,8 @@ export const el: Dictionary = {
   heroTitle: 'Υγεία, διατροφή και άσκηση — απλά και κατανοητά.',
   heroLead:
     'Η Υγίεια συγκεντρώνει συμβουλές υγείας, κάθε γνωστή δίαιτα, συνταγές ανά δίαιτα, τι μπορείς να μαγειρέψεις με ό,τι έχεις ήδη στο ψυγείο, πόσο κοστίζει και τι περιέχει ένα γεύμα, και προπονήσεις για σπίτι, γυμναστήριο ή calisthenics σε τρία επίπεδα.',
+  heroImageAlt:
+    'Πιάτο με ψητό σολομό, ψητά λαχανικά και σαλάτα κινόα πάνω σε λινό τραπεζομάντιλο.',
   statusTitle: 'Πρώιμη έκδοση',
   statusBody:
     'Αυτή είναι η βάση του προϊόντος. Οι ενότητες παρακάτω περιγράφουν τι έρχεται· καμία δεν έχει ακόμη περιεχόμενο.',

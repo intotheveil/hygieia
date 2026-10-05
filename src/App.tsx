@@ -68,15 +68,26 @@ export default function App() {
             </h1>
             <p className="max-w-2xl text-lg leading-relaxed text-olive-700">{t.heroLead}</p>
           </div>
-          <aside
-            aria-labelledby="status-title"
-            className="rounded-2xl border border-clay-500/30 bg-clay-500/10 p-5 text-sm leading-relaxed text-olive-900"
-          >
-            <h2 id="status-title" className="mb-1 font-semibold">
-              {t.statusTitle}
-            </h2>
-            <p>{t.statusBody}</p>
-          </aside>
+          <div className="flex flex-col gap-4">
+            <img
+              src={`${import.meta.env.BASE_URL}brand/hero-plate.jpg`}
+              srcSet={`${import.meta.env.BASE_URL}brand/hero-plate-sm.jpg 608w, ${import.meta.env.BASE_URL}brand/hero-plate.jpg 1216w`}
+              sizes="(min-width: 1024px) 40vw, 100vw"
+              width={1216}
+              height={640}
+              alt={t.heroImageAlt}
+              className="aspect-[1216/640] w-full rounded-2xl object-cover shadow-md ring-1 ring-olive-900/10"
+            />
+            <aside
+              aria-labelledby="status-title"
+              className="rounded-2xl border border-clay-500/30 bg-clay-500/10 p-5 text-sm leading-relaxed text-olive-900"
+            >
+              <h2 id="status-title" className="mb-1 font-semibold">
+                {t.statusTitle}
+              </h2>
+              <p>{t.statusBody}</p>
+            </aside>
+          </div>
         </section>
 
         <section aria-label="modules">
