@@ -87,6 +87,7 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
-    exclude: ['node_modules/**', 'dist/**', '.claude/worktrees/**'],
+    // e2e/** holds Playwright specs (npm run e2e), which Vitest must not collect.
+    exclude: ['e2e/**', 'node_modules/**', 'dist/**', '.claude/worktrees/**'],
   },
 })

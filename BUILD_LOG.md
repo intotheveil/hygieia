@@ -3,6 +3,58 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+## 2026-10-05 — P3.6 Playwright e2e harness on the PRODUCTION build, Pages semantics — DONE (builder, worktree `wt/f`; not yet committed)
+
+**Pulled forward** by the lead (P3.5's header/nav does not exist yet), so the smoke spec asserts the
+CURRENT shell: Greek hero on `/hygieia/`, the language toggle, the in-app not-found on a deep link,
+`/hygieia/auth`'s sign-in-unavailable state, the PWA manifest/`registerSW.js` links. Every string is
+asserted against the dictionary VALUE (`import { el, en } from '../../src/i18n/dictionary'`), never a literal.
+
+**Delivered:** `playwright.config.ts` (one `local` project; `webServer` = `npm run build && node e2e/support/pages-server.mjs --port 4173 --root dist --base /hygieia`,
+or just the server when `E2E_PREBUILT=1`; `reuseExistingServer: false`; `baseURL = http://127.0.0.1:4173/hygieia/`; build env blanks
+`VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` so the artifact is local-only; `locale: 'el-GR'` so `LangProvider` picks Greek) ·
+`e2e/support/pages-server.mjs` (Themis lifted verbatim + `--base`: a request must start with the base, which is stripped and served from
+`dist/`; `/hygieia` → 301 `/hygieia/`; OUTSIDE the base → plain-text 404, never this site's `404.html`, because on Pages that URL
+belongs to another site, so the app must not boot there; exported `normalizeBase`) · `e2e/support/fixtures.ts` (console/page-error
+watchdog, verbatim; filters only the DOCUMENT's own 404) · `e2e/support/tsconfig.json` (verbatim; the spec's dictionary import rides the
+import graph) · `e2e/local/smoke.spec.ts` (**7 tests**: Greek shell + `lang="el"`; toggle → `en.heroTitle` + `lang="en"` + survives reload;
+`en-US` browser gets English; deep link `/hygieia/no/such/page` is a 404 DOCUMENT rendering `el.notFoundTitle`, URL untouched, `backHome`
+works; `/hygieia/auth` 404 document → `el.signInUnavailableTitle`; manifest link + `registerSW.js` + manifest `start_url`/`scope`;
+server semantics: `/hygieia/404.html` body === `/hygieia/index.html` body, `/hygieia` 301 → `/hygieia/`, `/no/such/page` 404 without
+the app) · `package.json` (`"e2e": "tsc -p e2e/support/tsconfig.json && playwright test --project=local"`, devDep `@playwright/test ^1.63.0`
+= Themis; `package-lock.json` follows) · `.github/workflows/deploy.yml` (after `check:pwa`: Playwright version step, `~/.cache/ms-playwright`
+cache, `npx playwright install --with-deps --only-shell chromium`, `E2E_PREBUILT=1 npm run e2e` with a 5-min timeout, `test-results/`
+upload on failure; job timeout 15 → 20 min) · `.gitignore` (`playwright-report/`, `test-results/`, `blob-report/`) ·
+`.claude/CLAUDE.project.md` §2 Tests line + §8 `e2e: npm run e2e` (**NOT recomposed** — the kit manifest resolves the MAIN checkout,
+not this worktree; the lead runs `node D:/projects/zeus/.zeus/kit/kit.mjs apply hygieia` after merging).
+
+**Scope deviation (flagged, one line):** `vite.config.ts` `test.exclude` gained `'e2e/**'` — Vitest's default include is
+`**/*.spec.ts`, so without it `npm test` collects the Playwright spec and goes red (Themis carries the same exclude). Nothing else in
+that file changed (the format hook's whole-file rewrap was reverted to HEAD formatting).
+
+**Gotchas learned (for BRAIN §5, lead to record):** (1) `baseURL` ends in `/hygieia/`, but `page.goto('/x')` resolves against the
+ORIGIN (URL semantics) → `http://127.0.0.1:4173/x`, OUTSIDE the site. Specs spell the base: `page.goto('/hygieia/recipes')`.
+(2) Client-side `<Link to="/">` under `basename="/hygieia"` lands on `/hygieia` (no trailing slash) — correct router behaviour; a hard
+load of it is Pages' 301 to `/hygieia/`. Assert the home route with `/hygieia/?$`. (3) Playwright's default `Desktop Chrome` locale is
+`en-US`, and `LangProvider` reads `navigator.language` → the project sets `locale: 'el-GR'` to see the Greek shell first.
+
+**Gates (2026-10-05, worktree `D:/projects/hygieia-wt/f`):** `npm run lint` 0 errors (5 pre-existing react-refresh warnings) ·
+`npm run typecheck` clean · `npm test` 16 files / 263 tests green (e2e dir excluded) · `npm run build` green, `cmp dist/404.html dist/index.html`
+byte-equal · `check:pwa OK — Hygieia · Υγίεια, 3 icons, sw.js present` · `npm run e2e` → `pages-server: serving …\dist at
+http://127.0.0.1:4173/hygieia/ (Pages semantics)`, **7 passed**, 0 console/page errors (the watchdog would have failed the test) ·
+workflow YAML parses (js-yaml), prettier-clean.
+
+**RED-verification (the gate seen failing):** `rm dist/404.html; E2E_PREBUILT=1 npm run e2e` → **3 failed / 4 passed**: the not-found
+deep link and `/hygieia/auth` (`element(s) not found` — the app never booted on the plain-text 404) and the server-semantics test
+(`/hygieia/404.html` no longer equals `index.html`); the three root-document tests still pass, as they should. `npm run e2e` (rebuild) →
+7 passed; `404.html` byte-equal again.
+
+**Runnable artifact exercised:** `pages-server.mjs --base /hygieia` observed serving `dist/` at `/hygieia/` (log line above); `/hygieia`
+→ 301 `Location: /hygieia/`; `/no/such/page` → 404 plain text; `/hygieia/no/such/page` → 404 + app (`el.notFoundTitle`) — all asserted in spec 7/4/5.
+
+**Next:** lead merges `wt/f`, runs `kit.mjs apply hygieia` (recompose), records gotchas 1–3 in BRAIN §5; CI shows the e2e step on the first
+push; P3.7 adds `recipes.spec.ts`/`fridge.spec.ts` on this harness; `G3 = G1 && npm run e2e` is now live.
+
 ## 2026-10-05 — P4.9 (content half) health tips seed — DONE (builder, worktree `wt/f`; not yet committed)
 
 **Pulled forward** by the lead: the seed depends only on the P1.4 types (`HealthTipSeed`,
