@@ -3,6 +3,54 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+## 2026-10-05 — P4.9 (content half) health tips seed — DONE (builder, worktree `wt/f`; not yet committed)
+
+**Pulled forward** by the lead: the seed depends only on the P1.4 types (`HealthTipSeed`,
+`TIP_TOPICS`, `SLUG_RE`). The `/tips` page, `gen-seed-sql.mjs` kind `health_tips`, the SQL seed
+migration, `catalogue.mjs`, routes/header and dictionary keys are the OTHER half of P4.9 and come later.
+
+**Delivered:** `src/content/seed/tips.ts` (`export const HEALTH_TIPS: readonly HealthTipSeed[]`) and
+`src/content/seed/tips.test.ts`. Nothing else touched.
+
+**Volume (operator: "as many as you can"; floor 30, target 60+, ≥ 8 per topic):** **75 tips** —
+sleep 12 · hydration 12 · nutrition 14 · movement 13 · habits 12 · mental 12. Slugs are
+`<topic>-<kebab>` (test enforces the prefix).
+
+**Sources (PLAN.md §0 content drafting rule — the one that matters most here):** **58 with
+`source_url`, 17 `needs_source = true`.** URLs were set ONLY for pages the drafter has actually seen
+and is confident are stable: WHO fact sheets ×12 (physical-activity, healthy-diet, salt-reduction,
+alcohol, depression), NHS ×14 (live-well eat-well / exercise / sleep / quit-smoking / sun safety /
+hand-washing / teeth, conditions vitamin-d, mental-health self-help), Mayo Clinic `art-*` ×19,
+Harvard Nutrition Source ×6, Sleep Foundation ×5, EFSA topic pages ×2. Anything less than certain
+(morning daylight, urine colour, bottle habit, older-adult schedule, alcohol+water, drink with
+meals, ultra-processed, enjoyable activity, know-your-numbers, habit stacking, cook at home,
+20-20-20, meal planning, nature time, news limits, gratitude, worry list) is `null` + `needs_source`
+→ "Source pending review" in the UI. CDC and NIH were deliberately NOT cited: CDC restructured its
+paths in 2024 and I was not certain of the new ones, so null beat a guess (CLAUDE.md §5). Each
+topic has ≥ 1 sourced tip. All guidance is mainstream public health (WHO 150–300 min/week, strength
+2×/week, < 5 g salt, < 10 % free sugars, 400 g fruit/veg, EFSA 2.0/2.5 L water and 400 mg
+caffeine, 7–9 h sleep, hand-washing 20 s, SPF 30…); no cures, no supplement claims, no diagnosis.
+Greek drafted natively (not literal translation); Greek-local framing where it helps (summer heat,
+small oily fish, λαδερά, tap water).
+
+**Test (`tips.test.ts`, 13 cases, logs the actual count):** count ≥ 30 · each topic ≥ 4 · topic ∈
+`TIP_TOPICS` · unique `SLUG_RE` slugs with topic prefix · locale pairs non-blank · titles ≤ 80 ·
+Greek script in `title_el`/`body_el` · bodies 2–4 sentences in both languages · no duplicate titles ·
+`source_url` null or `^https?://`, parses as a URL, never contains `example.com` / `placeholder` /
+`TODO` / `xxx` · **every URL host is on the in-test allow-list** (who.int, nhs.uk, cdc.gov,
+hsph.harvard.edu, efsa.europa.eu, mayoclinic.org, sleepfoundation.org, nih.gov — suffix match) ·
+`needs_source === (source_url === null)` on every row · ≥ 1 sourced tip per topic.
+
+**Gates (in `wt/f`):** `npm run lint` 0 errors (4 pre-existing react-refresh warnings, none in
+`src/content`) · `npm run typecheck` clean · `npm test` 9 files / 89 tests green (76 → 89) ·
+`npm run build` green (PWA precache 24 entries) · `check:pwa OK — Hygieia · Υγίεια, 3 icons,
+sw.js present` · Prettier clean on both files.
+
+**Next (other half of P4.9):** `TipsPage.tsx` grouped by topic, dictionary keys (`tipsTitle`,
+`topics.*`, `sourcePending`, `readSource`), `gen-seed-sql.mjs` kind `health_tips` +
+`20261006001000_hygieia_seed_tips.sql`, `catalogue.mjs`, `db:gate` `health_tips ≥ 30`,
+`e2e/local/tips.spec.ts`. An admin reviewing the 17 `needs_source` rows can attach a URL in P4.10.
+
 ## 2026-10-05 — P3.3 / P4.1 / P4.2 pure-domain engines — DONE (builder, worktree `wt/d`; not yet committed)
 
 **Pulled forward from P3/P4** by the lead: the three modules depend only on the P1.4 types
