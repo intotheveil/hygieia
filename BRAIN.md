@@ -89,14 +89,14 @@ intensities."_ Named for the goddess of health and preventive wellbeing (source 
 
 ## 4. OUTSTANDING (bugs · feedback · requests · known issues — the triage queue)
 
-| id  | sev | type     | summary                                                                                                                                                                                      | status          | added      |
-| --- | --- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | ---------- |
-| Q1 | 🟠 | question | ~~Content source~~ **CLOSED 2026-10-05:** AI-drafted + operator-reviewed in an admin page; nutrition from USDA FoodData Central; curated EUR price table | closed | 2026-10-05 |
-| Q2 | 🟠 | question | ~~Accounts~~ **CLOSED 2026-10-05:** accounts from the start, email magic link + Google, on the shared project (ADR-0003) | closed | 2026-10-05 |
-| O1 | 🟠 | operator | Before P2: expose schema `hygieia` in the shared project's API settings and register the Google OAuth app with both apps' redirect URLs (ADR-0003 rules 5–6) | open (operator) | 2026-10-05 |
-| O2 | 🟡 | note | Supabase advisory seen while inspecting the shared project: Alyssos's PostGIS reference table has RLS disabled. Alyssos's call — flagged, not touched | open (operator) | 2026-10-05 |
-| F1  | 🔵  | feature  | e2e runner (Playwright against the production build, Themis pattern) — "not defined yet" in §8; first milestone after P0                                                                     | open            | 2026-10-05 |
-| F2  | 🔵  | feature  | Fleet telemetry (`VITE_FLEET_*`) — names reserved, client not wired                                                                                                                          | open            | 2026-10-05 |
+| id  | sev | type     | summary                                                                                                                                                      | status          | added      |
+| --- | --- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------- | ---------- |
+| Q1  | 🟠  | question | ~~Content source~~ **CLOSED 2026-10-05:** AI-drafted + operator-reviewed in an admin page; nutrition from USDA FoodData Central; curated EUR price table     | closed          | 2026-10-05 |
+| Q2  | 🟠  | question | ~~Accounts~~ **CLOSED 2026-10-05:** accounts from the start, email magic link + Google, on the shared project (ADR-0003)                                     | closed          | 2026-10-05 |
+| O1  | 🟠  | operator | Before P2: expose schema `hygieia` in the shared project's API settings and register the Google OAuth app with both apps' redirect URLs (ADR-0003 rules 5–6) | open (operator) | 2026-10-05 |
+| O2  | 🟡  | note     | Supabase advisory seen while inspecting the shared project: Alyssos's PostGIS reference table has RLS disabled. Alyssos's call — flagged, not touched        | open (operator) | 2026-10-05 |
+| F1  | 🔵  | feature  | e2e runner (Playwright against the production build, Themis pattern) — "not defined yet" in §8; first milestone after P0                                     | open            | 2026-10-05 |
+| F2  | 🔵  | feature  | Fleet telemetry (`VITE_FLEET_*`) — names reserved, client not wired                                                                                          | open            | 2026-10-05 |
 
 ## 5. GOTCHAS (hard-won "don't do X, it breaks Y" — the knowledge that dies in old chats)
 
@@ -116,10 +116,27 @@ intensities."_ Named for the goddess of health and preventive wellbeing (source 
 - **`npm test` takes ~30 s here** (jsdom environment start dominates). Not a hang.
 - **Zeus-side (recorded in zeus BRAIN too):** the Vite react-ts template no longer matches the
   house stack (oxlint, no `strict`) — this repo's configs come from Themis instead.
+- **`alter default privileges in schema hygieia revoke execute … from public` does NOT stop PUBLIC/anon
+  EXECUTE on later functions** (per-schema defaults are ADDED to the hardwired global default; proven in
+  PGlite 2026-10-05). Every function a migration creates must end with `revoke execute on function … from
+public, anon` (trigger fns: also `authenticated`). `npm run db:gate` sweeps for it; a missing revoke is
+  RED on `anon has EXECUTE on no hygieia function`. A global revoke is forbidden (ADR-0003).
+- **A policy evaluated as `anon` must never call a `hygieia` function** (anon has no EXECUTE on any).
+  Write policies per role: `<t>_select_anon` (`status = 'approved'`) and `<t>_select_auth`
+  (`… or hygieia.is_admin()`), never one shared `to anon, authenticated` policy.
+- **PGlite is ONE connection: never run two `actAs` sessions concurrently** (`Promise.all`) — the
+  savepoints interleave and the gate throws `savepoint "sp_N" does not exist`. Sequential `await` only.
+- **`pg_get_constraintdef` quotes keyword columns:** `PRIMARY KEY (recipe_id, "position")`. Assert the
+  quoted form.
+- **Gate fixture rows use `fx-*` slugs and are inserted AFTER the archive**; a seed-count check (P1.12)
+  must count before `seedFixture` or exclude `slug like 'fx-%'`, or the fixture inflates the count.
+- **PLAN §2 has 14 tables (the ledger counts), not 13** — the gate's `RLS is enabled on every hygieia
+table (14)` is right; P1.QA.2's `(13)` is the typo.
 
 ## 6. CHANGELOG (append-only — what happened, newest first)
 
 ### 2026-10-05 (later) — decisions interview, shared-DB ruling, installable PWA
+
 - Did: operator interview (8 decisions, §3 / spec §5a); ADR-0003 shared project, schema `hygieia`;
   ADR-0004 installable PWA (`vite-plugin-pwa`, icons via sharp, `check:pwa` CI gate); constitution
   §2/§8/§11 updated and recomposed; `.env.example` annotated.

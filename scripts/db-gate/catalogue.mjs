@@ -1,0 +1,1006 @@
+// THE CATALOGUE, its fixture and its checks — shared by `npm run db:gate` (scripts/db-gate.mjs)
+// and the Vitest twin (scripts/db-isolation.test.ts). One fixture, one harness, one list of checks:
+// the gate and the tests cannot drift apart on what "UA's rows" or "an approved row" means.
+//
+// CATALOGUE has ONE entry per table in schema `hygieia`, with a `kind`:
+//   content       status-bearing content (PLAN §1.3): anon/authenticated read `approved`, an admin
+//                 reads everything and may UPDATE; no client INSERT/DELETE; seeded ids are
+//                 md5('hygieia:<table>:' || slug)::uuid (§1.6).
+//   child         no status of its own; visible iff the parent is approved (or admin); admins edit.
+//   user          per-user data (§1.7): `user_id = auth.uid()` on every verb; user_id never named.
+//   profiles      the identity row (§1.8): self-only; `is_admin` has no client grant.
+//   service-only  nothing for any API role (the migration ledger).
+// The gate derives the table list from pg_class and FAILS on a table without an entry (and on an
+// entry without a table), so a new table cannot be silently skipped. Adding a table = adding its
+// entry here, its fixture rows to seedFixture, and (P1.12) its seed count.
+//
+// Fixture (committed as the superuser; every check runs in a transaction that is ROLLED BACK):
+//   users UA, UB (profiles, is_admin = false), ADMIN (is_admin = true), NEW (signed up, no profile).
+//   Per content table >= 1 approved and >= 1 pending row (slugs prefixed `fx-`, ids by the seed-id
+//   formula), children under both an approved and a pending parent, per user table rows of A and B.
+//   Seeds (P1.12) land `pending`; the fixture rows are the gate's own and never ship.
+//
+// Harness: `createHarness(db).actAs(who, s => …)` runs `fn` in a transaction that is always rolled
+// back, as a signed-in user (uuid, `request.jwt.claim.sub`), ANON, SERVICE (BYPASSRLS) or SUPERUSER.
+// `s.attempt` wraps one statement in a savepoint, so a refused write does not abort the session.
+// Lifted from Themis scripts/db-gate/leak-matrix.mjs.
+
+import { createHash } from 'node:crypto'
+import { readFileSync, readdirSync, existsSync } from 'node:fs'
+import path from 'node:path'
+import {
+  BLOCKS,
+  CHILD_TABLES,
+  CONTENT_STATUSES,
+  CONTENT_TABLES,
+  INTENSITIES,
+  LEVELS,
+  MEAL_TYPES,
+  PRICE_PER,
+  TIP_TOPICS,
+  UNITS,
+  USER_TABLES,
+  WORKOUT_TYPES,
+} from '../../src/content/enums.ts'
+
+// --- identities ----------------------------------------------------------------------------------
+export const U = Object.freeze({
+  UA: '00000000-0000-4000-8000-0000000000a1',
+  UB: '00000000-0000-4000-8000-0000000000b1',
+  ADMIN: '00000000-0000-4000-8000-0000000000ad',
+  NEW: '00000000-0000-4000-8000-0000000000c1', // signed up, no profile yet
+})
+/** Fixture `updated_at` / `reviewed_at`, so a trigger bump or a review stamp is unmistakable. */
+export const OLD = '2000-01-01T00:00:00Z'
+
+/**
+ * The seed-id rule (PLAN §1.6): `md5('hygieia:<table>:' || slug)::uuid`, computed the way the
+ * generator (P1.12) does, so fixture rows obey the rule the gate asserts over every row.
+ * @param {string} table @param {string} slug
+ */
+export const sid = (table, slug) => {
+  const h = createHash('md5').update(`hygieia:${table}:${slug}`).digest('hex')
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`
+}
+
+/** Fixture slugs per content table; the first `approved` and `pending` slug is the one the checks mutate. */
+export const FX = Object.freeze({
+  ingredients: { approved: ['fx-tomato', 'fx-olive-oil'], pending: ['fx-feta'] },
+  diets: { approved: ['fx-mediterranean'], pending: ['fx-keto'] },
+  recipes: { approved: ['fx-greek-salad'], pending: ['fx-feta-omelette'] },
+  exercises: { approved: ['fx-squat'], pending: ['fx-pushup'] },
+  workout_templates: {
+    approved: ['fx-home-beginner-low'],
+    pending: ['fx-gym-intermediate-moderate'],
+  },
+  health_tips: { approved: ['fx-drink-water'], pending: ['fx-sleep-early'] },
+})
+export const ID = Object.freeze({
+  tomato: sid('ingredients', 'fx-tomato'),
+  oliveOil: sid('ingredients', 'fx-olive-oil'),
+  feta: sid('ingredients', 'fx-feta'),
+  mediterranean: sid('diets', 'fx-mediterranean'),
+  keto: sid('diets', 'fx-keto'),
+  greekSalad: sid('recipes', 'fx-greek-salad'),
+  omelette: sid('recipes', 'fx-feta-omelette'),
+  squat: sid('exercises', 'fx-squat'),
+  pushup: sid('exercises', 'fx-pushup'),
+  homeTemplate: sid('workout_templates', 'fx-home-beginner-low'),
+  gymTemplate: sid('workout_templates', 'fx-gym-intermediate-moderate'),
+  fridgeA: '20000000-0000-4000-8000-00000000000a',
+  fridgeB: '20000000-0000-4000-8000-00000000000b',
+  planA: '30000000-0000-4000-8000-00000000000a',
+  planB: '30000000-0000-4000-8000-00000000000b',
+})
+
+// --- archive -------------------------------------------------------------------------------------
+/** Sorted .sql files of a migrations directory (empty when absent). @param {string} dir */
+export const archiveFiles = (dir) =>
+  existsSync(dir)
+    ? readdirSync(dir)
+        .filter((f) => f.endsWith('.sql'))
+        .sort()
+    : []
+
+/**
+ * Apply the archive `times` times, in order (the gate's "twice" = idempotent-safe).
+ * @param {import('@electric-sql/pglite').PGlite} db @param {string} dir @param {number} [times]
+ */
+export async function applyArchive(db, dir, times = 2) {
+  const files = archiveFiles(dir)
+  for (let i = 0; i < times; i++)
+    for (const f of files) await db.exec(readFileSync(path.join(dir, f), 'utf8'))
+  return files
+}
+
+// --- fixture -------------------------------------------------------------------------------------
+/**
+ * Seed the fixture, committed, as the superuser (every check's write is rolled back by actAs).
+ * Approved rows carry a fixture review stamp (reviewed_at = OLD, reviewed_by = ADMIN); pending rows
+ * carry none. Locale columns are non-blank ASCII on purpose (fixture, not content).
+ * @param {import('@electric-sql/pglite').PGlite} db
+ */
+export async function seedFixture(db) {
+  const A = `'approved', '${OLD}', '${U.ADMIN}'`
+  const P = `'pending', null, null`
+  await db.exec(`
+    insert into auth.users (id, email) values
+      ('${U.UA}', 'ua@example.com'), ('${U.UB}', 'ub@example.com'),
+      ('${U.ADMIN}', 'admin@example.com'), ('${U.NEW}', 'new@example.com');
+    insert into hygieia.profiles (user_id, display_name, is_admin, updated_at) values
+      ('${U.UA}', 'User A', false, '${OLD}'),
+      ('${U.UB}', 'User B', false, '${OLD}'),
+      ('${U.ADMIN}', 'Admin', true, '${OLD}');
+
+    insert into hygieia.ingredients (id, slug, name_el, name_en, category, unit, grams_per_unit,
+      kcal_100g, protein_100g, carbs_100g, fat_100g, source_note, price_eur_min, price_eur_max,
+      price_per, price_as_of, price_note, substitute_slugs, is_pantry_staple,
+      status, reviewed_at, reviewed_by, updated_at) values
+      ('${ID.tomato}', 'fx-tomato', 'fx tomato el', 'fx tomato en', 'vegetables', 'piece', 120,
+       18, 0.9, 3.9, 0.2, 'gate fixture', 1.5, 2.5, 'kg', '2026-10-05', 'gate fixture', '{}', false,
+       ${A}, '${OLD}'),
+      ('${ID.oliveOil}', 'fx-olive-oil', 'fx olive oil el', 'fx olive oil en', 'oils', 'tbsp', 13.5,
+       884, 0, 0, 100, 'gate fixture', 8, 12, 'l', '2026-10-05', 'gate fixture', '{}', true,
+       ${A}, '${OLD}'),
+      ('${ID.feta}', 'fx-feta', 'fx feta el', 'fx feta en', 'dairy', 'g', 1,
+       264, 14, 4, 21, 'gate fixture', 9, 14, 'kg', '2026-10-05', 'gate fixture', '{fx-tomato}', false,
+       ${P}, '${OLD}');
+
+    insert into hygieia.diets (id, slug, name_el, name_en, summary_el, summary_en, allowed_el, allowed_en,
+      avoided_el, avoided_en, pros_el, pros_en, cons_el, cons_en, avoid_if_el, avoid_if_en, source_url,
+      status, reviewed_at, reviewed_by, updated_at) values
+      ('${ID.mediterranean}', 'fx-mediterranean', 'fx med el', 'fx med en', 'fx summary el', 'fx summary en',
+       '{olive oil}', '{olive oil}', '{sugar}', '{sugar}', '{heart}', '{heart}', '{cost}', '{cost}',
+       '{ask a doctor}', '{ask a doctor}', null, ${A}, '${OLD}'),
+      ('${ID.keto}', 'fx-keto', 'fx keto el', 'fx keto en', 'fx summary el', 'fx summary en',
+       '{fat}', '{fat}', '{bread}', '{bread}', '{satiety}', '{satiety}', '{restrictive}', '{restrictive}',
+       '{ask a doctor}', '{ask a doctor}', 'https://example.org/fixture/keto', ${P}, '${OLD}');
+
+    insert into hygieia.recipes (id, slug, title_el, title_en, steps_el, steps_en, portions, prep_min,
+      meal_types, image_path, status, reviewed_at, reviewed_by, updated_at) values
+      ('${ID.greekSalad}', 'fx-greek-salad', 'fx salad el', 'fx salad en', '{Chop,Mix}', '{Chop,Mix}',
+       2, 10, '{lunch,dinner}', null, ${A}, '${OLD}'),
+      ('${ID.omelette}', 'fx-feta-omelette', 'fx omelette el', 'fx omelette en', '{Beat,Fry}', '{Beat,Fry}',
+       1, 10, '{breakfast}', null, ${P}, '${OLD}');
+    insert into hygieia.recipe_ingredients (recipe_id, ingredient_id, position, quantity, unit,
+      note_el, note_en, updated_at) values
+      ('${ID.greekSalad}', '${ID.tomato}', 0, 200, 'g', null, null, '${OLD}'),
+      ('${ID.greekSalad}', '${ID.oliveOil}', 1, 2, 'tbsp', null, null, '${OLD}'),
+      ('${ID.omelette}', '${ID.feta}', 0, 50, 'g', null, null, '${OLD}'),
+      ('${ID.omelette}', '${ID.tomato}', 1, 1, 'piece', 'fx diced el', 'fx diced en', '${OLD}');
+    insert into hygieia.recipe_diets (recipe_id, diet_id, updated_at) values
+      ('${ID.greekSalad}', '${ID.mediterranean}', '${OLD}'),
+      ('${ID.omelette}', '${ID.keto}', '${OLD}'),
+      ('${ID.omelette}', '${ID.mediterranean}', '${OLD}');
+
+    insert into hygieia.exercises (id, slug, name_el, name_en, cue_el, cue_en, workout_type, level,
+      muscle_groups, equipment_el, equipment_en, status, reviewed_at, reviewed_by, updated_at) values
+      ('${ID.squat}', 'fx-squat', 'fx squat el', 'fx squat en', 'fx cue el', 'fx cue en', 'home', 'beginner',
+       '{legs,glutes}', null, null, ${A}, '${OLD}'),
+      ('${ID.pushup}', 'fx-pushup', 'fx pushup el', 'fx pushup en', 'fx cue el', 'fx cue en', 'calisthenics',
+       'beginner', '{chest}', 'fx mat el', 'fx mat en', ${P}, '${OLD}');
+    insert into hygieia.workout_templates (id, slug, workout_type, level, intensity, title_el, title_en,
+      duration_min, notes_el, notes_en, status, reviewed_at, reviewed_by, updated_at) values
+      ('${ID.homeTemplate}', 'fx-home-beginner-low', 'home', 'beginner', 'low', 'fx home el', 'fx home en',
+       20, 'fx notes el', 'fx notes en', ${A}, '${OLD}'),
+      ('${ID.gymTemplate}', 'fx-gym-intermediate-moderate', 'gym', 'intermediate', 'moderate',
+       'fx gym el', 'fx gym en', 45, 'fx notes el', 'fx notes en', ${P}, '${OLD}');
+    insert into hygieia.workout_template_exercises (template_id, exercise_id, position, block, sets,
+      reps, seconds, rest_seconds, updated_at) values
+      ('${ID.homeTemplate}', '${ID.squat}', 0, 'warmup', 1, null, 60, 0, '${OLD}'),
+      ('${ID.homeTemplate}', '${ID.squat}', 1, 'main', 3, 12, null, 60, '${OLD}'),
+      ('${ID.gymTemplate}', '${ID.pushup}', 0, 'main', 3, 10, null, 60, '${OLD}');
+
+    insert into hygieia.health_tips (id, slug, topic, title_el, title_en, body_el, body_en, source_url,
+      needs_source, status, reviewed_at, reviewed_by, updated_at) values
+      ('${sid('health_tips', 'fx-drink-water')}', 'fx-drink-water', 'hydration', 'fx water el', 'fx water en',
+       'fx body el', 'fx body en', 'https://example.org/fixture/water', false, ${A}, '${OLD}'),
+      ('${sid('health_tips', 'fx-sleep-early')}', 'fx-sleep-early', 'sleep', 'fx sleep el', 'fx sleep en',
+       'fx body el', 'fx body en', null, true, ${P}, '${OLD}');
+
+    insert into hygieia.fridge_lists (id, user_id, name, ingredient_slugs, updated_at) values
+      ('${ID.fridgeA}', '${U.UA}', 'A fridge', '{fx-tomato}', '${OLD}'),
+      ('${ID.fridgeB}', '${U.UB}', 'B fridge', '{fx-feta}', '${OLD}');
+    insert into hygieia.saved_plans (id, user_id, diet_id, week_start, plan, updated_at) values
+      ('${ID.planA}', '${U.UA}', '${ID.mediterranean}', '2026-10-05', '{"days":[]}', '${OLD}'),
+      ('${ID.planB}', '${U.UB}', '${ID.mediterranean}', '2026-10-05', '{"days":[]}', '${OLD}');
+    insert into hygieia.favourites (user_id, recipe_id, updated_at) values
+      ('${U.UA}', '${ID.greekSalad}', '${OLD}'),
+      ('${U.UB}', '${ID.greekSalad}', '${OLD}');
+  `)
+}
+
+// --- enum contract -------------------------------------------------------------------------------
+/**
+ * Every CHECK-constrained enum column and the src/content/enums.ts array it must equal, in order.
+ * The DB literal list is read back with `checkValues`; the schema-contract test and the gate both
+ * assert equality, so the DB and TS enums cannot drift (PLAN P1.6).
+ * @type {ReadonlyArray<{ table: string, column: string, name: string, values: readonly string[] }>}
+ */
+export const ENUM_COLUMNS = Object.freeze([
+  { table: 'ingredients', column: 'unit', name: 'UNITS', values: UNITS },
+  { table: 'ingredients', column: 'price_per', name: 'PRICE_PER', values: PRICE_PER },
+  { table: 'recipe_ingredients', column: 'unit', name: 'UNITS', values: UNITS },
+  { table: 'recipes', column: 'meal_types', name: 'MEAL_TYPES', values: MEAL_TYPES },
+  { table: 'exercises', column: 'workout_type', name: 'WORKOUT_TYPES', values: WORKOUT_TYPES },
+  { table: 'exercises', column: 'level', name: 'LEVELS', values: LEVELS },
+  {
+    table: 'workout_templates',
+    column: 'workout_type',
+    name: 'WORKOUT_TYPES',
+    values: WORKOUT_TYPES,
+  },
+  { table: 'workout_templates', column: 'level', name: 'LEVELS', values: LEVELS },
+  { table: 'workout_templates', column: 'intensity', name: 'INTENSITIES', values: INTENSITIES },
+  { table: 'workout_template_exercises', column: 'block', name: 'BLOCKS', values: BLOCKS },
+  { table: 'health_tips', column: 'topic', name: 'TIP_TOPICS', values: TIP_TOPICS },
+  ...CONTENT_TABLES.map((table) => ({
+    table,
+    column: 'status',
+    name: 'CONTENT_STATUSES',
+    values: CONTENT_STATUSES,
+  })),
+])
+
+/**
+ * The literals a single-column CHECK on hygieia.<table>.<column> admits, in constraint order
+ * (`x in (…)` and `x <@ array[…]` both render as `ARRAY['a'::text, …]`). Null unless exactly one
+ * such constraint exists.
+ * @param {import('@electric-sql/pglite').PGlite} db @param {string} table @param {string} column
+ * @returns {Promise<string[] | null>}
+ */
+export async function checkValues(db, table, column) {
+  const r = await db.query(
+    `select pg_get_constraintdef(c.oid) as def
+       from pg_constraint c
+       join pg_attribute a on a.attrelid = c.conrelid and a.attnum = any (c.conkey)
+      where c.conrelid = $1::regclass and c.contype = 'c'
+        and a.attname = $2 and cardinality(c.conkey) = 1`,
+    [`hygieia.${table}`, column],
+  )
+  if (r.rows.length !== 1) return null
+  const def = String(/** @type {{ def: string }} */ (r.rows[0]).def)
+  return [...def.matchAll(/'([^']*)'::text/g)].map((m) => m[1])
+}
+
+// --- harness -------------------------------------------------------------------------------------
+export const ANON = Symbol('anon')
+export const SUPERUSER = Symbol('superuser')
+/** The service key (BYPASSRLS): server-side only. */
+export const SERVICE = Symbol('service_role')
+
+/** @typedef {string | typeof ANON | typeof SUPERUSER | typeof SERVICE} Who */
+/** @typedef {Record<string, unknown>} Row */
+/** @typedef {{ ok: true, affected: number } | { ok: false, error: string }} Outcome */
+/**
+ * @typedef {object} Session
+ * @property {<T extends Row = Row>(sql: string, params?: unknown[]) => Promise<T[]>} rows
+ *   Rows of a query; throws on error (use `attempt` when an error is the expected outcome).
+ * @property {(table: string, where?: string) => Promise<number>} count
+ *   Rows of hygieia.<table> visible to this identity, optionally filtered.
+ * @property {(sql: string, params?: unknown[]) => Promise<Outcome>} attempt
+ *   Runs one statement inside a savepoint, so a refused write does not abort the session.
+ * @property {<T>(fn: () => Promise<T>) => Promise<T>} sudo
+ *   Run `fn` as the superuser inside the same (rolled-back) transaction, then switch back.
+ */
+/**
+ * @typedef {object} Harness
+ * @property {import('@electric-sql/pglite').PGlite} db
+ * @property {<T>(who: Who, fn: (s: Session) => Promise<T>) => Promise<T>} actAs
+ */
+
+/**
+ * @param {import('@electric-sql/pglite').PGlite} db
+ * @returns {Harness}
+ */
+export function createHarness(db) {
+  /** @param {Who} who */
+  async function setIdentity(who) {
+    if (who === SUPERUSER) {
+      await db.exec(`reset role`)
+      await db.query(`select set_config('request.jwt.claim.sub', '', true)`)
+    } else if (who === SERVICE) {
+      await db.exec(`set local role service_role`)
+      await db.query(`select set_config('request.jwt.claim.sub', '', true)`)
+    } else if (who === ANON) {
+      await db.exec(`set local role anon`)
+      await db.query(`select set_config('request.jwt.claim.sub', '', true)`)
+    } else {
+      await db.exec(`set local role authenticated`)
+      await db.query(`select set_config('request.jwt.claim.sub', $1, true)`, [who])
+    }
+  }
+
+  let savepoints = 0
+  /** @param {Who} who @returns {Session} */
+  const session = (who) => ({
+    // reason: `any` because the row type T is the caller's claim about the query's shape.
+    rows: async (sql, params) => /** @type {any} */ ((await db.query(sql, params)).rows),
+    count: async (table, where = 'true') =>
+      /** @type {{ n: number }} */ (
+        (await db.query(`select count(*)::int as n from hygieia.${table} where ${where}`)).rows[0]
+      ).n,
+    attempt: async (sql, params) => {
+      const sp = `sp_${++savepoints}`
+      await db.exec(`savepoint ${sp}`)
+      try {
+        const r = await db.query(sql, params)
+        await db.exec(`release savepoint ${sp}`)
+        return { ok: true, affected: r.affectedRows ?? 0 }
+      } catch (e) {
+        await db.exec(`rollback to savepoint ${sp}`)
+        return { ok: false, error: e instanceof Error ? e.message : String(e) }
+      }
+    },
+    sudo: async (fn) => {
+      await setIdentity(SUPERUSER)
+      try {
+        return await fn()
+      } finally {
+        await setIdentity(who)
+      }
+    },
+  })
+
+  /**
+   * Act as `who` inside a transaction that is always rolled back.
+   * @template T
+   * @param {Who} who
+   * @param {(s: Session) => Promise<T>} fn
+   * @returns {Promise<T>}
+   */
+  async function actAs(who, fn) {
+    await db.exec('begin')
+    try {
+      await setIdentity(who)
+      return await fn(session(who))
+    } finally {
+      await db.exec('rollback')
+    }
+  }
+
+  return { db, actAs }
+}
+
+/** Refused by a privilege check or by RLS (not by a constraint or a typo). @param {Outcome} o */
+export const refused = (o) => !o.ok && /permission denied|violates row-level security/.test(o.error)
+/** No effect = refused outright, or ran and touched nothing (RLS filtered every row). @param {Outcome} o */
+export const noEffect = (o) => refused(o) || (o.ok && o.affected === 0)
+/** Ran and touched at least one row. @param {Outcome} o */
+export const tookEffect = (o) => o.ok && o.affected >= 1
+
+/**
+ * A content hash of the rows matching `where`, read as superuser (for before/after checks).
+ * @param {Session} s @param {string} table @param {string} where
+ */
+export const snapshot = (s, table, where = 'true') =>
+  s.sudo(async () => {
+    const r = await s.rows(
+      `select md5(string_agg(t::text, '|' order by t::text)) as h, count(*)::int as n
+         from hygieia.${table} t where ${where}`,
+    )
+    return /** @type {{ h: string | null, n: number }} */ (r[0])
+  })
+
+export const ALL_TABLE_PRIVS = Object.freeze([
+  'SELECT',
+  'INSERT',
+  'UPDATE',
+  'DELETE',
+  'TRUNCATE',
+  'REFERENCES',
+  'TRIGGER',
+])
+/**
+ * Verbs `role` holds on `hygieia.<table>` (table-level or through any column grant).
+ * @param {import('@electric-sql/pglite').PGlite} db @param {string} role @param {string} table
+ */
+export const tablePrivs = async (db, role, table) =>
+  (
+    await db.query(
+      `select p from unnest($3::text[]) p
+        where has_table_privilege($1, $2, p)
+           or (p in ('SELECT','INSERT','UPDATE','REFERENCES') and has_any_column_privilege($1, $2, p))`,
+      [role, `hygieia.${table}`, [...ALL_TABLE_PRIVS]],
+    )
+  ).rows.map((r) => String(r.p))
+/**
+ * Columns of `hygieia.<table>` on which `role` holds `priv` (table-level or column-level).
+ * @param {import('@electric-sql/pglite').PGlite} db @param {string} role @param {string} table @param {string} priv
+ */
+export const columnPrivs = async (db, role, table, priv) =>
+  (
+    await db.query(
+      `select a.attname from pg_attribute a
+        where a.attrelid = $2::regclass and a.attnum > 0 and not a.attisdropped
+          and has_column_privilege($1, $2::regclass, a.attname, $3)
+        order by a.attnum`,
+      [role, `hygieia.${table}`, priv],
+    )
+  ).rows.map((r) => String(r.attname))
+
+// --- the catalogue -------------------------------------------------------------------------------
+/**
+ * @typedef {object} ContentEntry
+ * @property {string} table
+ * @property {'content'} kind
+ * @property {string} probe  a SET clause on a content column an editor would use (and an attacker would try)
+ * @property {string} probeColumn  the column `probe` sets (read back to prove the edit landed)
+ */
+/**
+ * @typedef {object} ChildEntry
+ * @property {string} table
+ * @property {'child'} kind
+ * @property {string} parent  the content table whose `status` gates visibility
+ * @property {string} parentKey  the FK column to `parent`
+ * @property {string} probe  a SET clause an admin would use
+ * @property {string} insert  an INSERT of a new child under an approved parent (admin's legitimate edit)
+ * @property {string} inserted  predicate matching exactly that inserted row
+ */
+/**
+ * @typedef {object} UserEntry
+ * @property {string} table
+ * @property {'user'} kind
+ * @property {string} probe  a SET clause on a client-updatable column
+ * @property {string} leakInsert  an INSERT that names `user_id = UA` (a row of A); must be refused for everyone
+ * @property {string} controlInsert  the same INSERT without `user_id` (what the client sends); lands as the caller's row
+ * @property {string} inserted  predicate matching the inserted row (without user_id)
+ */
+/** @typedef {{ table: string, kind: 'profiles' }} ProfilesEntry */
+/** @typedef {{ table: string, kind: 'service-only' }} ServiceOnlyEntry */
+/** @typedef {ContentEntry | ChildEntry | UserEntry | ProfilesEntry | ServiceOnlyEntry} Entry */
+
+/** @type {readonly Entry[]} */
+export const CATALOGUE = Object.freeze([
+  { table: 'schema_migrations', kind: 'service-only' },
+  { table: 'profiles', kind: 'profiles' },
+  {
+    table: 'ingredients',
+    kind: 'content',
+    probe: `name_en = 'edited by gate'`,
+    probeColumn: 'name_en',
+  },
+  { table: 'diets', kind: 'content', probe: `name_en = 'edited by gate'`, probeColumn: 'name_en' },
+  {
+    table: 'recipes',
+    kind: 'content',
+    probe: `title_en = 'edited by gate'`,
+    probeColumn: 'title_en',
+  },
+  {
+    table: 'recipe_ingredients',
+    kind: 'child',
+    parent: 'recipes',
+    parentKey: 'recipe_id',
+    probe: `quantity = 11`,
+    insert: `insert into hygieia.recipe_ingredients (recipe_id, ingredient_id, position, quantity, unit)
+             values ('${ID.greekSalad}', '${ID.feta}', 9, 10, 'g')`,
+    inserted: `recipe_id = '${ID.greekSalad}' and position = 9`,
+  },
+  {
+    table: 'recipe_diets',
+    kind: 'child',
+    parent: 'recipes',
+    parentKey: 'recipe_id',
+    probe: `diet_id = '${ID.keto}'`,
+    insert: `insert into hygieia.recipe_diets (recipe_id, diet_id) values ('${ID.greekSalad}', '${ID.keto}')`,
+    inserted: `recipe_id = '${ID.greekSalad}' and diet_id = '${ID.keto}'`,
+  },
+  {
+    table: 'exercises',
+    kind: 'content',
+    probe: `name_en = 'edited by gate'`,
+    probeColumn: 'name_en',
+  },
+  {
+    table: 'workout_templates',
+    kind: 'content',
+    probe: `title_en = 'edited by gate'`,
+    probeColumn: 'title_en',
+  },
+  {
+    table: 'workout_template_exercises',
+    kind: 'child',
+    parent: 'workout_templates',
+    parentKey: 'template_id',
+    probe: `sets = 2`,
+    insert: `insert into hygieia.workout_template_exercises
+               (template_id, exercise_id, position, block, sets, reps, seconds, rest_seconds)
+             values ('${ID.homeTemplate}', '${ID.pushup}', 9, 'cooldown', 1, null, 30, 0)`,
+    inserted: `template_id = '${ID.homeTemplate}' and position = 9`,
+  },
+  {
+    table: 'health_tips',
+    kind: 'content',
+    probe: `title_en = 'edited by gate'`,
+    probeColumn: 'title_en',
+  },
+  {
+    table: 'fridge_lists',
+    kind: 'user',
+    probe: `name = 'pwned'`,
+    leakInsert: `insert into hygieia.fridge_lists (user_id, name) values ('${U.UA}', 'leak')`,
+    controlInsert: `insert into hygieia.fridge_lists (name) values ('leak')`,
+    inserted: `name = 'leak'`,
+  },
+  {
+    table: 'saved_plans',
+    kind: 'user',
+    probe: `week_start = '2030-01-07'`,
+    leakInsert: `insert into hygieia.saved_plans (user_id, diet_id, week_start, plan)
+                 values ('${U.UA}', '${ID.mediterranean}', '2030-01-01', '{"leak":true}')`,
+    controlInsert: `insert into hygieia.saved_plans (diet_id, week_start, plan)
+                    values ('${ID.mediterranean}', '2030-01-01', '{"leak":true}')`,
+    inserted: `week_start = '2030-01-01'`,
+  },
+  {
+    table: 'favourites',
+    kind: 'user',
+    probe: `recipe_id = '${ID.greekSalad}'`,
+    // Both fixture favourites are the salad; the omelette is free for UA and UB alike.
+    leakInsert: `insert into hygieia.favourites (user_id, recipe_id) values ('${U.UA}', '${ID.omelette}')`,
+    controlInsert: `insert into hygieia.favourites (recipe_id) values ('${ID.omelette}')`,
+    inserted: `recipe_id = '${ID.omelette}'`,
+  },
+])
+
+/** Kind-consistency with src/content/enums.ts: the TS table lists and the catalogue must agree. */
+export const KIND_OF_TS = Object.freeze({
+  content: /** @type {readonly string[]} */ (CONTENT_TABLES),
+  child: /** @type {readonly string[]} */ (CHILD_TABLES),
+  user: /** @type {readonly string[]} */ (USER_TABLES),
+})
+
+// --- the checks ----------------------------------------------------------------------------------
+/** @typedef {{ name: string, run: () => Promise<[boolean, string]> }} Check */
+
+const ofA = `user_id = '${U.UA}'`
+const ofB = `user_id = '${U.UB}'`
+const q1 = (/** @type {string} */ s) => `'${s}'`
+const list = (/** @type {string[]} */ xs) => (xs.length ? xs.join(', ') : '')
+const CLIENT_ROLES = ['anon', 'authenticated']
+
+/**
+ * The checks for one catalogue entry. Each `run` is self-contained (its own rolled-back actAs
+ * sessions), so the gate and the Vitest twin can run them in any order.
+ * @param {Entry} e @param {Harness} h @returns {Check[]}
+ */
+export function checksFor(e, h) {
+  const { db, actAs } = h
+  const T = `hygieia.${e.table}`
+  /** @type {Check[]} */
+  const out = []
+  const add = (/** @type {string} */ name, /** @type {Check['run']} */ run) =>
+    out.push({ name: `${T}: ${name}`, run })
+
+  if (e.kind === 'service-only') {
+    add('service-only — anon and authenticated hold no privilege and cannot SELECT', async () => {
+      const got = []
+      for (const role of CLIENT_ROLES)
+        for (const p of await tablePrivs(db, role, e.table)) got.push(`${role}:${p}`)
+      // One connection: sessions run one after the other, never concurrently.
+      const reads = []
+      for (const w of /** @type {Who[]} */ ([ANON, U.UA]))
+        reads.push(await actAs(w, (s) => s.attempt(`select 1 from ${T} limit 1`)))
+      return [got.length === 0 && reads.every(refused), list(got) || JSON.stringify(reads)]
+    })
+    return out
+  }
+
+  if (e.kind === 'content') {
+    const approvedSlug = FX[/** @type {keyof typeof FX} */ (e.table)].approved[0]
+    const pendingSlug = FX[/** @type {keyof typeof FX} */ (e.table)].pending[0]
+    const approved = `status = 'approved'`
+    const notApproved = `status <> 'approved'`
+    add('fixture holds >= 1 approved and >= 1 pending row', () =>
+      actAs(SUPERUSER, async (s) => {
+        const a = await s.count(e.table, approved)
+        const p = await s.count(e.table, `status = 'pending'`)
+        return [a >= 1 && p >= 1, `approved ${a}, pending ${p}`]
+      }),
+    )
+    for (const [label, who] of /** @type {[string, Who][]} */ ([
+      ['anon', ANON],
+      ['UA (signed in, not admin)', U.UA],
+    ])) {
+      add(`${label} reads exactly N approved rows and 0 pending`, () =>
+        actAs(who, async (s) => {
+          const want = await s.sudo(() => s.count(e.table, approved))
+          const total = await s.sudo(() => s.count(e.table))
+          const n = await s.count(e.table)
+          const pending = await s.count(e.table, notApproved)
+          return [
+            n === want && pending === 0 && want > 0,
+            `N = ${want} approved of ${total}; read ${n}, pending ${pending}`,
+          ]
+        }),
+      )
+    }
+    add('ADMIN reads all rows (approved and pending)', () =>
+      actAs(U.ADMIN, async (s) => {
+        const total = await s.sudo(() => s.count(e.table))
+        const approvedN = await s.sudo(() => s.count(e.table, approved))
+        const n = await s.count(e.table)
+        return [n === total && total > approvedN, `${n}/${total}`]
+      }),
+    )
+    add(`UA's status update has no effect`, () =>
+      actAs(U.UA, async (s) => {
+        const before = await snapshot(s, e.table)
+        const o = await s.attempt(`update ${T} set status = 'approved' where status = 'pending'`)
+        const after = await snapshot(s, e.table)
+        return [noEffect(o) && before.h === after.h, JSON.stringify(o)]
+      }),
+    )
+    add(`UA's content edit has no effect`, () =>
+      actAs(U.UA, async (s) => {
+        const before = await snapshot(s, e.table)
+        const o = await s.attempt(`update ${T} set ${e.probe}`)
+        const after = await snapshot(s, e.table)
+        return [noEffect(o) && before.h === after.h, JSON.stringify(o)]
+      }),
+    )
+    add(`anon's UPDATE and DELETE are refused`, () =>
+      actAs(ANON, async (s) => {
+        const before = await snapshot(s, e.table)
+        const u = await s.attempt(`update ${T} set ${e.probe}`)
+        const d = await s.attempt(`delete from ${T}`)
+        const after = await snapshot(s, e.table)
+        return [refused(u) && refused(d) && before.h === after.h, JSON.stringify({ u, d })]
+      }),
+    )
+    add(
+      `ADMIN's status update takes effect and is stamped (reviewed_by = ADMIN, reviewed_at > fixture)`,
+      () =>
+        actAs(U.ADMIN, async (s) => {
+          const o = await s.attempt(
+            `update ${T} set status = 'approved' where slug = ${q1(pendingSlug)}`,
+          )
+          const r = await s.rows(
+            `select status, reviewed_by, reviewed_at > timestamptz '${OLD}' as later,
+                    updated_at > timestamptz '${OLD}' as touched
+               from ${T} where slug = ${q1(pendingSlug)}`,
+          )
+          const row = r[0] ?? {}
+          return [
+            tookEffect(o) &&
+              row.status === 'approved' &&
+              row.reviewed_by === U.ADMIN &&
+              row.later === true &&
+              row.touched === true,
+            JSON.stringify({ o, row }),
+          ]
+        }),
+    )
+    add(`ADMIN's content edit takes effect without re-stamping the review`, () =>
+      actAs(U.ADMIN, async (s) => {
+        const o = await s.attempt(`update ${T} set ${e.probe} where slug = ${q1(approvedSlug)}`)
+        const r = await s.rows(
+          `select ${e.probeColumn} as v, reviewed_by, reviewed_at = timestamptz '${OLD}' as kept
+             from ${T} where slug = ${q1(approvedSlug)}`,
+        )
+        const row = r[0] ?? {}
+        return [
+          tookEffect(o) &&
+            row.v === 'edited by gate' &&
+            row.kept === true &&
+            row.reviewed_by === U.ADMIN,
+          JSON.stringify({ o, row }),
+        ]
+      }),
+    )
+    add('anon and authenticated hold no INSERT or DELETE privilege', async () => {
+      const got = []
+      for (const role of CLIENT_ROLES)
+        for (const p of await tablePrivs(db, role, e.table))
+          if (p === 'INSERT' || p === 'DELETE' || p === 'TRUNCATE') got.push(`${role}:${p}`)
+      return [got.length === 0, list(got)]
+    })
+    add(
+      'authenticated may UPDATE status but never id, slug, created_at, reviewed_at or reviewed_by',
+      async () => {
+        const cols = await columnPrivs(db, 'authenticated', e.table, 'UPDATE')
+        const forbidden = ['id', 'slug', 'created_at', 'reviewed_at', 'reviewed_by'].filter((c) =>
+          cols.includes(c),
+        )
+        return [cols.includes('status') && forbidden.length === 0, `UPDATE on: ${list(cols)}`]
+      },
+    )
+    add(`every row id = md5('hygieia:${e.table}:' || slug)::uuid (seed-id rule)`, () =>
+      actAs(SUPERUSER, async (s) => {
+        const total = await s.count(e.table)
+        const bad = await s.count(e.table, `id <> md5('hygieia:${e.table}:' || slug)::uuid`)
+        return [bad === 0 && total > 0, `${total} rows checked, ${bad} off-formula`]
+      }),
+    )
+    return out
+  }
+
+  if (e.kind === 'child') {
+    const P = `hygieia.${e.parent}`
+    const underApproved = `exists (select 1 from ${P} p where p.id = ${e.parentKey} and p.status = 'approved')`
+    add('fixture holds children under an approved and under a pending parent', () =>
+      actAs(SUPERUSER, async (s) => {
+        const a = await s.count(e.table, underApproved)
+        const p = await s.count(e.table, `not ${underApproved}`)
+        return [a >= 1 && p >= 1, `under approved ${a}, under pending ${p}`]
+      }),
+    )
+    for (const [label, who] of /** @type {[string, Who][]} */ ([
+      ['anon', ANON],
+      ['UA (signed in, not admin)', U.UA],
+    ])) {
+      add(`${label} reads only children of approved parents`, () =>
+        actAs(who, async (s) => {
+          const want = await s.sudo(() => s.count(e.table, underApproved))
+          const total = await s.sudo(() => s.count(e.table))
+          const n = await s.count(e.table)
+          const leaked = await s.count(e.table, `not ${underApproved}`)
+          return [
+            n === want && leaked === 0 && total > want,
+            `${n}/${total} (approved parents: ${want})`,
+          ]
+        }),
+      )
+    }
+    add('ADMIN reads all children', () =>
+      actAs(U.ADMIN, async (s) => {
+        const total = await s.sudo(() => s.count(e.table))
+        const n = await s.count(e.table)
+        return [n === total && total > 0, `${n}/${total}`]
+      }),
+    )
+    add(`UA's INSERT, UPDATE and DELETE have no effect`, () =>
+      actAs(U.UA, async (s) => {
+        const before = await snapshot(s, e.table)
+        const i = await s.attempt(e.insert)
+        const u = await s.attempt(`update ${T} set ${e.probe}`)
+        const d = await s.attempt(`delete from ${T}`)
+        const after = await snapshot(s, e.table)
+        const leaked = await s.sudo(() => s.count(e.table, e.inserted))
+        return [
+          refused(i) && noEffect(u) && noEffect(d) && leaked === 0 && before.h === after.h,
+          JSON.stringify({ i, u, d }),
+        ]
+      }),
+    )
+    add(`anon's INSERT, UPDATE and DELETE are refused`, () =>
+      actAs(ANON, async (s) => {
+        const before = await snapshot(s, e.table)
+        const i = await s.attempt(e.insert)
+        const u = await s.attempt(`update ${T} set ${e.probe}`)
+        const d = await s.attempt(`delete from ${T}`)
+        const after = await snapshot(s, e.table)
+        return [
+          refused(i) && refused(u) && refused(d) && before.h === after.h,
+          JSON.stringify({ i, u, d }),
+        ]
+      }),
+    )
+    add(`ADMIN's INSERT, UPDATE and DELETE take effect`, () =>
+      actAs(U.ADMIN, async (s) => {
+        const i = await s.attempt(e.insert)
+        const made = await s.count(e.table, e.inserted)
+        const u = await s.attempt(`update ${T} set ${e.probe} where ${e.inserted}`)
+        const d = await s.attempt(`delete from ${T} where ${e.inserted}`)
+        const left = await s.count(e.table, e.inserted)
+        return [
+          tookEffect(i) && made === 1 && tookEffect(u) && tookEffect(d) && left === 0,
+          JSON.stringify({ i, made, u, d, left }),
+        ]
+      }),
+    )
+    return out
+  }
+
+  if (e.kind === 'user') {
+    add('fixture is non-vacuous (A and B both have rows)', () =>
+      actAs(SUPERUSER, async (s) => {
+        const a = await s.count(e.table, ofA)
+        const b = await s.count(e.table, ofB)
+        return [a > 0 && b > 0, `A ${a}, B ${b}`]
+      }),
+    )
+    add('UB reads ZERO rows of A', () =>
+      actAs(U.UB, async (s) => {
+        const n = await s.count(e.table, ofA)
+        return [n === 0, `${n} rows`]
+      }),
+    )
+    add(`UB reads all of B's own rows (not locked out)`, () =>
+      actAs(U.UB, async (s) => {
+        const want = await s.sudo(() => s.count(e.table, ofB))
+        const n = await s.count(e.table, ofB)
+        return [n === want && n > 0, `${n}/${want}`]
+      }),
+    )
+    add(`UB's UPDATE of A's rows has no effect`, () =>
+      actAs(U.UB, async (s) => {
+        const before = await snapshot(s, e.table, ofA)
+        const o = await s.attempt(`update ${T} set ${e.probe} where ${ofA}`)
+        const after = await snapshot(s, e.table, ofA)
+        return [noEffect(o) && before.h === after.h, JSON.stringify(o)]
+      }),
+    )
+    add(`UB's DELETE of A's rows has no effect`, () =>
+      actAs(U.UB, async (s) => {
+        const before = await snapshot(s, e.table, ofA)
+        const o = await s.attempt(`delete from ${T} where ${ofA}`)
+        const after = await snapshot(s, e.table, ofA)
+        return [noEffect(o) && before.h === after.h && after.n > 0, JSON.stringify(o)]
+      }),
+    )
+    add(`UB's INSERT of a row of A is refused`, () =>
+      actAs(U.UB, async (s) => {
+        const before = await snapshot(s, e.table, ofA)
+        const o = await s.attempt(e.leakInsert)
+        const leaked = await s.sudo(() => s.count(e.table, `${e.inserted} and ${ofA}`))
+        const after = await snapshot(s, e.table, ofA)
+        return [refused(o) && leaked === 0 && before.h === after.h, JSON.stringify(o)]
+      }),
+    )
+    add(`control — the same INSERT without user_id succeeds as UA and lands as A's row`, () =>
+      actAs(U.UA, async (s) => {
+        const o = await s.attempt(e.controlInsert)
+        const asA = await s.sudo(() => s.count(e.table, `${e.inserted} and ${ofA}`))
+        const asB = await s.sudo(() => s.count(e.table, `${e.inserted} and ${ofB}`))
+        return [tookEffect(o) && asA === 1 && asB === 0, JSON.stringify({ o, asA, asB })]
+      }),
+    )
+    add(`UB's INSERT without user_id lands as B's own row, never A's`, () =>
+      actAs(U.UB, async (s) => {
+        const o = await s.attempt(e.controlInsert)
+        const asB = await s.sudo(() => s.count(e.table, `${e.inserted} and ${ofB}`))
+        const asA = await s.sudo(() => s.count(e.table, `${e.inserted} and ${ofA}`))
+        return [tookEffect(o) && asB === 1 && asA === 0, JSON.stringify({ o, asB, asA })]
+      }),
+    )
+    add('anon reads nothing and holds no privilege', async () => {
+      const privs = await tablePrivs(db, 'anon', e.table)
+      const o = await actAs(ANON, (s) => s.attempt(`select 1 from ${T} limit 1`))
+      return [privs.length === 0 && refused(o), list(privs) || JSON.stringify(o)]
+    })
+    add(`UA reads all of A's rows`, () =>
+      actAs(U.UA, async (s) => {
+        const want = await s.sudo(() => s.count(e.table, ofA))
+        const n = await s.count(e.table, ofA)
+        return [n === want && n > 0, `${n}/${want}`]
+      }),
+    )
+    add(`UA's UPDATE and DELETE of own rows take effect`, () =>
+      actAs(U.UA, async (s) => {
+        const before = await snapshot(s, e.table, ofA)
+        const u = await s.attempt(`update ${T} set ${e.probe} where ${ofA}`)
+        const mid = await snapshot(s, e.table, ofA)
+        const d = await s.attempt(`delete from ${T} where ${ofA}`)
+        const left = await s.sudo(() => s.count(e.table, ofA))
+        return [
+          tookEffect(u) && before.h !== mid.h && tookEffect(d) && left === 0,
+          JSON.stringify({ u, d, left }),
+        ]
+      }),
+    )
+    add(
+      'authenticated holds no INSERT or UPDATE privilege on user_id (it comes from default auth.uid())',
+      async () => {
+        const ins = await columnPrivs(db, 'authenticated', e.table, 'INSERT')
+        const upd = await columnPrivs(db, 'authenticated', e.table, 'UPDATE')
+        return [
+          !ins.includes('user_id') && !upd.includes('user_id') && ins.length > 0,
+          `INSERT on: ${list(ins)}; UPDATE on: ${list(upd)}`,
+        ]
+      },
+    )
+    return out
+  }
+
+  // --- profiles ---
+  add('fixture holds UA, UB (is_admin = false) and ADMIN (is_admin = true)', () =>
+    actAs(SUPERUSER, async (s) => {
+      const r = await s.rows(
+        `select user_id, is_admin from ${T} where user_id in ('${U.UA}', '${U.UB}', '${U.ADMIN}') order by 1`,
+      )
+      const ok = r.length === 3 && r.every((x) => x.is_admin === (x.user_id === U.ADMIN))
+      return [ok, JSON.stringify(r)]
+    }),
+  )
+  add(`UB reads ZERO rows of A (UA's profile)`, () =>
+    actAs(U.UB, async (s) => {
+      const n = await s.count(e.table, ofA)
+      return [n === 0, `${n} rows`]
+    }),
+  )
+  add('UA reads exactly own row', () =>
+    actAs(U.UA, async (s) => {
+      const r = await s.rows(`select user_id from ${T}`)
+      return [r.length === 1 && r[0].user_id === U.UA, JSON.stringify(r)]
+    }),
+  )
+  add(`UA's update of is_admin is refused (no column grant)`, () =>
+    actAs(U.UA, async (s) => {
+      const o = await s.attempt(`update ${T} set is_admin = true where ${ofA}`)
+      const still = await s.sudo(() => s.count(e.table, `${ofA} and is_admin = false`))
+      return [refused(o) && still === 1, JSON.stringify(o)]
+    }),
+  )
+  add(`UA's insert with is_admin = true is refused`, () =>
+    actAs(U.UA, async (s) => {
+      const o = await s.attempt(
+        `insert into ${T} (user_id, display_name, is_admin) values ('${U.NEW}', 'x', true)`,
+      )
+      const made = await s.sudo(() => s.count(e.table, `user_id = '${U.NEW}'`))
+      return [refused(o) && made === 0, JSON.stringify(o)]
+    }),
+  )
+  add(`NEW user's self-insert succeeds and lands with is_admin = false`, () =>
+    actAs(U.NEW, async (s) => {
+      const o = await s.attempt(
+        `insert into ${T} (user_id, display_name) values ('${U.NEW}', 'New')`,
+      )
+      const r = await s.rows(`select is_admin from ${T} where user_id = '${U.NEW}'`)
+      return [tookEffect(o) && r.length === 1 && r[0].is_admin === false, JSON.stringify({ o, r })]
+    }),
+  )
+  add(`NEW user's insert of someone else's profile (UA's id) is refused`, () =>
+    actAs(U.NEW, async (s) => {
+      const o = await s.attempt(`insert into ${T} (user_id, display_name) values ('${U.UA}', 'x')`)
+      return [refused(o), JSON.stringify(o)]
+    }),
+  )
+  add(`UA's update of display_name takes effect`, () =>
+    actAs(U.UA, async (s) => {
+      const o = await s.attempt(`update ${T} set display_name = 'Renamed A' where ${ofA}`)
+      const r = await s.rows(
+        `select display_name, updated_at > timestamptz '${OLD}' as touched from ${T} where ${ofA}`,
+      )
+      return [
+        tookEffect(o) && r[0]?.display_name === 'Renamed A' && r[0]?.touched === true,
+        JSON.stringify({ o, r }),
+      ]
+    }),
+  )
+  add(`UB's UPDATE and DELETE of UA's row have no effect`, () =>
+    actAs(U.UB, async (s) => {
+      const before = await snapshot(s, e.table, ofA)
+      const u = await s.attempt(`update ${T} set display_name = 'pwned' where ${ofA}`)
+      const d = await s.attempt(`delete from ${T} where ${ofA}`)
+      const after = await snapshot(s, e.table, ofA)
+      return [
+        noEffect(u) && noEffect(d) && before.h === after.h && after.n === 1,
+        JSON.stringify({ u, d }),
+      ]
+    }),
+  )
+  add('anon reads nothing and holds no privilege', async () => {
+    const privs = await tablePrivs(db, 'anon', e.table)
+    const o = await actAs(ANON, (s) => s.attempt(`select 1 from ${T} limit 1`))
+    return [privs.length === 0 && refused(o), list(privs) || JSON.stringify(o)]
+  })
+  add(
+    'hygieia.is_admin() is true for ADMIN, false for UA, false without a profile (NEW)',
+    async () => {
+      const ask = (/** @type {Who} */ w) =>
+        actAs(w, async (s) => (await s.rows(`select hygieia.is_admin() as a`))[0]?.a)
+      const got = [await ask(U.ADMIN), await ask(U.UA), await ask(U.NEW)]
+      return [JSON.stringify(got) === JSON.stringify([true, false, false]), JSON.stringify(got)]
+    },
+  )
+  add('anon cannot execute hygieia.is_admin()', () =>
+    actAs(ANON, async (s) => {
+      const o = await s.attempt(`select hygieia.is_admin()`)
+      return [refused(o), JSON.stringify(o)]
+    }),
+  )
+  add('authenticated holds no INSERT or UPDATE privilege on is_admin', async () => {
+    const ins = await columnPrivs(db, 'authenticated', e.table, 'INSERT')
+    const upd = await columnPrivs(db, 'authenticated', e.table, 'UPDATE')
+    return [
+      !ins.includes('is_admin') &&
+        !upd.includes('is_admin') &&
+        ins.includes('user_id') &&
+        upd.includes('display_name'),
+      `INSERT on: ${list(ins)}; UPDATE on: ${list(upd)}`,
+    ]
+  })
+  return out
+}

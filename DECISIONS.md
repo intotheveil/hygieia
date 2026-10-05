@@ -107,3 +107,29 @@ The payload types in `src/user/source.ts` have no `user_id` member, so sending i
 who owns a row — a client-supplied id is at best redundant and at worst a spoof attempt RLS has to refuse;
 a client-side `eq('user_id', …)` would duplicate the policy and invite a false sense of safety when it is
 forgotten. Same discipline as P2.3's `is_admin` (never sent; the column grant forbids it).
+## 2026-10-05 — every `hygieia` function revokes EXECUTE explicitly (per-schema default privileges cannot)
+
+`alter default privileges in schema hygieia revoke execute on functions from public` does NOT remove the
+hardwired PUBLIC EXECUTE on functions created later: per-schema defaults are ADDED to the global default
+(Postgres docs; proven in PGlite 2026-10-05 — `proacl` stays NULL, `has_function_privilege('anon', …)` =
+true). A global revoke would be project-wide and touch Alyssos (ADR-0003), so it is forbidden. Rule: every
+function a Hygieia migration creates ends with `revoke execute on function … from public, anon` (trigger
+functions also `authenticated`; an RPC then grants `authenticated`). `npm run db:gate` sweeps every
+function for anon/PUBLIC EXECUTE and a pinned `search_path`; the sweep is RED-verified (P1.8).
+
+## 2026-10-05 — P1.5–P1.8 schema choices
+
+- **Policies per role, never `to anon, authenticated` with `or hygieia.is_admin()`** (PLAN §1.4): anon holds
+  no EXECUTE on any `hygieia` function, so a shared policy would error for anon. The gate asserts "every anon
+  policy is TO anon alone" and "no write policy admits anon or PUBLIC".
+- **Client writes are column-limited grants, not only policies:** `profiles.is_admin` and every per-user
+  `user_id` have NO INSERT/UPDATE grant (so `user_id` always comes from `default auth.uid()`); content
+  `id`, `slug`, `created_at`, `reviewed_*` are never client-updatable; `stamp_review()` writes the review
+  stamp as a trigger (column privileges do not apply to trigger assignments).
+- **Nullability follows `src/content/types.ts`**, not the looser §2 prose: ingredient price fields and
+  `category` are `not null`; `equipment_*`/`note_*` are nullable as a pair (`(a is null) = (b is null)`);
+  `image_path`, `source_url` nullable. Every table (children too) carries `created_at`/`updated_at`.
+- **Fixture rows obey the seed-id rule** (`id = md5('hygieia:<table>:' || slug)::uuid`, slugs `fx-*`), so
+  the "every row id = md5(…)" check is non-vacuous before P1.12 and bites on every seeded row after.
+- **Gate and `npm test` share one check list** (`checksFor` in `scripts/db-gate/catalogue.mjs`); the Vitest
+  twin pins the check names, so a check added to the catalogue without a case fails the suite.
