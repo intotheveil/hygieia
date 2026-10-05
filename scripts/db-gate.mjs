@@ -12,11 +12,13 @@
 // and nothing is pre-granted on schema `hygieia`: a grant a migration forgot must fail a
 // positive-path check here, not surface live.
 //
-// P1.1 runs the static guard (./check-migrations.mjs) before anything is applied.
-// P1.2 scope (this file): the harness, apply + re-apply (idempotency), the bootstrap's own
-// contract, and the "Alyssos's side is untouched" invariance.
-// P1.8 adds the structural sweep over every hygieia table and object, the catalogue coverage
-// check, the seeded fixture with its orphan scan, and the isolation + role matrix.
+// Sections:
+//   P1.1  the static guard (./check-migrations.mjs) before anything is applied
+//   P1.2  apply + re-apply (idempotency), the bootstrap's own contract
+//   P1.8  the structural sweep over every hygieia object; catalogue coverage (every table has an
+//         entry, every entry a table); the committed fixture; the orphan scan over every FK; the
+//         per-kind isolation + role matrix from ./db-gate/catalogue.mjs; the "Alyssos's side is
+//         untouched" invariance last (the fixture must not have moved it either).
 
 import { PGlite } from '@electric-sql/pglite'
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
@@ -24,6 +26,16 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { installShim, foreignSnapshot, ALYSSOS_MIGRATION_ROWS } from './db-gate/shim.mjs'
 import { runGuard } from './check-migrations.mjs'
+import {
+  CATALOGUE,
+  ENUM_COLUMNS,
+  KIND_OF_TS,
+  checkValues,
+  checksFor,
+  createHarness,
+  seedFixture,
+  tablePrivs,
+} from './db-gate/catalogue.mjs'
 
 // Overridable so the gate can be pointed at a MUTATED copy of the archive and proven to go red
 // (P1.14). A gate nobody has ever seen fail is not a gate.
@@ -58,7 +70,7 @@ async function main() {
 }
 
 /**
- * Apply the archive twice, then every bootstrap-contract and invariance check.
+ * Apply the archive twice, then every contract, sweep, fixture and matrix check.
  * @param {PGlite} db a fresh in-memory database, closed by the caller
  * @returns {Promise<number>} 0 = GATE PASSED, 1 = red
  */
@@ -66,12 +78,27 @@ async function runGate(db) {
   /** @param {string} sql @param {unknown[]} [params] */
   const q = (sql, params) => db.query(sql, params)
   let failures = 0
+  let passes = 0
   /** @param {string} name @param {boolean} ok @param {string} [detail] */
   const check = (name, ok, detail = '') => {
     console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ' — ' + detail : ''}`)
-    if (!ok) failures++
+    if (ok) passes++
+    else failures++
   }
   const errMsg = (/** @type {unknown} */ e) => (e instanceof Error ? e.message : String(e))
+  /** Run a check whose body may throw (a missing table, a bad column): a throw is a FAIL, not a crash. */
+  const guarded = async (
+    /** @type {string} */ name,
+    /** @type {() => Promise<[boolean, string?]>} */ fn,
+  ) => {
+    try {
+      const [ok, detail] = await fn()
+      check(name, ok, detail ?? '')
+    } catch (e) {
+      check(name, false, `threw: ${errMsg(e)}`)
+    }
+  }
+  const list = (/** @type {string[]} */ xs) => (xs.length ? xs.join(', ') : '')
 
   // --- the shared project, as Hygieia finds it ----------------------------------------------------
   await installShim(db)
@@ -120,7 +147,7 @@ async function runGate(db) {
   }
   console.log('')
 
-  // --- bootstrap contract ------------------------------------------------------------------------
+  // --- bootstrap contract (P1.2) -----------------------------------------------------------------
   const schema = await q(`select 1 from pg_namespace where nspname = 'hygieia'`)
   check('schema hygieia exists', schema.rows.length === 1)
 
@@ -230,24 +257,167 @@ async function runGate(db) {
     check('hygieia.touch_updated_at() sets updated_at on UPDATE', false, errMsg(e))
   }
 
-  // EVERY function in schema hygieia: EXECUTE for neither anon nor PUBLIC. The bootstrap's
-  // per-schema `alter default privileges … revoke execute … from public` does NOT achieve this on
-  // its own (per-schema defaults are ADDED to the hardwired global default, which grants PUBLIC —
-  // proven here in PGlite, 2026-10-05), and a global revoke would be project-wide (ADR-0003). So
-  // each migration revokes explicitly and this sweep is the control. proacl NULL means the
-  // DEFAULT acl, which grants PUBLIC; aclexplode over acldefault sees it. P1.8 extends the sweep.
-  const fns = (
+  // =================================================================================================
+  // P1.8 — STRUCTURAL SWEEP over every object in schema `hygieia`
+  // =================================================================================================
+  console.log('\n--- structural sweep ---')
+
+  const tableRows = (
     await q(
-      `select p.oid::regprocedure::text as sig,
-              has_function_privilege('anon', p.oid, 'EXECUTE') as anon_exec,
-              exists (select 1 from aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
-                       where a.grantee = 0 and a.privilege_type = 'EXECUTE') as public_exec,
-              coalesce(p.proconfig, '{}') as config
-         from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-        where n.nspname = 'hygieia' order by 1`,
+      `select c.relname,
+              exists (select 1 from pg_attribute a where a.attrelid = c.oid and a.attname = 'status' and not a.attisdropped) as has_status,
+              exists (select 1 from pg_attribute a where a.attrelid = c.oid and a.attname = 'updated_at' and not a.attisdropped) as has_updated_at,
+              exists (select 1 from pg_attribute a where a.attrelid = c.oid and a.attname = 'created_at' and not a.attisdropped) as has_created_at,
+              (select pg_get_expr(d.adbin, d.adrelid) from pg_attrdef d join pg_attribute a on a.attrelid = d.adrelid and a.attnum = d.adnum
+                where d.adrelid = c.oid and a.attname = 'user_id') as user_id_default
+         from pg_class c join pg_namespace n on n.oid = c.relnamespace
+        where n.nspname = 'hygieia' and c.relkind in ('r', 'p') order by 1`,
     )
   ).rows
-  const list = (/** @type {string[]} */ xs) => (xs.length ? xs.join(', ') : '')
+  const tables = tableRows.map((r) => String(r.relname))
+
+  // RLS on every table.
+  const noRls = (
+    await q(
+      `select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
+        where n.nspname = 'hygieia' and c.relkind in ('r', 'p') and not c.relrowsecurity order by 1`,
+    )
+  ).rows.map((r) => String(r.relname))
+  check(`RLS is enabled on every hygieia table (${tables.length})`, noRls.length === 0, list(noRls))
+
+  // A view runs with its OWNER's rights unless security_invoker: it would read around RLS.
+  const badViews = (
+    await q(
+      `select c.relname || case c.relkind when 'm' then ' (materialized)' else '' end as v
+         from pg_class c join pg_namespace n on n.oid = c.relnamespace
+        where n.nspname = 'hygieia' and c.relkind in ('v', 'm')
+          and (c.relkind = 'm' or not coalesce('security_invoker=true' = any (c.reloptions), false)
+                                and not coalesce('security_invoker=on' = any (c.reloptions), false))
+        order by 1`,
+    )
+  ).rows.map((r) => String(r.v))
+  check(
+    'no hygieia view bypasses RLS (views are security_invoker, no materialized views)',
+    badViews.length === 0,
+    list(badViews),
+  )
+
+  // Every table has a policy set, except the service-only tables, which must hold ZERO API grants.
+  const SERVICE_ONLY = CATALOGUE.filter((e) => e.kind === 'service-only').map((e) => e.table)
+  const noPolicy = (
+    await q(
+      `select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
+        where n.nspname = 'hygieia' and c.relkind in ('r', 'p')
+          and not exists (select 1 from pg_policy p where p.polrelid = c.oid)
+        order by 1`,
+    )
+  ).rows.map((r) => String(r.relname))
+  const noPolicyUnexpected = noPolicy.filter((t) => !SERVICE_ONLY.includes(t))
+  check(
+    `every hygieia table has at least one policy (service-only exceptions: ${SERVICE_ONLY.join(', ')})`,
+    noPolicyUnexpected.length === 0,
+    list(noPolicyUnexpected),
+  )
+  const policyOnServiceOnly = SERVICE_ONLY.filter((t) => !noPolicy.includes(t))
+  check(
+    'no service-only table has a policy (nothing for any API role)',
+    policyOnServiceOnly.length === 0,
+    list(policyOnServiceOnly),
+  )
+
+  // Timestamps and triggers: every table has created_at + updated_at and a touch trigger; every
+  // status-bearing table has the review-stamp trigger and the pending default.
+  const triggers = (
+    await q(
+      `select c.relname as tbl, t.tgname, p.proname as fn, t.tgtype::int as tgtype
+         from pg_trigger t join pg_class c on c.oid = t.tgrelid
+         join pg_namespace n on n.oid = c.relnamespace join pg_proc p on p.oid = t.tgfoid
+        where n.nspname = 'hygieia' and not t.tgisinternal order by 1, 2`,
+    )
+  ).rows
+  // tgtype bits: 1 = ROW, 2 = BEFORE, 16 = UPDATE.
+  const hasBeforeUpdateRow = (/** @type {string} */ tbl, /** @type {string} */ fnName) =>
+    triggers.some(
+      (t) => t.tbl === tbl && t.fn === fnName && (Number(t.tgtype) & (1 | 2 | 16)) === (1 | 2 | 16),
+    )
+  const noTimestamps = tableRows
+    .filter((r) => !SERVICE_ONLY.includes(String(r.relname)))
+    .filter((r) => !(r.has_created_at && r.has_updated_at))
+    .map((r) => String(r.relname))
+  check(
+    `every hygieia table has created_at and updated_at (${tables.length - SERVICE_ONLY.length}; the ledger has applied_at)`,
+    noTimestamps.length === 0,
+    list(noTimestamps),
+  )
+  const noTouch = tableRows
+    .filter((r) => r.has_updated_at && !hasBeforeUpdateRow(String(r.relname), 'touch_updated_at'))
+    .map((r) => String(r.relname))
+  check(
+    'every table with updated_at has a BEFORE UPDATE touch_updated_at trigger',
+    noTouch.length === 0,
+    list(noTouch),
+  )
+  const statusTables = tableRows.filter((r) => r.has_status).map((r) => String(r.relname))
+  const noStamp = statusTables.filter((t) => !hasBeforeUpdateRow(t, 'stamp_review'))
+  check(
+    `every status-bearing table has a BEFORE UPDATE stamp_review trigger (${statusTables.length})`,
+    noStamp.length === 0,
+    list(noStamp),
+  )
+  await guarded(
+    `every status-bearing table defaults status to 'pending' and has reviewed_at + reviewed_by`,
+    async () => {
+      const bad = []
+      for (const t of statusTables) {
+        const r = (
+          await q(
+            `select (select pg_get_expr(d.adbin, d.adrelid) from pg_attrdef d join pg_attribute a
+                        on a.attrelid = d.adrelid and a.attnum = d.adnum
+                      where d.adrelid = $1::regclass and a.attname = 'status') as def,
+                    exists (select 1 from pg_attribute a where a.attrelid = $1::regclass and a.attname = 'reviewed_at') as ra,
+                    exists (select 1 from pg_attribute a where a.attrelid = $1::regclass and a.attname = 'reviewed_by') as rb`,
+            [`hygieia.${t}`],
+          )
+        ).rows[0]
+        if (!/^'pending'::text$/.test(String(r.def)) || !r.ra || !r.rb) bad.push(`${t} (${r.def})`)
+      }
+      return [bad.length === 0, list(bad)]
+    },
+  )
+
+  // Functions: search_path pinned everywhere; definers never on a path an attacker can write;
+  // EXECUTE for neither anon nor PUBLIC. The bootstrap's per-schema `alter default privileges …
+  // revoke execute … from public` does NOT achieve this on its own (per-schema defaults are ADDED
+  // to the hardwired global default, which grants PUBLIC — proven here in PGlite, 2026-10-05), and
+  // a global revoke would be project-wide (ADR-0003). So each migration revokes explicitly and
+  // this sweep is the control. proacl NULL means the DEFAULT acl, which grants PUBLIC.
+  const fns = (
+    await q(
+      `select p.oid, p.oid::regprocedure::text as sig, p.prosecdef as definer,
+              coalesce(p.proconfig, '{}') as config,
+              has_function_privilege('anon', p.oid, 'EXECUTE') as anon_exec,
+              exists (select 1 from aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+                       where a.grantee = 0 and a.privilege_type = 'EXECUTE') as public_exec
+         from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+        where n.nspname = 'hygieia' order by 2`,
+    )
+  ).rows
+  const pathOf = (/** @type {{ config: unknown }} */ f) =>
+    /** @type {string[]} */ (f.config).find((c) => String(c).startsWith('search_path='))
+  const unpinned = fns.filter((f) => !pathOf(f)).map((f) => String(f.sig))
+  check(
+    `search_path is pinned on every hygieia function (${fns.length})`,
+    unpinned.length === 0,
+    list(unpinned),
+  )
+  const loosePath = fns
+    .filter((f) => f.definer && pathOf(f) && /public|\$user|pg_temp/.test(String(pathOf(f))))
+    .map((f) => `${f.sig} ${pathOf(f)}`)
+  check(
+    'no SECURITY DEFINER function has public/$user/pg_temp on its search_path',
+    loosePath.length === 0,
+    list(loosePath),
+  )
   const anonExecFns = fns.filter((f) => f.anon_exec).map((f) => String(f.sig))
   check(
     `anon has EXECUTE on no hygieia function (${fns.length})`,
@@ -260,18 +430,242 @@ async function runGate(db) {
     publicExecFns.length === 0,
     list(publicExecFns),
   )
-  const unpinned = fns
-    .filter(
-      (f) => !/** @type {unknown[]} */ (f.config).some((c) => String(c).startsWith('search_path=')),
+
+  // Policies: never TO PUBLIC; anon only ever reads; no write policy admits anon or PUBLIC.
+  const policies = (
+    await q(
+      `select c.relname || '.' || p.polname as name, c.relname as tbl, p.polcmd::text as cmd,
+              p.polroles::regrole[]::text as roles,
+              (0::oid = any (p.polroles)) as admits_public,
+              ('anon'::regrole::oid = any (p.polroles)) as admits_anon
+         from pg_policy p join pg_class c on c.oid = p.polrelid
+         join pg_namespace n on n.oid = c.relnamespace
+        where n.nspname = 'hygieia' order by 1`,
     )
-    .map((f) => String(f.sig))
+  ).rows
+  const toPublic = policies.filter((p) => p.admits_public).map((p) => String(p.name))
   check(
-    `search_path is pinned on every hygieia function (${fns.length})`,
-    unpinned.length === 0,
-    list(unpinned),
+    `no hygieia policy is TO PUBLIC (every policy names anon or authenticated) (${policies.length})`,
+    toPublic.length === 0,
+    list(toPublic),
+  )
+  const writeAnon = policies
+    .filter((p) => p.cmd !== 'r' && (p.admits_anon || p.admits_public))
+    .map((p) => `${p.name} (${p.cmd} ${p.roles})`)
+  check('no write policy admits anon or PUBLIC', writeAnon.length === 0, list(writeAnon))
+  const anonNotSelectOnly = policies
+    .filter((p) => p.admits_anon && p.roles !== '{anon}')
+    .map((p) => `${p.name} (${p.roles})`)
+  check(
+    'every anon policy is TO anon alone (per-role policies, PLAN §1.4)',
+    anonNotSelectOnly.length === 0,
+    list(anonNotSelectOnly),
   )
 
-  // --- Alyssos's side: untouched ------------------------------------------------------------------
+  // Privilege shape per kind, derived from the catalogue: anon holds exactly SELECT on content and
+  // child tables and nothing anywhere else; authenticated never INSERTs/DELETEs content; no client
+  // role holds TRUNCATE/REFERENCES/TRIGGER anywhere.
+  await guarded(
+    'anon holds exactly SELECT on content and child tables and nothing else',
+    async () => {
+      const bad = []
+      for (const e of CATALOGUE) {
+        const got = await tablePrivs(db, 'anon', e.table)
+        const want = e.kind === 'content' || e.kind === 'child' ? ['SELECT'] : []
+        if (JSON.stringify(got) !== JSON.stringify(want))
+          bad.push(`${e.table}: ${list(got) || 'nothing'}`)
+      }
+      return [bad.length === 0, list(bad)]
+    },
+  )
+  await guarded(
+    'authenticated holds no INSERT, DELETE or TRUNCATE on any content table',
+    async () => {
+      const bad = []
+      for (const e of CATALOGUE.filter((x) => x.kind === 'content')) {
+        const got = (await tablePrivs(db, 'authenticated', e.table)).filter((p) =>
+          ['INSERT', 'DELETE', 'TRUNCATE'].includes(p),
+        )
+        if (got.length) bad.push(`${e.table}: ${list(got)}`)
+      }
+      return [bad.length === 0, list(bad)]
+    },
+  )
+  await guarded(
+    'no client role holds TRUNCATE, REFERENCES or TRIGGER on any hygieia table',
+    async () => {
+      const bad = []
+      for (const t of tables)
+        for (const role of ['anon', 'authenticated']) {
+          const got = (await tablePrivs(db, role, t)).filter((p) =>
+            ['TRUNCATE', 'REFERENCES', 'TRIGGER'].includes(p),
+          )
+          if (got.length) bad.push(`${role}:${t}: ${list(got)}`)
+        }
+      return [bad.length === 0, list(bad)]
+    },
+  )
+  await guarded(
+    'service_role holds full DML on every hygieia table except the ledger',
+    async () => {
+      const bad = []
+      for (const t of tables.filter((x) => !SERVICE_ONLY.includes(x))) {
+        const got = await tablePrivs(db, 'service_role', t)
+        for (const p of ['SELECT', 'INSERT', 'UPDATE', 'DELETE'])
+          if (!got.includes(p)) bad.push(`${t}: no ${p}`)
+      }
+      return [bad.length === 0, list(bad)]
+    },
+  )
+
+  // Foreign keys: all validated (NOT VALID would skip the existing rows) and every FK column indexed.
+  const fkRows = (
+    await q(
+      `select c.conname, c.conrelid::regclass::text as child, c.confrelid::regclass::text as parent,
+              c.convalidated as validated, c.conrelid as relid, c.conkey as conkey,
+              array(select a.attname from unnest(c.conkey) with ordinality k(n, i)
+                      join pg_attribute a on a.attrelid = c.conrelid and a.attnum = k.n order by k.i)::text[] as ccols,
+              array(select a.attname from unnest(c.confkey) with ordinality k(n, i)
+                      join pg_attribute a on a.attrelid = c.confrelid and a.attnum = k.n order by k.i)::text[] as pcols,
+              exists (select 1 from pg_index i where i.indrelid = c.conrelid
+                        and (i.indkey::int2[])[0:cardinality(c.conkey)-1] = c.conkey) as indexed
+         from pg_constraint c join pg_class t on t.oid = c.conrelid
+         join pg_namespace n on n.oid = t.relnamespace
+        where n.nspname = 'hygieia' and c.contype = 'f' order by 1`,
+    )
+  ).rows
+  const unvalidated = fkRows.filter((f) => !f.validated).map((f) => `${f.child}.${f.conname}`)
+  check(
+    `every hygieia foreign key is validated (convalidated) (${fkRows.length})`,
+    unvalidated.length === 0,
+    list(unvalidated),
+  )
+  const unindexed = fkRows.filter((f) => !f.indexed).map((f) => `${f.child}.${f.conname}`)
+  check(
+    `every hygieia foreign key column is indexed (${fkRows.length})`,
+    unindexed.length === 0,
+    list(unindexed),
+  )
+
+  // The DB CHECK literals equal src/content/enums.ts (order and length); the contract test repeats it.
+  for (const ec of ENUM_COLUMNS) {
+    await guarded(`${ec.table}.${ec.column} CHECK admits exactly enums.ts ${ec.name}`, async () => {
+      const got = await checkValues(db, ec.table, ec.column)
+      return [
+        JSON.stringify(got) === JSON.stringify([...ec.values]),
+        `db ${got ? got.join('|') : 'no single CHECK'} vs ts ${ec.values.join('|')}`,
+      ]
+    })
+  }
+
+  // =================================================================================================
+  // P1.8 — COVERAGE: every hygieia table has a catalogue entry, every entry a table, kinds agree
+  // =================================================================================================
+  console.log('\n--- catalogue coverage ---')
+  const inCatalogue = CATALOGUE.map((e) => e.table)
+  const uncovered = tables.filter((t) => !inCatalogue.includes(t))
+  check(
+    `every hygieia table has a catalogue entry (${tables.length})`,
+    uncovered.length === 0,
+    uncovered.length
+      ? `NO ENTRY: ${uncovered.join(', ')} — add it to scripts/db-gate/catalogue.mjs`
+      : '',
+  )
+  const stale = inCatalogue.filter((t) => !tables.includes(t))
+  check('every catalogue entry names an existing hygieia table', stale.length === 0, list(stale))
+  const dupes = inCatalogue.filter((t, i) => inCatalogue.indexOf(t) !== i)
+  check('the catalogue names each table once', dupes.length === 0, list(dupes))
+  const kindMismatch = []
+  for (const e of CATALOGUE) {
+    const r = tableRows.find((x) => x.relname === e.table)
+    if (!r) continue
+    if (e.kind === 'content' && !r.has_status)
+      kindMismatch.push(`${e.table}: content without status`)
+    if (e.kind === 'child' && r.has_status) kindMismatch.push(`${e.table}: child with status`)
+    if (
+      e.kind === 'child' &&
+      !fkRows.some((f) => f.child === `hygieia.${e.table}` && f.parent === `hygieia.${e.parent}`)
+    )
+      kindMismatch.push(`${e.table}: no FK to ${e.parent}`)
+    if ((e.kind === 'user' || e.kind === 'profiles') && r.has_status)
+      kindMismatch.push(`${e.table}: per-user with status`)
+    if (e.kind === 'user' && r.user_id_default !== 'auth.uid()')
+      kindMismatch.push(`${e.table}: user_id default ${r.user_id_default}`)
+    if (e.kind === 'service-only' && !noPolicy.includes(e.table))
+      kindMismatch.push(`${e.table}: service-only with a policy`)
+  }
+  check(
+    'every catalogue kind matches the table shape (status / parent FK / user_id default)',
+    kindMismatch.length === 0,
+    list(kindMismatch),
+  )
+  const tsMismatch = []
+  for (const [kind, ts] of Object.entries(KIND_OF_TS)) {
+    const cat = CATALOGUE.filter((e) => e.kind === kind)
+      .map((e) => e.table)
+      .sort()
+    if (JSON.stringify(cat) !== JSON.stringify([...ts].sort()))
+      tsMismatch.push(`${kind}: catalogue ${cat.join('|')} vs enums.ts ${ts.join('|')}`)
+  }
+  check(
+    'catalogue kinds agree with CONTENT_TABLES / CHILD_TABLES / USER_TABLES in src/content/enums.ts',
+    tsMismatch.length === 0,
+    list(tsMismatch),
+  )
+
+  // =================================================================================================
+  // P1.8 — FIXTURE + ORPHAN SCAN
+  // =================================================================================================
+  console.log('\n--- fixture and orphan scan ---')
+  try {
+    await seedFixture(db)
+    check(
+      'fixture seeded (UA, UB, ADMIN, NEW; approved + pending content with children; rows of A and B)',
+      true,
+    )
+  } catch (e) {
+    check(
+      'fixture seeded (UA, UB, ADMIN, NEW; approved + pending content with children; rows of A and B)',
+      false,
+      errMsg(e),
+    )
+    console.log(`\nGATE FAILED — ${failures} check(s) red; the catalogue checks need the fixture.`)
+    return 1
+  }
+
+  await guarded(
+    'orphan scan: zero dangling references over every hygieia foreign key',
+    async () => {
+      const orphans = []
+      for (const fk of fkRows) {
+        const cc = /** @type {string[]} */ (fk.ccols)
+        const pc = /** @type {string[]} */ (fk.pcols)
+        const r = await q(
+          `select count(*)::int as n from ${fk.child} c
+          where ${cc.map((x) => `c.${x} is not null`).join(' and ')}
+            and not exists (select 1 from ${fk.parent} p where ${cc.map((x, i) => `p.${pc[i]} = c.${x}`).join(' and ')})`,
+        )
+        const n = Number(r.rows[0].n)
+        if (n > 0) orphans.push(`${fk.conname}: ${n}`)
+      }
+      return [
+        fkRows.length > 0 && orphans.length === 0,
+        orphans.length ? list(orphans) : `${fkRows.length} FKs clean`,
+      ]
+    },
+  )
+
+  // =================================================================================================
+  // P1.8 — THE CATALOGUE MATRIX: per table, the checks its kind demands
+  // =================================================================================================
+  const h = createHarness(db)
+  for (const e of CATALOGUE) {
+    console.log(`\n--- ${e.kind}: hygieia.${e.table} ---`)
+    for (const c of checksFor(e, h)) await guarded(c.name, c.run)
+  }
+
+  // --- Alyssos's side: untouched (after the fixture too) ---------------------------------------------
+  console.log('\n--- the shared project ---')
   const foreignAfter = await foreignSnapshot(db)
   check(
     `supabase_migrations.schema_migrations still holds ${ALYSSOS_MIGRATION_ROWS} rows`,
@@ -295,11 +689,11 @@ async function runGate(db) {
 
   console.log('')
   if (failures > 0) {
-    console.log(`GATE FAILED — ${failures} check(s) red.`)
+    console.log(`GATE FAILED — ${failures} check(s) red, ${passes} green.`)
     return 1
   }
   console.log(
-    'GATE PASSED — migrations apply (twice) on a fresh copy of the shared project; the bootstrap contract holds and Alyssos is untouched.',
+    `GATE PASSED — ${passes} checks green: migrations apply (twice) on a fresh copy of the shared project; the structural sweep, catalogue coverage, orphan scan and isolation + role matrix hold; Alyssos is untouched.`,
   )
   return 0
 }

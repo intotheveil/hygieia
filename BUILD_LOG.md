@@ -3,6 +3,103 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+## 2026-10-05 — P1.5 + P1.6 + P1.7 + P1.8 — profiles/admin primitives, content tables, per-user tables, gate catalogue (builder, worktree `wt/a`; not yet committed)
+
+**Done (P1.5 — `supabase/migrations/20261006000200_hygieia_profiles.sql`):** `hygieia.profiles`
+(`user_id` pk → `auth.users` cascade, `display_name ≤ 120`, `is_admin boolean not null default false`,
+`created_at`, `updated_at`); RLS; `profiles_select_self` / `profiles_insert_self` (`with check (user_id =
+auth.uid() and is_admin = false)`) / `profiles_update_self`; grants: `revoke all … from public, anon,
+authenticated`, `grant select`, `grant insert (user_id, display_name)`, `grant update (display_name)` to
+authenticated — **`is_admin` has no client grant** — service_role full. `hygieia.is_admin()` (sql, stable,
+security definer, `set search_path = ''`, EXECUTE revoked from public+anon, granted to authenticated);
+`hygieia.stamp_review()` (plpgsql, pinned; when `new.status is distinct from old.status` sets
+`reviewed_at = now()`, `reviewed_by = auth.uid()`; EXECUTE revoked from public, anon, authenticated);
+`profiles_touch_updated_at` trigger.
+
+**Done (P1.6 — `…000300_hygieia_content.sql`):** the nine tables exactly per PLAN §2 — `ingredients`,
+`diets`, `recipes`, `recipe_ingredients` (pk `(recipe_id, position)`), `recipe_diets` (pk `(recipe_id,
+diet_id)`), `exercises`, `workout_templates` (unique `(workout_type, level, intensity)`),
+`workout_template_exercises` (pk `(template_id, position)`, `check (reps is not null or seconds is not
+null)`), `health_tips` (`check (source_url is not null or needs_source)`, `~ '^https?://'`). Locale columns
+`not null check (btrim(x) <> '')`; array pairs equal cardinality; `recipes` steps `cardinality ≥ 1` and
+equal, `meal_types ⊆ (…)` and `≥ 1`; `ingredients` macros `≤ 100`, `price_eur_max ≥ price_eur_min`; CHECK
+literals equal `src/content/enums.ts` verbatim. Every table has `created_at`/`updated_at` + touch trigger;
+every status-bearing table has `stamp_review` BEFORE UPDATE. Policies per role (PLAN §1.4):
+`<t>_select_anon` (anon, `status = 'approved'`), `<t>_select_auth` (authenticated, `… or
+hygieia.is_admin()`), `<t>_update_admin`; children: select via parent `status = 'approved'` (+ admin),
+admin insert/update/delete. Grants: select to anon+authenticated; `grant update (<content cols>, status)`
+to authenticated (never id, slug, created_at, reviewed_*); children column-limited insert/update + delete
+to authenticated (policy-gated to admins); no client INSERT/DELETE on content; service_role full. Indexes on
+every FK and on `(status)`. Nullability follows `types.ts` (price fields `not null`, `category not null`,
+`equipment_*`/`note_*` nullable as a pair, `image_path`/`source_url` nullable).
+
+**Done (P1.7 — `…000400_hygieia_user_data.sql`):** `fridge_lists`, `saved_plans` (`diet_id → diets
+restrict`), `favourites` (pk `(user_id, recipe_id)`), each `user_id uuid not null default auth.uid() →
+auth.users cascade`; RLS; one policy per verb to authenticated with `user_id = auth.uid()`; grants
+`select, delete` + `insert (…)`/`update (…)` **excluding `user_id`**; nothing to anon/public; service_role
+full; touch triggers; indexes on `user_id` (and `diet_id`, `recipe_id`).
+
+**Done (P1.8 — `scripts/db-gate.mjs` extended, `scripts/db-gate/catalogue.mjs` new,
+`scripts/db-isolation.test.ts` new, plus the P1.6 `scripts/db-schema-contract.test.ts`):**
+
+- Structural sweep: RLS on every table (14); no view bypasses RLS; every table has a policy except
+  service-only (and service-only has none); `created_at`/`updated_at` + touch trigger on every table;
+  `stamp_review` + `default 'pending'` + `reviewed_*` on every status-bearing table (6); every function
+  pinned, no definer on a loose path, anon/PUBLIC EXECUTE on none (3); no policy TO PUBLIC; no write policy
+  admits anon/PUBLIC; every anon policy is TO anon alone; anon holds exactly SELECT on content+child and
+  nothing else; authenticated no INSERT/DELETE/TRUNCATE on content; no client TRUNCATE/REFERENCES/TRIGGER
+  anywhere; service_role full DML; 18 FKs validated **and indexed**; 17 enum CHECKs equal `enums.ts`.
+- Coverage: every table has a catalogue entry / every entry a table / no dupes / kind matches shape
+  (status, parent FK, `user_id default auth.uid()`) / kinds agree with `CONTENT_TABLES`/`CHILD_TABLES`/
+  `USER_TABLES`.
+- Fixture (superuser, committed): users UA, UB (profiles, non-admin), ADMIN (`is_admin = true`), NEW (no
+  profile); per content table ≥ 1 approved (stamped `reviewed_at = OLD`, `reviewed_by = ADMIN`) and ≥ 1
+  pending row, slugs `fx-*`, ids by the seed-id formula (`sid()` = node md5 → uuid); children under an
+  approved and a pending parent; user rows of A and B. Orphan scan over all 18 FKs.
+- Matrix per kind (`checksFor`): content ×11 (anon/UA read exactly N approved + 0 pending; ADMIN all; UA
+  status/content edits no effect; anon refused; ADMIN status update stamped `reviewed_by = ADMIN`,
+  `reviewed_at > fixture`, `updated_at` bumped; ADMIN content edit does NOT re-stamp; no client
+  INSERT/DELETE privilege; authenticated may UPDATE status but never id/slug/created_at/reviewed_*;
+  every row id = md5 formula); child ×7; user ×12 (incl. control INSERT without `user_id` lands as the
+  caller's row; `user_id` has no INSERT/UPDATE grant); profiles ×13 (incl. `is_admin()` true/false/false
+  for ADMIN/UA/NEW; anon cannot execute it); service-only ×1.
+- `db-isolation.test.ts`: one PGlite, archive ×2, same fixture, the `user` (3 × 12) + `profiles` (13)
+  checks as Vitest cases with the names pinned (so a check added to the catalogue without a case here
+  fails), + policy-per-verb / anon-refused / RLS-on cases. `db-schema-contract.test.ts`: exact ordered
+  column lists for all 14 tables, locale NOT NULL + btrim checks, 17 enum CHECKs = `enums.ts`, unique
+  cell key, unique slug + pending default, composite PKs, `auth.uid()` defaults, row-level CHECKs.
+
+**Gates (2026-10-05, worktree `D:/projects/hygieia-wt/a`):** `npm run lint` 0 errors (4 pre-existing
+react-refresh warnings) · `npm run typecheck` clean · `npm test` 12 files / 309 tests green (137 → 309) ·
+`npm run build` green · `check:pwa OK — Hygieia · Υγίεια, 3 icons, sw.js present` · `npm run db:check` →
+`PASS  migration guard: 4 migration(s) stay inside schema hygieia` · `npm run db:gate` → **`GATE PASSED —
+212 checks green`**, 0 FAIL (214 PASS lines incl. the guard's), every PLAN P1.QA.2 line present verbatim:
+`RLS is enabled on every hygieia table (14)`, per user table `UB reads ZERO rows of A` / `UB's INSERT of a
+row of A is refused` / `UA reads all of A's rows`, `UA's update of is_admin is refused`, per content table
+`anon reads exactly N approved rows and 0 pending — N = …` / `ADMIN's status update takes effect and is
+stamped`, `orphan scan: zero dangling references over every hygieia foreign key — 18 FKs clean`, `zero
+objects in public/auth/supabase_migrations changed`, `no trigger on auth.users` · `npx vitest run scripts/`
+4 files green (schema-contract 54 cases, isolation 61 cases).
+
+**RED-verified (temp copies via `DB_GATE_MIGRATIONS`, committed files untouched):** (1) `fridge_lists`
+select policy `using (true)` → `FAIL  hygieia.fridge_lists: UB reads ZERO rows of A — 1 rows`, exit 1; the
+Vitest twin goes red on the same case. (2) the `revoke execute on function hygieia.is_admin() from public,
+anon` line deleted → `FAIL  anon has EXECUTE on no hygieia function (3) — hygieia.is_admin()`, `FAIL
+PUBLIC has EXECUTE …`, `FAIL  hygieia.profiles: anon cannot execute hygieia.is_admin()`. (3) `grant update
+(is_admin) … to authenticated` → `FAIL  hygieia.profiles: UA's update of is_admin is refused`, `FAIL …
+authenticated holds no INSERT or UPDATE privilege on is_admin`.
+
+**Deviations / notes for the lead:** PLAN P1.QA.2 says `RLS is enabled on every hygieia table (13)`; §2
+lists **14** tables (the ledger counts), so the gate prints `(14)` — the QA text needs the number fixed,
+not the gate. The content check name keeps the literal `N` (`anon reads exactly N approved rows and 0
+pending`) with the number in the detail, so the QA grep matches and the count is still visible. Child
+tables carry `created_at`/`updated_at` (uniform with the §2 header). P1.12 must add fixture-aware seed
+counts (the `fx-*` rows are added AFTER the archive, so seed counts are archive-only; count before
+`seedFixture` or exclude `slug like 'fx-%'`).
+
+**Next:** P1.9–P1.11 seeds, P1.12 generator (catalogue reference counts), P1.14 prove-red (the three
+sabotages above are ready-made entries).
+
 ## 2026-10-05 — P3.3 / P4.1 / P4.2 pure-domain engines — DONE (builder, worktree `wt/d`; not yet committed)
 
 **Pulled forward from P3/P4** by the lead: the three modules depend only on the P1.4 types
@@ -94,6 +191,7 @@ from `types.ts`. Erasable syntax only (no `enum`/`namespace`/parameter propertie
 `check:pwa OK — Hygieia · Υγίεια, 3 icons, sw.js present` · Prettier clean.
 
 **Next:** P1.6 contract test must assert the migration CHECK literals equal these arrays.
+
 ## 2026-10-05 — P1.1 + P1.2 + P1.3 — migration toolchain, PGlite gate, live applier (builder, worktree `wt/a`)
 
 **Done (P1.1 — scaffold):** `package.json` scripts `db:check`, `db:gate`, `db:gate:prove-red`, `db:apply`,
