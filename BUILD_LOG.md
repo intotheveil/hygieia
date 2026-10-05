@@ -3,9 +3,54 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+## 2026-10-06 — Follow-up: `src/admin/useSettled.ts` retired, admin lane on the canonical `useAsync` — DONE (builder, worktree `wt/f`; not committed — the lead merges)
+
+**Scope:** `src/admin/**` + the two records. The reconciliation (above, `wt/e`) left the admin lane's local hook as the one
+surviving duplicate; this folds its three call sites into `src/lib/useAsync.ts` so the codebase has ONE async hook. No code
+outside `src/admin/`, no migration, no dictionary change — the admin pages keep the same loading / empty / error copy.
+
+**Delivered.**
+
+- **`src/admin/AdminPage.tsx`** — `pending = useAsync(pendingLoad)` (the per-table counts; `loadPending` still maps a failed
+  table to `null` INSIDE the data) and `filtered = useAsyncResult(filteredLoad)` (the approved/rejected list; the "nothing to
+  read" case resolves `ok(null)` instead of a bare `null`, so the `Result` unwrapper applies). Rows: `loading` → the loading
+  line, `error` → `adminLoadFailed`, `ready` → the list, as before. **The `version` counter is gone:** `refresh()` now calls
+  `pending.reload()` + `filtered.reload()` — the canonical hook's re-run of the SAME loader — which also deletes the two
+  `eslint-disable-next-line react-hooks/exhaustive-deps` the identity trick needed.
+- **`src/admin/PriceTable.tsx`** — `loaded = useAsyncResult(load)`; `status === 'loading'` → loading line, `'error'` → the
+  load-failed line (covers `ok: false` AND a rejection), `'ready'` → the table over `loaded.data`.
+- **`src/admin/useSettled.ts`** — DELETED. `git grep useSettled -- ':!*.md'` → nothing (the only remaining mentions are the
+  historical BUILD_LOG / DECISIONS entries, left as records).
+- **Behaviour change, deliberate and asserted:** a REJECTED load used to hang on the loading line with an unhandled promise;
+  it now renders the existing `adminLoadFailed` copy. The source adapter (`adminSource` → `run`) catches every throw and
+  answers `ok: false`, so a rejection cannot come from the real client — each new test hands the page a source that bypasses it:
+  - `src/admin/PriceTable.test.tsx` +1: a hand-made `source` prop whose `listAll` rejects → `alert` with `adminLoadFailed`,
+    no `status`, no `table`.
+  - `src/admin/AdminPage.test.tsx` +1: `vi.hoisted` seam + `vi.mock('./adminSource.ts')` that passes through to the real
+    `adminSource` unless the one test sets `seam.source` (a real source with `listPending` rejecting) → `alert` with
+    `adminLoadFailed`, no loading line, every kind tab rendered without a count. `afterEach` resets the seam.
+    Every pre-existing test in both files is UNCHANGED and green (the behavioural net the lead asked for).
+
+**Gates (worktree `wt/f`):** `npm run lint` → 0 errors, 21 warnings (all pre-existing `react-refresh/only-export-components`) ·
+`npm run typecheck` → `tsc -b` clean, exit 0 · `npx vitest run src/admin` → Test Files 4 passed (4) · Tests 82 passed (82) ·
+`npm run build` → `✓ built in 274ms`, PWA precache 42 entries (2031.40 KiB), `dist/sw.js` generated · `npm run check:pwa` →
+`check:pwa OK — Hygieia · Υγίεια, 3 icons, sw.js present` · Prettier (`--end-of-line auto`) clean on all four touched files.
+
+**`npm test` (full suite) — one PRE-EXISTING, load-dependent flake, NOT in scope, NOT caused here:** 3137 tests, 3136 pass;
+`src/workouts/WorkoutsPage.test.tsx › renders a session for every one of the 63 type × level × intensity combinations` times
+out at the 5000 ms default (measured 5021 / 5041 / 5065 / 5070 / 5073 ms when it fails, 4684 ms when it passes; **1047 ms in
+isolation**). Tally on this machine: with the change 3 pass / 4 fail over 7 runs; with `src/admin` STASHED (= main) 2 pass /
+2 fail over 4 runs — same distribution, same test, same timings. `src/workouts/**` has zero diff against main and imports only
+the unchanged `src/lib/useAsync`. Suggested fix for whoever owns `src/workouts`: a per-test timeout on that `it` (or
+`testTimeout` in `vite.config.ts`). Out of this task's scope; left untouched.
+
+**Next:** test-writer review of the two new tests, reviewer, then the lead commits `wt/f` → `main`. The workouts flake needs an
+owner (one-line timeout), separately.
+
 ## 2026-10-06 — P4.3 Recipe page: nutrition + cost panels — DONE (builder, worktree `wt/f`; not committed — the lead merges)
 
 **Delivered.**
+
 - **`src/recipes/NutritionPanel.tsx`** — `<section aria-labelledby="recipe-nutrition" data-testid="nutrition-panel">`: kcal headline +
   protein/carbs/fat as whole numbers (`Math.round` → `Intl.NumberFormat` `el-GR`/`en-GB`, grams unit from `t.units.g`), the
   per-portion / per-recipe toggle (two `aria-pressed` buttons, `data-testid="scope-portion"` / `"scope-recipe"`), a macro bar
@@ -56,6 +101,7 @@ is the e2e for this task.
 (and three their own `src/i18n/fill.ts`); main held one variant and 25 typecheck errors in the other lanes' callers.
 
 **Delivered.**
+
 - **`src/lib/useAsync.ts` (canonical).** `useAsync<T>(run, deps?) → { status: 'loading' | 'ready' | 'error'; data; error; reload }`
   as a discriminated union (`status === 'ready'` narrows `data` to `T`). Only the SETTLED outcome is state, tagged with the `run`
   identity + attempt; loading is derived (no `set-state-in-effect`); stale resolutions dropped; rejection AND synchronous throw →
@@ -156,6 +202,7 @@ PLAN §0 — their expected lines are quoted from the scripts, and OP1 records t
 **Files:** `.github/workflows/deploy.yml`, `README.md`, `docs/ops/migrations.md` (new), `.claude/CLAUDE.project.md`, `BUILD_LOG.md`.
 No DECISIONS.md entry (no architectural choice; step order and limits come from PLAN P1.15 / the Themis BRAIN). Not committed.
 **Next:** test-writer (nothing testable beyond the YAML parse — recorded above) → reviewer → P1.QA; lead recomposes the kit after merge.
+
 ## 2026-10-06 — P4.10 Admin review page `/admin` + P4.11 price table editor — DONE (builder, worktree `wt/b`; not yet committed)
 
 **Scope:** the review workbench behind `RequireAdmin` (P2.5's placeholder body replaced; export name kept; routes untouched) and
@@ -332,6 +379,7 @@ the adopted-row fixture discriminates.
 **Decision (for DECISIONS.md if the lead keeps it):** the gate fixture ADOPTS seeded rows for any content table whose unique key real data
 saturates, flipping status under `session_replication_role = replica`; it never inserts into such a table. Adopted rows are chosen by the
 seed module's lowest slugs so the choice is deterministic and travels with the content.
+
 ## 2026-10-06 — P4.8 `/workouts` page + P4.9 `/tips` page (UI halves) — DONE (builder, worktree `wt/d`; not yet committed)
 
 **Scope:** the React halves of P4.8 and P4.9 only. No seed, script, migration, route or header edits — `routes.tsx` /
@@ -386,6 +434,7 @@ check:pwa` OK.
 
 **Next:** P3.5 wires `/workouts` and `/tips` into `routes.tsx` + `SiteHeader`; the data lane lands the regenerated seed
 SQL (clears the 3 red tests); `e2e/local/workouts.spec.ts` / `tips.spec.ts` once the routes exist.
+
 ## 2026-10-06 — P3.4 Fridge UI `/fridge` (page, picker, dictionary) — DONE (builder, worktree `wt/e`; not yet committed)
 
 **Scope:** the React half of P3.4 over the already-landed pure modules (`fridge/match.ts` P3.3, `fridge/storage.ts`). No route, no
@@ -428,6 +477,7 @@ values exactly as the matcher predicts; reload restores chips and the switch; `l
 
 **Not done / next:** nothing committed (the lead merges `wt/e`). P3.5 adds the `/fridge` route + header nav; P3.7 the e2e. When the
 recipes lane's `RecipesDictionary` lands, drop the `no-empty-object-type` disable in `features/index.ts` (the rule allows multi-extends).
+
 ## 2026-10-06 — P4.4 Diets pages + P4.6 Meal-plan UI, save plan, account page — DONE (builder, worktree `wt/f`; not yet committed)
 
 **Scope:** `src/diets/DietsPage.tsx` (`/diets`: 16 cards → `/diets/:slug`, intro, draft ribbon once, error+retry), `src/diets/DietPage.tsx`
@@ -459,6 +509,7 @@ assertions become `mediterranean` (diet_id fallback label) + `Week of 5 October 
 
 **Next:** P3.5 wires `/diets`, `/diets/:slug` into `routes.tsx` + header nav and may swap the recipe link list for `RecipeCard`;
 `e2e/local/diets.spec.ts` (P4.12). BRAIN.md §3/§6 left for the lead's merge (not merge=union).
+
 ## 2026-10-06 — P3.1 recipes list `/recipes` + P3.2 recipe detail `/recipes/:slug` (UI halves) — DONE (builder, worktree `wt/c`; not yet committed)
 
 **Scope:** the React halves of P3.1/P3.2 on top of the pure `src/recipes/filter.ts` (wt/b) and the P1.13 `ContentSource`.
@@ -866,6 +917,7 @@ green** · `npm run build` green (chunk-size warning is pre-existing; seed data 
 group stubs. (2) BRAIN.md §5 candidates (not edited — out of this task's scope): "Database Row/Insert types must be `type`
 aliases, not `interface`s, or supabase-js collapses `Insert` to `never`"; "`src/**` tests have no node types — no `node:crypto`
 in Vitest jsdom tests, pin vectors instead". (3) `listRecipes` diet filter is a UNION (DECISIONS.md) — P3.1 should match.
+
 ## 2026-10-06 — P5.3 Lighthouse mobile gate `npm run check:lighthouse` — DONE: fonts self-hosted, hero WebP, home 91 / auth 95 three runs in a row (builder, worktree `wt/g`; not yet committed)
 
 **Pulled forward** by the lead (route list data-driven so P3/P4 routes slot in). The gate runs Lighthouse 12.8.2 (mobile form factor,

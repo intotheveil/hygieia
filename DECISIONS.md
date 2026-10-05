@@ -163,6 +163,7 @@ effect`) and asserts A's rows unchanged — instead of adding new checks — bec
   "not seeded yet" note — the assertion binds the moment the module lands.
 - **The generator is forward-compatible on purpose.** All six kinds are implemented now, though P4.8/P4.9 nominally "add" them,
   so those tasks only author content and run `seed:gen`; they do not touch the generator.
+
 ## 2026-10-05 — P1.13 ContentSource: md5 in pure TS, same-row types for the client, union diet filter
 
 - **Seed ids are computed in the browser with a ~100-line pure-TS MD5** (`src/content/md5.ts`), not a
@@ -211,6 +212,7 @@ effect`) and asserts A's rows unchanged — instead of adding new checks — bec
 - **`FeatureDictionary` parents stay one per line under `// prettier-ignore`.** Prettier collapses a short `extends`
   list onto one line, which would turn every concurrent lane's addition into a merge conflict; the ignore keeps the
   `merge=union` guarantee the barrel was designed for.
+
 ## 2026-10-06 — P3.4 Fridge UI: identity-keyed `useAsync`, one `commit()` for persistence, honest failure copy
 
 - **`useAsync(run)` keys its outcome by the `run` function's identity and DERIVES loading** (`settled.run !== run`)
@@ -245,6 +247,7 @@ effect`) and asserts A's rows unchanged — instead of adding new checks — bec
   keys across feature modules merge harmlessly (later spread wins); differing types would be a TS error at the composition point.
 - **2026-10-06 (P4.6) — `src/lib/useAsync.ts` stores only the SETTLED outcome tagged with (loader, attempt)**; "loading" is derived, so
   no state is set synchronously inside an effect (react-hooks `set-state-in-effect`) and a stale result never shows for a new key.
+
 ## 2026-10-06 — P3.1/P3.2 UI: async outcome as state, plural forms in the dictionary, URL keeps the raw query
 
 - **`useAsync(fn)` keys on the `fn` identity, not a `deps` array.** `react-hooks/set-state-in-effect` is an error here, so the
@@ -265,6 +268,7 @@ effect`) and asserts A's rows unchanged — instead of adding new checks — bec
   through the filter instead of the page re-joining by slug.
 - **`FeatureDictionary extends RecipesDictionary {}` keeps a reasoned `no-empty-object-type` disable** until a second feature
   module is spread in: the interface form (one supertype per line) is what lets parallel lanes append under `merge=union`.
+
 ## 2026-10-06 — P5.3 Lighthouse mobile gate: fonts self-hosted; gate at 90 kept
 
 - **Fonts self-hosted; Lighthouse gate at 90 kept.** The render-blocking Google Fonts stylesheet in
@@ -286,6 +290,7 @@ effect`) and asserts A's rows unchanged — instead of adding new checks — bec
   image waits for React, not for bytes) and made every other route download a 42 kB image it never shows
   (−3 points on `/auth`). The hero is a `<picture>` (WebP 800w/1216w from `npm run brand`, JPEG fallback,
   `fetchPriority="high"`); `registerSW.js` is injected with `defer` (`injectRegister: 'script-defer'`).
+
 ## 2026-10-06 — P4.10/P4.11 admin: status-only review, column-exact writes, no insert/delete
 
 - **The admin never inserts or deletes content; approve = a status update stamped by the DB.** `AdminContentSource` has
@@ -341,3 +346,12 @@ effect`) and asserts A's rows unchanged — instead of adding new checks — bec
 - **A recipe with no priced line shows no range.** `€0.00–€0.00` would read as "free"; the `unpriced` list already explains the gap.
 - **`costRange` copy is "About {min}–{max}" / "Περίπου {min}–{max}"**, not a bare `{min}–{max}` template: the bilingual sweep rejects an
   `el` leaf identical to its `en` twin, and "about" is honest copy for a range anyway.
+
+## 2026-10-06 — `useSettled` retired: the admin lane joins the canonical `useAsync`
+
+- **`src/admin/useSettled.ts` deleted; AdminPage and PriceTable use `useAsync` / `useAsyncResult`.** The 2026-10-06 admin entry kept
+  the hook local only to dodge a fifth concurrent `src/lib/useAsync.ts`; with the reconciliation merged that reason is gone, and one
+  codebase gets one async hook. The admin pages' `version` counter went with it — `refresh()` is `pending.reload()` + `filtered.reload()`,
+  so the two `exhaustive-deps` disables that the "new identity forces a re-read" trick needed are gone too. The one behaviour change is
+  deliberate: a REJECTED read renders `adminLoadFailed` instead of hanging on the loading line (asserted by one new test per page, each
+  through a source that bypasses the adapter, because `adminSource`'s `run` catches every throw and a real client can never reject).

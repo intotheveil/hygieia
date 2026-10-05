@@ -14,11 +14,17 @@ import { useAuth } from '../auth/AuthProvider'
 import { useProfile } from '../auth/profile'
 import { CONTENT_TABLES, type ContentStatus, type ContentTable } from '../content/enums.ts'
 import { useLang } from '../i18n/LangProvider'
-import { adminSource, type AdminContentSource, type AdminRow } from './adminSource.ts'
+import { useAsync, useAsyncResult } from '../lib/useAsync.ts'
+import {
+  adminSource,
+  ok,
+  type AdminContentSource,
+  type AdminResult,
+  type AdminRow,
+} from './adminSource.ts'
 import { PendingList } from './PendingList.tsx'
 import { PriceTable } from './PriceTable.tsx'
 import { ReviewForm } from './ReviewForm.tsx'
-import { useSettled } from './useSettled.ts'
 
 const PRICES_TAB = 'prices'
 type Tab = ContentTable | typeof PRICES_TAB
@@ -108,26 +114,29 @@ function Workbench({ source }: { source: AdminContentSource }) {
   const [tab, setTab] = useState<Tab>(CONTENT_TABLES[0])
   const [status, setStatus] = useState<ContentStatus>('pending')
   const [selected, setSelected] = useState<AdminRow | null>(null)
-  // Bumped after every write so the lists and counts are re-read from the source.
-  const [version, setVersion] = useState(0)
 
-  // `version` is a deliberate extra dependency: a new identity is what makes useSettled re-run.
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- see above
-  const pendingLoad = useCallback(() => loadPending(source), [source, version])
-  const pending = useSettled(pendingLoad)
+  // The pending counts (one read per table; a failed table is `null` inside the data). A REJECTED
+  // read — impossible through the adapter, which catches everything — is `status: 'error'`.
+  const pendingLoad = useCallback(() => loadPending(source), [source])
+  const pending = useAsync(pendingLoad)
 
+  // The approved/rejected list of the current tab. `ok(null)` when there is nothing to read (the
+  // Prices tab, or the pending filter, which the counts' read already covers) — never a request.
   const table: ContentTable | null = tab === PRICES_TAB ? null : tab
   const filteredLoad = useCallback(
-    () =>
+    (): Promise<AdminResult<AdminRow[] | null>> =>
       table === null || status === 'pending'
-        ? Promise.resolve(null)
+        ? Promise.resolve(ok(null))
         : source.listAll(table, status),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `version` forces a re-read (see above)
-    [source, table, status, version],
+    [source, table, status],
   )
-  const filtered = useSettled(filteredLoad)
+  const filtered = useAsyncResult(filteredLoad)
 
-  const refresh = () => setVersion((n) => n + 1)
+  // After every write the lists and counts are re-read from the source.
+  const refresh = () => {
+    pending.reload()
+    filtered.reload()
+  }
   const pick = (next: Tab) => {
     setTab(next)
     setSelected(null)
@@ -157,9 +166,16 @@ function Workbench({ source }: { source: AdminContentSource }) {
     )
   } else {
     let rows: Rows
-    if (status === 'pending') rows = pending === null ? undefined : pending[table]
-    else if (filtered === null || filtered === undefined) rows = undefined
-    else rows = filtered.ok ? filtered.data : null
+    if (status === 'pending')
+      rows =
+        pending.status === 'loading'
+          ? undefined
+          : pending.status === 'error'
+            ? null
+            : pending.data[table]
+    else if (filtered.status === 'loading') rows = undefined
+    else if (filtered.status === 'error') rows = null
+    else rows = filtered.data ?? undefined
     if (rows === undefined) {
       panel = (
         <p role="status" className="text-olive-700">
@@ -184,7 +200,10 @@ function Workbench({ source }: { source: AdminContentSource }) {
     <>
       <div role="tablist" aria-label={t.adminTitle} className="flex flex-wrap gap-2">
         {TABS.map((id) => {
-          const count = id === PRICES_TAB || pending === null ? null : (pending[id]?.length ?? null)
+          const count =
+            id === PRICES_TAB || pending.status !== 'ready'
+              ? null
+              : (pending.data[id]?.length ?? null)
           return (
             <button
               key={id}
