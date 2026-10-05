@@ -60,6 +60,77 @@ disposer (no-op when off) so tests restore handlers; `main.tsx` ignores it. (3) 
 
 **Not done / next:** nothing committed (the lead merges `wt/e`). P6.QA.4 uses DevTools `throw new Error('fleet-smoke')` on the deployed
 site once OP6.a + P6.4 land; the first ledger row goes to BRAIN §8 then.
+## 2026-10-05 — P6.3 Live smoke `npm run smoke:live` — DONE (builder, worktree `wt/d`; not yet committed)
+
+**Pulled forward** by the lead (independent). HTTP only, no browser: `scripts/smoke-live.mjs` exercises the DEPLOYED
+artifact at `SMOKE_BASE_URL` (default `https://intotheveil.github.io/hygieia/`, trailing slash normalised; a positional
+arg overrides) and, when `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` are in the shell, the real backing service as anon.
+Reuses `scanText`/`formatFinding` (P6.2) on every served script and stylesheet, and `REST_PROBES`/`restProbe`/
+`classifyRestAnswer`/`parseRestBody` (P2.6) for the backend; `redact` (mgmt-api) scrubs the anon key from every line.
+
+**Probes** (one `PASS`/`WARN`/`FAIL` line each; all run, the summary names the FIRST failure): `GET /` 200 with
+`<html lang="el"`, `<title>Hygieia · Υγίεια</title>`, `<div id="root">`, `rel="manifest"` · `manifest.webmanifest` 200 JSON
+with `start_url`+`scope` `/hygieia/`, `display standalone`, ≥ 3 icons, each icon → 200 `image/png` (resolved relative to the
+manifest URL) · `sw.js` 200 JavaScript · `registerSW.js` 200 · `recipes/deep-link-probe-<random>` → 404 AND the SPA document
+(200 = "server is NOT Pages-like"; bare 404 = "404.html missing or not index.html") · `favicon.svg` 200 `image/svg+xml` ·
+every `<script src>` / `<link rel="stylesheet">` index.html references (either attribute order, external ones included)
+→ 200 and zero `scanText` findings · `brand/og-hygieia.jpg` 200. Backend: approved recipes → 200 array, ≥ 1 row PASS
+`approved rows: N`, 0 rows **WARN not FAIL** (approval is OP4.b) · pending → `200 []` · profiles → `200 []`; without the env
+exactly `SKIPPED (backend) — set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY`. Per-request timeout 15 s via AbortController
+(`request to <url> timed out after 15000 ms (no response)`). Ends `SMOKE PASSED — N probes against <base> (<ms> ms)` exit 0
+(`· k WARN` appended when any), or `SMOKE FAILED — <first failing probe> (+n more) (k of N probes ok, ms)` exit 1 on stderr;
+usage / malformed base URL → exit 2, nothing sent. Exported `runSmoke({ baseUrl, env, fetch, log, error, timeoutMs,
+probeToken })` + `main(argv, opts)`; the CLI sets `process.exitCode`, never `process.exit()`. No .env is read.
+
+**Files:** `scripts/smoke-live.mjs` (new), `scripts/smoke-live.test.ts` (new, 38 tests, node env, fake Pages-like site +
+fake PostgREST, no network: every probe's pass AND fail path — wrong lang, missing title/root/manifest link, non-200 home,
+wrong `start_url`/`scope`/`display`, < 3 icons, icon 404 / wrong type, relative+absolute icon paths, sw.js 404 / wrong type
+(`text/javascript` accepted), registerSW 404, deep link 200 → NOT Pages-like, deep link bare 404, 404 without manifest link,
+302, favicon 404 / wrong type, og 404, planted `service_role` / `sbp_…` PAT / `SUPABASE_SERVICE_ROLE_KEY` in served chunk → FAIL
+with masked excerpt and the value absent from output, asset 404 (incl. the external stylesheet), no-asset document, backend
+skipped without env (zero backend requests), 17 probes with env + headers `apikey`/`Authorization: Bearer`/`Accept-Profile:
+hygieia` only on backend calls, 0 approved → WARN exit 0, pending rows → FAIL, profiles rows → FAIL, PGRST106 classified,
+anon key redacted from an echoed error, malformed `VITE_SUPABASE_URL`, timeout, network error, first-failure summary,
+base URL normalisation, `SMOKE_BASE_URL` env, usage exit 2 in-process and via a real `spawnSync` of the CLI),
+`package.json` (`"smoke:live": "node scripts/smoke-live.mjs"`). Nothing else touched.
+
+**Decisions (small, recorded here):** the external Google Fonts stylesheet index.html references IS probed (200 + scan) —
+the site depends on it, so its absence is a real user-facing failure; the pending/profiles probes reuse `REST_PROBES`
+verbatim (`select=id` for pending, as P2.6 defined) rather than restating the paths; the deep-link token is random per run
+(injectable `probeToken` for the tests) so a CDN cache can never answer it from a prior run.
+
+**Live run (`npm run smoke:live`, no backend env, 2026-10-05T20:43:23Z, worktree `wt/d`):**
+
+```
+smoke:live — HTTP only · https://intotheveil.github.io/hygieia/ · timeout 15000 ms per request
+PASS  GET / → 200, lang="el", title "Hygieia · Υγίεια", #root, manifest linked
+PASS  GET manifest.webmanifest → 200, start_url + scope /hygieia/, display standalone, 3 icons
+PASS  GET icon icons/pwa-192.png → 200 image/png
+PASS  GET icon icons/pwa-512.png → 200 image/png
+PASS  GET icon icons/maskable-512.png → 200 image/png
+PASS  GET sw.js → 200 application/javascript
+PASS  GET registerSW.js → 200 application/javascript
+PASS  GET recipes/deep-link-probe-p0ebzyen → 404 with the SPA fallback document (#root + manifest link)
+PASS  GET favicon.svg → 200 image/svg+xml
+PASS  GET script /hygieia/assets/index-BCspQXd6.js → 200, 490609 chars, no secret-looking value or server-only name
+PASS  GET script /hygieia/registerSW.js → 200, 150 chars, no secret-looking value or server-only name
+PASS  GET stylesheet https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Literata:opsz,wght@7..72,500;7..72,600;7..72,700&display=swap → 200, 1633 chars, no secret-looking value or server-only name
+PASS  GET stylesheet /hygieia/assets/index-41Tt-kr4.css → 200, 18681 chars, no secret-looking value or server-only name
+PASS  GET brand/og-hygieia.jpg → 200 image/jpeg
+SKIPPED (backend) — set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
+SMOKE PASSED — 14 probes against https://intotheveil.github.io/hygieia/ (2308 ms)
+```
+exit 0. This is the current deployed P0/PWA artifact (bundle `index-BCspQXd6.js`); the backend probes have not yet been run
+live — they need the anon env (OP2.c) and are P6.4's / P6.QA step 2's observable.
+
+**Gates (2026-10-05, `wt/d`):** `npm run lint` 0 errors (6 pre-existing react-refresh warnings) · `npm run typecheck` clean ·
+`npm test` 29 files / 1412 tests green (38 new) · `npm run build` green · `check:pwa OK — Hygieia · Υγίεια, 3 icons, sw.js present` ·
+`npm run smoke:live` → `SMOKE PASSED — 14 probes` exit 0 (above).
+
+**Not done / next:** nothing committed (the lead merges `wt/d`). P6.4 wires the `VITE_*` repository variables into the
+Pages build; after it, `smoke:live` with the anon env is the proof that the deploy is in configured mode (approved rows ≥ 1,
+pending `[]`, profiles `[]`). `DECISIONS.md`/`BRAIN.md` were out of this task's declared scope — the three small decisions above
+are for the lead to lift if judged durable.
 
 ## 2026-10-05 — P6.2 Bundle secret scan `npm run check:bundle` — DONE (builder, worktree `wt/e`; not yet committed)
 
