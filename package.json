@@ -18,6 +18,7 @@
     "db:gate": "node scripts/db-gate.mjs",
     "db:gate:prove-red": "node scripts/db-gate-prove-red.mjs",
     "db:apply": "node scripts/db-apply.mjs",
+    "db:live-check": "node scripts/db-live-check.mjs",
     "seed:gen": "node scripts/gen-seed-sql.mjs",
     "seed:check": "node scripts/gen-seed-sql.mjs --check"
   },
