@@ -73,15 +73,27 @@ export default function App() {
             <p className="max-w-2xl text-lg leading-relaxed text-olive-700">{t.heroLead}</p>
           </div>
           <div className="flex flex-col gap-4">
-            <img
-              src={`${import.meta.env.BASE_URL}brand/hero-plate.jpg`}
-              srcSet={`${import.meta.env.BASE_URL}brand/hero-plate-sm.jpg 608w, ${import.meta.env.BASE_URL}brand/hero-plate.jpg 1216w`}
-              sizes="(min-width: 1024px) 40vw, 100vw"
-              width={1216}
-              height={640}
-              alt={t.heroImageAlt}
-              className="aspect-[1216/640] w-full rounded-2xl object-cover shadow-md ring-1 ring-olive-900/10"
-            />
+            {/* The LCP element on mobile (Lighthouse, PLAN P5.3): WebP first (scripts/brand.mjs), JPEG
+                fallback, fetched at high priority, never lazy. Deliberately NOT preloaded from
+                index.html: measured, a preload left home's LCP unchanged (render-bound) and cost every
+                other route a 42 kB download it never shows (-3 points on /auth). */}
+            <picture>
+              <source
+                type="image/webp"
+                srcSet={`${import.meta.env.BASE_URL}brand/hero-plate-800.webp 800w, ${import.meta.env.BASE_URL}brand/hero-plate-1216.webp 1216w`}
+                sizes="(min-width: 1024px) 40vw, 100vw"
+              />
+              <img
+                src={`${import.meta.env.BASE_URL}brand/hero-plate.jpg`}
+                srcSet={`${import.meta.env.BASE_URL}brand/hero-plate-sm.jpg 608w, ${import.meta.env.BASE_URL}brand/hero-plate.jpg 1216w`}
+                sizes="(min-width: 1024px) 40vw, 100vw"
+                width={1216}
+                height={640}
+                fetchPriority="high"
+                alt={t.heroImageAlt}
+                className="aspect-[1216/640] w-full rounded-2xl object-cover shadow-md ring-1 ring-olive-900/10"
+              />
+            </picture>
             <aside
               aria-labelledby="status-title"
               className="rounded-2xl border border-clay-500/30 bg-clay-500/10 p-5 text-sm leading-relaxed text-olive-900"
