@@ -144,3 +144,25 @@ function for anon/PUBLIC EXECUTE and a pinned `search_path`; the sweep is RED-ve
 effect`) and asserts A's rows unchanged — instead of adding new checks — because `db-isolation.test.ts`
   pins the name set and is outside P1.14's scope. Net: the twin stays green and gets the stronger probe.
 - **`RED ok` means exit code exactly 1**, not merely ≠ 0: a crash (Windows 0xC0000409) is `CRASH`, never proof.
+
+## 2026-10-06 — P5.3 Lighthouse mobile gate: fonts self-hosted; gate at 90 kept
+
+- **Fonts self-hosted; Lighthouse gate at 90 kept.** The render-blocking Google Fonts stylesheet in
+  `index.html` cost the home page ~15 Lighthouse mobile performance points (79 baseline → 94 with the
+  fonts origins blocked, nothing else changed) and made the score bimodal (79 ↔ 93) with the cold
+  DNS/TLS latency to a third party. Inter and Literata now ship as `@fontsource-variable/*` (one woff2 per
+  script subset selected by `unicode-range`, Greek included, `font-display: swap`), imported at the top of
+  `src/index.css`, bundled by Vite and precached by the service worker — the installed app renders Greek
+  offline from the first visit, and no third party sits on the first-paint path. The thresholds stay
+  performance / accessibility / best-practices ≥ 90 mobile (CI: −5 on performance only, documented in
+  `scripts/check-lighthouse.mjs`); a lower bar was rejected in favour of fixing the cause.
+- **The Lighthouse audit server differs from the e2e server on purpose** (`scripts/check-lighthouse.mjs`
+  reuses `resolveRequest` from `e2e/support/pages-server.mjs`): text is gzipped like Pages does (the e2e
+  server serves identity, which inflated the simulated LCP by ~1.9 s), and the deep-link fallback
+  (`404.html`) is served with status 200 because Lighthouse refuses to audit an errored document. Bytes
+  identical; the 404 contract stays proven by `npm run e2e`. One fresh Chrome per route, so no route
+  inherits another's warm connections or storage.
+- **No `<link rel="preload">` for the hero.** Measured: it left home's LCP unchanged (render-bound: the
+  image waits for React, not for bytes) and made every other route download a 42 kB image it never shows
+  (−3 points on `/auth`). The hero is a `<picture>` (WebP 800w/1216w from `npm run brand`, JPEG fallback,
+  `fetchPriority="high"`); `registerSW.js` is injected with `defer` (`injectRegister: 'script-defer'`).

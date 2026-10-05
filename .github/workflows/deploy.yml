@@ -60,6 +60,23 @@ jobs:
           name: e2e-test-results
           path: test-results/
           retention-days: 7
+      # Lighthouse mobile gate (PLAN P5.3, §1 item 10): performance, accessibility and best-practices
+      # >= 90 on every route in e2e/support/routes.ts, against the same dist/ (no rebuild), served
+      # with Pages semantics and gzip like Pages. CI applies a documented −5 tolerance on PERFORMANCE
+      # only (scripts/check-lighthouse.mjs header: shared runners vary). Drives the headless shell
+      # installed above. The HTML + JSON reports are uploaded always, so a near-miss can be read
+      # without re-running the job.
+      - name: Lighthouse mobile gate (npm run check:lighthouse)
+        run: npm run check:lighthouse
+        timeout-minutes: 8
+      - name: Upload Lighthouse reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-report
+          path: lighthouse-report/
+          if-no-files-found: ignore
+          retention-days: 14
       - uses: actions/upload-pages-artifact@v3
         if: github.event_name != 'pull_request'
         with:
