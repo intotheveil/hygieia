@@ -24,6 +24,22 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+      # Data spine (PLAN P1.15, ADR-0003). None of these reaches the live Supabase project or needs
+      # a credential: db:check reads the SQL text; db:gate applies the archive to a throwaway PGlite
+      # database (real Postgres in wasm) and proves RLS/isolation; seed:check regenerates the seed
+      # SQL from src/content/seed and diffs it. Order from the Themis BRAIN: check → gate → prove-red.
+      - run: npm run db:check
+      - name: Migration gate (npm run db:gate)
+        run: npm run db:gate
+        timeout-minutes: 5
+      # A gate nobody has seen fail is not a gate: prove-red sabotages a COPY of the archive 25 ways
+      # and asserts the gate goes RED on the expected line each time; the control run must stay GREEN.
+      - name: Prove the gate red (npm run db:gate:prove-red)
+        run: npm run db:gate:prove-red
+        env:
+          PROVE_RED_JOBS: '4'
+        timeout-minutes: 10
+      - run: npm run seed:check
       # No Supabase env in CI: the build runs in local-only mode (src/lib/env.ts), so the
       # artifact below carries no backend configuration and no secret.
       - run: npm run build
