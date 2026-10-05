@@ -3,6 +3,8 @@
 // A key added to one and forgotten in the other is a TYPE error, not a blank string in production.
 // Greek is the default (index.html `lang="el"`); see LangProvider for detection and persistence.
 
+import { featuresEl, featuresEn, type FeatureDictionary } from './features/index.ts'
+
 export const LANGS = ['el', 'en'] as const
 export type Lang = (typeof LANGS)[number]
 
@@ -15,7 +17,7 @@ export interface ModuleCopy {
   blurb: string
 }
 
-export interface Dictionary {
+export interface BaseDictionary {
   langName: string
   switchTo: string
   tagline: string
@@ -66,7 +68,7 @@ export interface Dictionary {
   draftRibbonHint: string
 }
 
-export const en: Dictionary = {
+const baseEn: BaseDictionary = {
   langName: 'English',
   switchTo: 'Ελληνικά',
   tagline: 'Eat well, move well, in Greek and English.',
@@ -154,7 +156,7 @@ export const en: Dictionary = {
     'This content has not been checked by a reviewer yet. It is shown so the app works without a backend; details may change once it is approved.',
 }
 
-export const el: Dictionary = {
+const baseEl: BaseDictionary = {
   langName: 'Ελληνικά',
   switchTo: 'English',
   tagline: 'Τρώμε καλά, κινούμαστε καλά, στα ελληνικά και στα αγγλικά.',
@@ -245,5 +247,10 @@ export const el: Dictionary = {
   draftRibbonHint:
     'Αυτό το περιεχόμενο δεν έχει ελεγχθεί ακόμη από ελεγκτή. Εμφανίζεται ώστε η εφαρμογή να λειτουργεί χωρίς υπηρεσία δεδομένων· οι λεπτομέρειες μπορεί να αλλάξουν όταν εγκριθεί.',
 }
+
+export type Dictionary = BaseDictionary & FeatureDictionary
+
+export const en: Dictionary = { ...baseEn, ...featuresEn }
+export const el: Dictionary = { ...baseEl, ...featuresEl }
 
 export const dictionaries: Record<Lang, Dictionary> = { el, en }
