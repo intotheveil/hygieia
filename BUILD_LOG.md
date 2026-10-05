@@ -3,6 +3,60 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+## 2026-10-05 — P5.4 Offline / PWA behaviour e2e — DONE (builder, worktree `wt/d`; not yet committed)
+
+**Pulled forward** by the lead (depends only on the P3.6 Playwright harness, on main). Delivered ONLY
+`e2e/local/offline.spec.ts` (+ this entry). PLAN's `/hygieia/recipes` + `/hygieia/diets` routes do not exist yet, so the
+lead's substitute routes were used: `/hygieia/auth` (client-side) and a deep not-found link (hard load).
+
+**The spec (1 test, 6 `test.step`s, serial by nature — a SW exists only after an online load installed it):**
+(1) online `page.goto('/hygieia/')` 200 → `el.heroTitle`; `await navigator.serviceWorker.ready`, then `expect.poll` on
+`navigator.serviceWorker.controller !== null` → **TRUE ON THE FIRST LOAD, no reload needed**: the generated `dist/sw.js`
+calls `skipWaiting()` + `clientsClaim()` (vite-plugin-pwa `registerType: 'autoUpdate'`); a page-side `fetch('/hygieia/index.html?probe=…')`
+returns 200 (the query misses the precache, so the SW passes it to the network — the probe proves the server is reachable).
+(2) `context.setOffline(true)`; `navigator.onLine === false`. (3) client-side nav to `/hygieia/auth` via `history.pushState` +
+`dispatchEvent(new PopStateEvent('popstate'))` (BrowserRouter listens to popstate) → `el.signInUnavailableTitle` + body, pathname
+`/hygieia/auth`; back home over the REAL `el.backHome` link, still offline → hero. **No in-app link to `/auth` exists on the home
+page in local-only mode** (`AccountMenu` renders nothing without an account service), hence pushState, as the task allowed.
+(4) HARD `page.goto('/hygieia/')` offline → `response.status() === 200`, **`response.fromServiceWorker() === true`**, Greek hero,
+`lang="el"`, `el.notMedicalAdvice`. (5) HARD `page.goto('/hygieia/some/deep/offline')` offline → 200 **from the service worker**
+(`navigateFallback` = precached `index.html`; offline there is no Pages 404 document), `el.notFoundTitle` + `el.notFoundBody`, URL
+untouched. (6) `context.setOffline(false)`; `navigator.onLine === true`; the probe fetch is 200 again; `backHome` click → hero;
+`page.reload()` → hero + `el.switchTo` visible. Every string is a dictionary VALUE; the house `fixtures.ts` watchdog is in force.
+
+**Fonts (documented deviation, as the task foresaw):** on the first run the watchdog recorded `Failed to load resource: net::ERR_FAILED`
+for `https://fonts.googleapis.com/css2?family=Inter…&family=Literata…` on BOTH offline hard loads (steps 4 and 5). Root cause: the
+runtime cache (`StaleWhileRevalidate` on fonts.googleapis.com) only fills when the SW CONTROLS the page, and on the first visit the
+stylesheet is fetched before that — so it was never cached, the offline request hit the network, failed, and Chromium logged it. A
+system-font fallback, not an app error. The spec therefore OVERRIDES the `consoleErrors` fixture (`base.extend` depending on the
+original; Playwright inherits the original's `auto` — `node_modules/playwright/lib/common/index.js:1576`) and, after the test body
+and BEFORE the house `toEqual([])`, splices out ONLY entries with `kind === 'console'`, text `/^Failed to load resource: net::ERR_/`
+and url `^https://fonts.(googleapis|gstatic).com/`. Everything else (any other failed resource, any page error) still fails the test.
+`e2e/support/fixtures.ts` was NOT touched. **Product observation for the lead (BRAIN §5 candidate):** the vite.config.ts comment
+"renders Greek text offline after the first visit" is true only from the SECOND online page load onward; the first visit does not
+prime the font caches. Not a P5.4 defect; noted, not fixed.
+
+**Two false starts, both fixed without disables:** `{ auto: true }` on a fixture OVERRIDE is a TS2322 (the option is only legal on a
+first registration) → dropped, `auto` is inherited; `react-hooks/rules-of-hooks` flagged Playwright's `use` callback as React's `use`
+hook because the arrow is the named property `consoleErrors` → the callback parameter is named `provide`.
+
+**RED-verification (the gate seen failing):** a scratch copy `e2e/local/offline-red.scratch.spec.ts` added
+`await context.route('**/sw.js', (r) => r.abort())` before the first load and removed the controller wait → `E2E_PREBUILT=1 npx
+playwright test … offline-red.scratch.spec.ts` → **1 failed**: steps 1–3 pass (client-side navigation needs no network), step 4
+fails `Error: page.goto: net::ERR_INTERNET_DISCONNECTED at http://127.0.0.1:4173/hygieia/` (`offline-red.scratch.spec.ts:113`), and the
+watchdog additionally reports the pageerror `TypeError: Failed to register a ServiceWorker for scope ('http://127.0.0.1:4173/hygieia/')
+… An unknown error occurred when fetching the script.` Scratch deleted; `ls e2e/local` → `offline.spec.ts smoke.spec.ts`.
+
+**Gates (2026-10-05, `D:/projects/hygieia-wt/d`):** `npm run build` green (`PWA v2.0.0 · generateSW · precache 24 entries (839.54 KiB)`),
+`cmp dist/404.html dist/index.html` byte-equal · `E2E_PREBUILT=1 npm run e2e` → `tsc -p e2e/support/tsconfig.json` clean, `pages-server:
+serving …\dist at http://127.0.0.1:4173/hygieia/ (Pages semantics)`, **8 passed (2.9s)**: smoke 1–7 + `offline.spec.ts:74 › the app
+installs a service worker, then works offline: client-side nav, hard load, deep link (1.9s)` · `npm run lint` 0 errors (6 pre-existing
+react-refresh warnings, none in e2e) · `npm run typecheck` clean · `npm test` **1966 passed** · `npx eslint` + `prettier --check` on the
+spec clean. `git status` → only `?? e2e/local/offline.spec.ts`.
+
+**Next:** lead merges `wt/d`; P5.QA.2 can tick "`offline.spec.ts` passes"; when `/hygieia/recipes` and `/hygieia/diets` exist (P3/P4),
+extend step 3/5 to PLAN's original routes (one-line change each); consider recording the first-visit font-cache observation in BRAIN §5.
+
 ## 2026-10-05 — P6.1 Fleet telemetry behind `VITE_FLEET_*` (no-op without env) — DONE (builder, worktree `wt/e`; not yet committed)
 
 **Pulled forward** by the lead (independent of P5). Donor is **Enodia** (`D:/projects/enodia-transit/src/lib/telemetry/*` +
