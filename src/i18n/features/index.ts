@@ -6,7 +6,9 @@
 // add ONE import, ONE parent in `extends`, and ONE spread per language here. Concurrent lanes
 // conflict on these few lines on purpose: the conflict is mechanical (keep both) and the lead
 // resolves it at merge. (A `merge=union` attribute was tried and garbled the file — do not re-add.)
+// Feature keys must not shadow each other or the base dictionary: later spreads win silently.
 
+import { adminEl, adminEn, type AdminDictionary } from './admin.ts'
 import { dietsEl, dietsEn, type DietsDictionary } from './diets.ts'
 import { fridgeEl, fridgeEn, type FridgeDictionary } from './fridge.ts'
 import { plansEl, plansEn, type PlansDictionary } from './plans.ts'
@@ -16,6 +18,7 @@ import { workoutsEl, workoutsEn, type WorkoutsDictionary } from './workouts.ts'
 // prettier-ignore
 export interface FeatureDictionary
   extends
+    AdminDictionary,
     DietsDictionary,
     FridgeDictionary,
     PlansDictionary,
@@ -23,6 +26,7 @@ export interface FeatureDictionary
     WorkoutsDictionary {}
 
 export const featuresEn: FeatureDictionary = {
+  ...adminEn,
   ...dietsEn,
   ...fridgeEn,
   ...plansEn,
@@ -31,6 +35,7 @@ export const featuresEn: FeatureDictionary = {
 }
 
 export const featuresEl: FeatureDictionary = {
+  ...adminEl,
   ...dietsEl,
   ...fridgeEl,
   ...plansEl,
