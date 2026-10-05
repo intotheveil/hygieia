@@ -187,3 +187,27 @@ effect`) and asserts A's rows unchanged — instead of adding new checks — bec
   the FK id in `ingredient_slug` / `exercise_slug`, rather than being dropped: an approved recipe over a still-
   pending ingredient is an admin-ordering state the UI should show honestly (the fridge matcher already
   reports such slugs under `unknown`).
+
+## 2026-10-06 — P4.8/P4.9 UI: pages read the ContentSource, not the seed resolver; async state keyed by its loader
+
+- **`/workouts` resolves a session with `contentSource.getWorkoutTemplate(type, level, intensity)` and groups the
+  returned `slots`, NOT with `workouts/session.ts` `resolveSession` over the seed arrays.** The resolver is the pure
+  domain proof over seeds (P4.8 tests); the page must behave identically in `local` (bundled) and `configured`
+  (supabase) mode, and only the source knows which rows are visible. `blocksOf(template)` keeps the resolver's
+  whole-or-nothing rule: one hidden exercise (pending under RLS) renders `noSession`, never a block with a hole.
+- **Content pages accept an optional `source` prop defaulting to `contentSource`.** The module singleton is right for
+  the app; tests need to inject a failing / empty / never-resolving source to exercise the error, empty and loading
+  states without module mocks. P3.5 renders `<WorkoutsPage />` and `<TipsPage />` with no props.
+- **`useAsync(run)` stores the settled outcome TOGETHER with the `run` that produced it and derives "loading" as
+  `settled.run !== run`.** No synchronous setState in an effect (the house `react-hooks/set-state-in-effect` rule), a
+  new selection shows loading at once, and a stale resolution is dropped. The cost is that callers memoise `run`
+  with `useCallback`; the pages do.
+- **Selection state lives in the URL (`?type=&level=&intensity=`, `?topic=`), defaults applied on parse** so a
+  session or topic is linkable and back/forward walks the choices; junk values fall back to defaults silently
+  (a bad link still shows a usable page).
+- **Error/empty dictionary keys are per feature (`workoutsLoadFailed`, `tipsLoadFailed`, `tipsEmpty`)**, not a shared
+  base key: `dictionary.ts` is off-limits to lanes and a shared key added by two lanes in `features/*` would collide
+  at the union merge.
+- **`FeatureDictionary` parents stay one per line under `// prettier-ignore`.** Prettier collapses a short `extends`
+  list onto one line, which would turn every concurrent lane's addition into a merge conflict; the ignore keeps the
+  `merge=union` guarantee the barrel was designed for.
