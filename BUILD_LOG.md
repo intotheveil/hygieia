@@ -25,7 +25,8 @@ Operator confirmed. Repo `intotheveil/hygieia`, **public** (operator's choice).
 - Crew kit installed from `zeus/.zeus/kit/` named sources (one-row manifest sync), constitution
   composed by `kit.mjs`, `BRAIN.md` seeded from the fleet template.
 
-**Gates:** recorded in BRAIN.md §3 once run (lint, typecheck, test, build, SubagentStop gate,
-verify-kit).
+**Gates (2026-10-05):** lint 0 errors · typecheck clean · 19 tests green · build green (404 fallback
+byte-equal) · SubagentStop gate `ran[secret-scan typecheck lint test] skipped[none]` · verify-kit PASS ·
+CI green · live URL verified by HTTP (200, title, favicon, deep-link fallback, bundle).
 
 **Next:** operator approves `zeus/specs/HYGIEIA_SPEC.md` (open questions) → planner → P1/P3.

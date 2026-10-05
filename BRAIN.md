@@ -54,8 +54,7 @@ intensities."_ Named for the goddess of health and preventive wellbeing (source 
 - **Crew kit:** 7 hooks + 7 agents from `zeus/.zeus/kit/` via one-row manifest sync (row in
   `fleet.repos`); constitution composed by `kit.mjs`; `.claude/settings.json` from
   `settings.template.json`; `.claude/.no-greek-scan` present (Greek copy is product content).
-- **Brand assets:** `public/favicon.svg` (hand-drawn heart-leaf mark). Hero/OG imagery: the
-  operator's local ComfyUI (RealVisXL V5, `F:\ComfyModels\checkpoints`) — see §3 for what landed.
+- **Brand assets:** `public/favicon.svg` (hand-drawn heart-leaf mark). `public/brand/*.jpg` from the operator's local ComfyUI (RealVisXL V5, portable install `F:/AI/ComfyUI`); see §3.
 
 ## 3. CURRENT STATE (what's true RIGHT NOW — the thing a resuming session reads)
 
@@ -65,6 +64,13 @@ intensities."_ Named for the goddess of health and preventive wellbeing (source 
 - **What's live:** the P0 SHELL — bilingual home page with six module cards each labelled
   "Coming / Έρχεται", a status box saying no module has content, language switch, not-found
   route. **No product content exists yet**; the page says so honestly (the Argus/Themis rule).
+- **DEPLOYED 2026-10-05:** Pages enabled (`build_type=workflow`), CI run 37353201541 green; live URL 200
+  with the Greek title, favicon 200, deep link served as `404.html`, bundle 200. Verified by HTTP only (no
+  browser screenshot — the Chrome extension was not connected). Gate run directly:
+  `SUBAGENT GATE (builder) scope: ran[secret-scan typecheck lint test] skipped[none]`; `verify-kit` → PASS.
+- **Brand imagery landed (F3 closed):** `public/brand/og-hygieia.jpg` (Greek-salad table, `og:image`,
+  1216×640) and `hero-plate(-sm).jpg` (salmon plate, hero `<img>` with `srcSet`), rendered on the operator's
+  ComfyUI with RealVisXL V5. A workout render was rejected (merged objects).
 - **In progress:** nothing. P0 is the handover point.
 - **Next, in order:** (1) operator reviews `zeus/specs/HYGIEIA_SPEC.md` and answers its open
   questions; (2) `planner` turns it into PLAN.md on the §9 arc — P3 core slice is likely
@@ -80,7 +86,6 @@ intensities."_ Named for the goddess of health and preventive wellbeing (source 
 | Q2  | 🟠  | question | ❓ Accounts needed in v1 (saved plans, fridge lists) or anonymous/local-first? Decides when ADR-0001 is superseded                                                                           | open (operator) | 2026-10-05 |
 | F1  | 🔵  | feature  | e2e runner (Playwright against the production build, Themis pattern) — "not defined yet" in §8; first milestone after P0                                                                     | open            | 2026-10-05 |
 | F2  | 🔵  | feature  | Fleet telemetry (`VITE_FLEET_*`) — names reserved, client not wired                                                                                                                          | open            | 2026-10-05 |
-| F3  | 🔵  | feature  | Brand imagery (hero, OG image) from ComfyUI RealVisXL; `index.html` has no `og:image` yet                                                                                                    | open            | 2026-10-05 |
 
 ## 5. GOTCHAS (hard-won "don't do X, it breaks Y" — the knowledge that dies in old chats)
 
@@ -108,8 +113,8 @@ intensities."_ Named for the goddess of health and preventive wellbeing (source 
   hooks + agents `all match`, `kit.mjs init → fill → apply`); `BRAIN.md`, `DECISIONS.md`
   (ADR-0001 Pages/no Supabase, ADR-0002 typed bilingual dictionary), `BUILD_LOG.md`, `README.md`.
 - Decided: Greek is the default language; six modules as the product map; no i18n library in P0.
-- Resolved: —
-- Left off: see §3 "Next". Deploy status and gate output are recorded in §3 once CI runs.
+- Resolved: F3 (brand imagery) the same session.
+- Left off: deployed and verified (§3); operator answers the spec questions (Q1, Q2) next.
 
 ## 7. DECISIONS (dated ADR-lite — the "why", so it's never re-litigated)
 
