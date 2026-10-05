@@ -242,6 +242,54 @@ timeout bump. (2) The gap is recorded in BRAIN §5; the rule for future catalogu
 probe must include a blind (no-WHERE) statement, or a correct SELECT policy will mask an open write policy.
 (3) `RED ok` requires exit code exactly 1 (not merely ≠ 0): a crash code (e.g. Windows 0xC0000409) is
 reported as `CRASH`, so a gate that dies before its verdict can never count as proof.
+## 2026-10-05 — P1.11 recipes seed, GROUP 3 (special patterns) + aggregate + test — DONE (builder, worktree `wt/g`; not yet committed)
+
+**Scope (one of three parallel builders):** diets `intermittent-fasting`, `whole30`, `gluten-free`, `low-fodmap`,
+plus ownership of the aggregate module and the P1.11 acceptance test. Groups 1 (Greek/Mediterranean classics)
+and 2 (meat/egg low-carb, keto) are written in other worktrees.
+
+**Delivered:**
+- `src/content/seed/recipes/group3.ts` — `RECIPES_GROUP3`, **40 recipes** (target 30+): GF baking (buckwheat
+  pancakes, almond-buckwheat banana bread, buckwheat-chia seeded bread, socca), polenta ×2, risottos ×2, quinoa /
+  rice / rice-noodle bowls, low-FODMAP soup and bowls, Whole30 sheet-pan dinners, egg bake, breakfast patties,
+  break-the-fast plate, fruit-and-nut snacks. 3–5 steps each, natural Greek; `image_path: null` everywhere.
+- `src/content/seed/recipes.ts` — the aggregate `RECIPES = [...GROUP1, ...GROUP2, ...GROUP3]`.
+- `src/content/seed/recipes/group1.ts`, `group2.ts` — **TEMPORARY STUBS** (empty typed arrays, header
+  `// STUB — replaced by the group builder's file at merge; do not edit`). The lead replaces them at merge.
+- `src/content/seed/recipes.test.ts` — the P1.11 acceptance test (328 tests on stubs + group 3): count ≥
+  `MIN_RECIPES`; unique `SLUG_RE` slugs; every ingredient/diet slug resolves; steps ≥ 3, equal EL/EN, Greek
+  script in `steps_el`/`title_el`; portions 1..12; `prep_min` ≥ 1; `meal_types` non-empty, no dups; lines 1..20,
+  qty > 0, unit ∈ `UNITS`, notes both-or-neither, no duplicate slug per recipe; `computeNutrition` per-portion
+  kcal 100..1200 with no unknown slugs; mechanical diet compliance (vegan / vegetarian / pescatarian / carnivore
+  by ingredient `category`; gluten-free / low-fodmap / whole30 by auditable slug lists at the top of the file);
+  coverage matrix logged, B/L/D ≥ 1 for every diet with ≥ 1 recipe, plus the strict all-16-diets check.
+
+**Constants the lead flips after merge (all in `recipes.test.ts`):** `MIN_RECIPES = 30` → `40` (PLAN floor);
+`REQUIRE_FULL_COVERAGE = false` → `true` (every diet ≥ `FULL_COVERAGE_MIN_PER_MEAL = 2` for B/L/D).
+
+**Coverage now (group 3 alone):** gluten-free B13/L25/D22 (39) · low-fodmap B10/L11/D9 (20) · whole30 B4/L9/D6
+(11) · intermittent-fasting B2/L15/D14 (16). "Suitable-for" tagging also lands: flexitarian 40, pescatarian 32,
+vegetarian 27, mediterranean 16, high-protein 15, vegan 15, dash 11, paleo 10, low-carb 4. Keto/atkins/carnivore
+0 (groups 2's). kcal/portion range **158–740** (energy balls … chicken coconut curry).
+
+**Content decisions (recorded here; P1.11 has no DECISIONS.md entry of its own):**
+- `oats` is plain rolled oats (not certified GF) → never tagged `gluten-free`, allowed in `low-fodmap` (Monash and
+  the P1.10 row both allow oats). `tortilla` is a WHEAT tortilla → no corn-tortilla tacos; fish tacos became rice
+  "fish taco bowls". No garlic-infused oil ingredient exists → low-FODMAP recipes use plain olive oil and spring
+  onion "green parts only" (noted on every line). `buckwheat`, `lentil-pasta`, `rice-noodles` and the
+  almond/coconut/chickpea flours are exempt from the gluten name-match (gluten-free by nature).
+- Diet tags follow "suitable for" semantics (every compliant diet is tagged) so a diet filter shows everything a
+  follower can eat; `paleo` is not tagged on white-potato dishes; `keto`/`atkins`/`carnivore` left to group 2.
+- Whole30 check is category-based (grains-bread, pasta-rice, legumes, sweeteners, dairy-eggs except egg/ghee) plus
+  explicit slugs (peanuts, alcohol, cured meats, mayonnaise, ketchup, stock cube, corn products, flours).
+
+**Gates (2026-10-05, `D:/projects/hygieia-wt/g`):** `npm run lint` 0 errors (6 pre-existing react-refresh warnings
+in `src/auth/AuthProvider.tsx`, `src/i18n/LangProvider.tsx`, `src/routes/routes.tsx`) · `npm run typecheck` clean ·
+`npm test` 21 files / 736 tests green (`recipes.test.ts` 328, logs `RECIPES count: 40` + matrix + kcal table) ·
+`npm run build` green (PWA precache 24 entries) · `check:pwa OK — Hygieia · Υγίεια, 3 icons, sw.js present`.
+
+**Not done / next:** nothing committed (the lead merges `wt/g` and replaces the two stubs with the real group
+files, then flips the two constants and re-runs the test). P1.12 (seed generator) consumes `RECIPES`.
 
 ## 2026-10-05 — P4.9 (content half) health tips seed — DONE (builder, worktree `wt/f`; not yet committed)
 
