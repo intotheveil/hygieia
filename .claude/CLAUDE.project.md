@@ -43,8 +43,10 @@
   forward-only, tracked in `hygieia.schema_migrations`, rehearsed by `db:gate` (PGlite), applied ONLY
   by the Management-API applier with the operator's go. **Never `supabase db push`** (ADR-0003 rule 1).
 
-**Deviations from the house stack:** ADR-0001 (GitHub Pages instead of Netlify) and ADR-0003 (shared
-Supabase project, own schema, no `db push`) in DECISIONS.md.
+**Deviations from the house stack:** ADR-0001 (GitHub Pages instead of Netlify), ADR-0003 (shared
+Supabase project, own schema, no `db push`) and ADR-0005 (parallel worktree cadence for P1–P6: file-disjoint
+lanes with G0 each, QA + Review gates run after merge, checkpoints waived by the operator; every phase still
+owes its gate before it is claimed) in DECISIONS.md.
 <!-- KIT:PROJECT:END §2 -->
 
 <!-- KIT:PROJECT:BEGIN §8 -->
