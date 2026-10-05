@@ -1,0 +1,953 @@
+// HEALTH TIPS SEED — bilingual (EL/EN) public-health tips grouped by `TipTopic` (PLAN.md §2
+// `health_tips`, task P4.9). Content only: no `id`, no `status`; the generator (`seed:gen`) turns
+// each entry into a `pending` row keyed by `md5('hygieia:health_tips:<slug>')`.
+//
+// Content drafting rule (PLAN.md §0): every tip is mainstream guidance (WHO, NHS, EFSA, Harvard
+// Nutrition Source, Mayo Clinic, Sleep Foundation, NIH) — no cures, no supplement claims, no
+// diagnosis. `source_url` is set ONLY to a page the drafter has actually seen and is confident is
+// stable; otherwise it is null and `needs_source` is true ("Source pending review" in the UI).
+// A fabricated URL is the one unacceptable outcome here. `needs_source === (source_url === null)`
+// for every row — `tips.test.ts` enforces it along with the domain allow-list.
+//
+// Erasable syntax only (node type stripping imports this from `scripts/*.mjs`).
+
+import type { HealthTipSeed } from '../types.ts'
+
+export const HEALTH_TIPS: readonly HealthTipSeed[] = [
+  // --- sleep -------------------------------------------------------------------------------------
+  {
+    slug: 'sleep-regular-schedule',
+    topic: 'sleep',
+    title_el: 'Κοιμήσου και ξύπνα την ίδια ώρα κάθε μέρα',
+    title_en: 'Go to bed and wake up at the same time every day',
+    body_el:
+      'Το σταθερό ωράριο ύπνου, ακόμη και τα Σαββατοκύριακα, ρυθμίζει το βιολογικό σου ρολόι. Προσπάθησε η διαφορά ανάμεσα σε καθημερινές και αργίες να μην ξεπερνά τη μία ώρα. Αν δεν σε παίρνει ο ύπνος μέσα σε 20 λεπτά, σήκωσε από το κρεβάτι, κάνε κάτι ήσυχο και ξαναπροσπάθησε όταν νυστάξεις.',
+    body_en:
+      'A consistent sleep schedule, weekends included, keeps your body clock in step. Try to keep the difference between workdays and days off to no more than an hour. If you are still awake after about 20 minutes, get up, do something quiet and go back to bed when you feel sleepy.',
+    source_url:
+      'https://www.mayoclinic.org/healthy-lifestyle/adult-health/in-depth/sleep/art-20048379',
+    needs_source: false,
+  },
+  {
+    slug: 'sleep-seven-to-nine-hours',
+    topic: 'sleep',
+    title_el: 'Στόχευσε σε 7–9 ώρες ύπνου',
+    title_en: 'Aim for 7 to 9 hours of sleep',
+    body_el:
+      'Οι περισσότεροι ενήλικες χρειάζονται 7 έως 9 ώρες ύπνου το βράδυ για να λειτουργούν καλά. Αν χρειάζεσαι ξυπνητήρι για να σηκωθείς ή νυστάζεις συχνά μέσα στη μέρα, πιθανότατα κοιμάσαι λιγότερο απ’ όσο χρειάζεσαι. Δοκίμασε να πέφτεις για ύπνο 15 λεπτά νωρίτερα για μία εβδομάδα και δες τη διαφορά.',
+    body_en:
+      'Most adults need 7 to 9 hours of sleep a night to function well. If you rely on an alarm to wake up or feel drowsy during the day, you are probably getting less than you need. Try going to bed 15 minutes earlier for a week and notice the difference.',
+    source_url: 'https://www.sleepfoundation.org/how-sleep-works/how-much-sleep-do-we-really-need',
+    needs_source: false,
+  },
+  {
+    slug: 'sleep-screens-before-bed',
+    topic: 'sleep',
+    title_el: 'Άφησε τις οθόνες μία ώρα πριν τον ύπνο',
+    title_en: 'Put screens away an hour before bed',
+    body_el:
+      'Το φως και το περιεχόμενο από κινητά, τάμπλετ και τηλεόραση κρατούν τον εγκέφαλο σε εγρήγορση και καθυστερούν τον ύπνο. Όρισε μια ώρα «αποσύνδεσης» και άφησε το κινητό να φορτίζει έξω από το υπνοδωμάτιο. Ένα βιβλίο, μουσική ή μια ζεστή ντους είναι καλύτερα τελευταία βήματα πριν το κρεβάτι.',
+    body_en:
+      'The light and the content from phones, tablets and TV keep your brain alert and push sleep later. Set a nightly “unplug” time and charge your phone outside the bedroom. A book, some music or a warm shower are better last steps before bed.',
+    source_url: 'https://www.sleepfoundation.org/sleep-hygiene',
+    needs_source: false,
+  },
+  {
+    slug: 'sleep-cool-dark-quiet-bedroom',
+    topic: 'sleep',
+    title_el: 'Δροσερό, σκοτεινό και ήσυχο υπνοδωμάτιο',
+    title_en: 'Keep the bedroom cool, dark and quiet',
+    body_el:
+      'Το σώμα κοιμάται καλύτερα σε δροσερό περιβάλλον, γύρω στους 18–20 °C. Χρησιμοποίησε κουρτίνες συσκότισης ή μάσκα ύπνου και, αν υπάρχει θόρυβος, ωτοασπίδες ή έναν σταθερό ήχο φόντου. Κράτησε το κρεβάτι μόνο για ύπνο, ώστε ο εγκέφαλος να το συνδέει με ξεκούραση.',
+    body_en:
+      'Your body sleeps best in a cool room, around 18–20 °C. Use blackout curtains or a sleep mask and, if there is noise, earplugs or a steady background sound. Reserve the bed for sleep so your brain links it with rest.',
+    source_url: 'https://www.sleepfoundation.org/bedroom-environment',
+    needs_source: false,
+  },
+  {
+    slug: 'sleep-caffeine-cutoff',
+    topic: 'sleep',
+    title_el: 'Τελευταίος καφές νωρίς το απόγευμα',
+    title_en: 'Make your last coffee an early-afternoon one',
+    body_el:
+      'Η καφεΐνη παραμένει στον οργανισμό για αρκετές ώρες και μπορεί να κάνει τον ύπνο πιο ελαφρύ ακόμη κι αν σε παίρνει εύκολα. Απόφυγε καφέ, ενεργειακά ποτά και δυνατό τσάι τουλάχιστον 6 ώρες πριν τον ύπνο. Το απόγευμα προτίμησε ντεκαφεϊνέ ή αφέψημα βοτάνων.',
+    body_en:
+      'Caffeine stays in your system for several hours and can make sleep lighter even if you fall asleep easily. Avoid coffee, energy drinks and strong tea for at least 6 hours before bedtime. In the afternoon, switch to decaf or a herbal infusion.',
+    source_url:
+      'https://www.mayoclinic.org/healthy-lifestyle/nutrition-and-healthy-eating/in-depth/caffeine/art-20045678',
+    needs_source: false,
+  },
+  {
+    slug: 'sleep-alcohol-is-not-a-sleep-aid',
+    topic: 'sleep',
+    title_el: 'Το αλκοόλ δεν είναι υπνωτικό',
+    title_en: 'Alcohol is not a sleep aid',
+    body_el:
+      'Ένα ποτό μπορεί να σε κάνει να νυστάξεις πιο γρήγορα, αλλά διασπά τον ύπνο στο δεύτερο μισό της νύχτας και μειώνει τον ύπνο REM. Αν πίνεις, κάν’ το νωρίς το βράδυ και με μέτρο. Τα βράδια χωρίς αλκοόλ συνήθως φέρνουν πιο ξεκούραστο πρωινό.',
+    body_en:
+      'A drink may help you doze off faster, but it fragments sleep in the second half of the night and reduces REM sleep. If you drink, do it early in the evening and in moderation. Alcohol-free evenings usually mean a more refreshed morning.',
+    source_url: 'https://www.sleepfoundation.org/nutrition/alcohol-and-sleep',
+    needs_source: false,
+  },
+  {
+    slug: 'sleep-short-early-naps',
+    topic: 'sleep',
+    title_el: 'Σύντομος ύπνος το μεσημέρι, όχι αργά',
+    title_en: 'Keep naps short and early',
+    body_el:
+      'Ένας ύπνος 10–20 λεπτών νωρίς το απόγευμα μπορεί να ανεβάσει την ενέργεια και τη συγκέντρωση. Πιο μεγάλοι ή πιο αργοί μεσημεριανοί ύπνοι συχνά δυσκολεύουν τον βραδινό ύπνο και αφήνουν αίσθηση βάρους. Αν έχεις αϋπνίες, δοκίμασε να τον παραλείψεις εντελώς για λίγες μέρες.',
+    body_en:
+      'A 10–20 minute nap in the early afternoon can lift energy and focus. Longer or later naps often make it harder to fall asleep at night and leave you groggy. If you struggle with insomnia, try skipping naps altogether for a few days.',
+    source_url:
+      'https://www.mayoclinic.org/healthy-lifestyle/adult-health/in-depth/napping/art-20048319',
+    needs_source: false,
+  },
+  {
+    slug: 'sleep-wind-down-routine',
+    topic: 'sleep',
+    title_el: 'Φτιάξε μια ρουτίνα χαλάρωσης πριν τον ύπνο',
+    title_en: 'Build a wind-down routine',
+    body_el:
+      'Ο εγκέφαλος χρειάζεται σήμα ότι η μέρα τελειώνει. Τα ίδια 20–30 λεπτά κάθε βράδυ — χαμηλός φωτισμός, λίγο διάβασμα, διατάσεις, ετοιμασία για την επόμενη μέρα — γίνονται «κουμπί» ύπνου. Άφησε τις έντονες συζητήσεις και τη δουλειά για το πρωί.',
+    body_en:
+      'Your brain needs a signal that the day is ending. The same 20–30 minutes each night — dim lights, a little reading, gentle stretching, laying out tomorrow — become a sleep cue. Leave heated conversations and work for the morning.',
+    source_url: 'https://www.sleepfoundation.org/sleep-hygiene',
+    needs_source: false,
+  },
+  {
+    slug: 'sleep-morning-daylight',
+    topic: 'sleep',
+    title_el: 'Πάρε φως ημέρας το πρωί',
+    title_en: 'Get daylight in the morning',
+    body_el:
+      'Το φυσικό φως μέσα στην πρώτη ώρα μετά το ξύπνημα λέει στο ρολόι του σώματος ότι η μέρα ξεκίνησε και βοηθά να νυστάξεις την ώρα που πρέπει το βράδυ. Άνοιξε τα παντζούρια, πιες τον καφέ στο μπαλκόνι ή περπάτησε 10 λεπτά έξω. Το ίδιο φως, αργά το βράδυ, έχει το αντίθετο αποτέλεσμα.',
+    body_en:
+      'Natural light within the first hour after waking tells your body clock that the day has started and helps you feel sleepy at the right time at night. Open the shutters, have your coffee on the balcony or walk outside for 10 minutes. The same light late at night has the opposite effect.',
+    source_url: null,
+    needs_source: true,
+  },
+  {
+    slug: 'sleep-no-heavy-meals-late',
+    topic: 'sleep',
+    title_el: 'Όχι βαρύ δείπνο λίγο πριν το κρεβάτι',
+    title_en: 'Skip heavy meals close to bedtime',
+    body_el:
+      'Ένα μεγάλο ή πικάντικο γεύμα 2–3 ώρες πριν τον ύπνο μπορεί να φέρει καούρα και ανήσυχο ύπνο. Προσπάθησε το κύριο δείπνο να τελειώνει νωρίς και, αν πεινάς αργότερα, προτίμησε κάτι ελαφρύ όπως γιαούρτι ή ένα φρούτο. Το ίδιο ισχύει και για πολλά υγρά αργά, που σε ξυπνούν τη νύχτα.',
+    body_en:
+      'A large or spicy meal within 2–3 hours of bed can bring heartburn and restless sleep. Try to finish your main evening meal early and, if you are hungry later, have something light such as yoghurt or a piece of fruit. The same goes for lots of fluids late at night, which wake you up.',
+    source_url:
+      'https://www.mayoclinic.org/healthy-lifestyle/adult-health/in-depth/sleep/art-20048379',
+    needs_source: false,
+  },
+  {
+    slug: 'sleep-move-during-the-day',
+    topic: 'sleep',
+    title_el: 'Η κίνηση της ημέρας φτιάχνει τον ύπνο της νύχτας',
+    title_en: 'Daytime movement builds night-time sleep',
+    body_el:
+      'Όσοι κινούνται τακτικά κοιμούνται πιο βαθιά και αποκοιμιούνται πιο γρήγορα. Ακόμη και ένας καθημερινός περίπατος μετράει. Απλώς απόφυγε την πολύ έντονη άσκηση την τελευταία ώρα πριν τον ύπνο, γιατί ανεβάζει θερμοκρασία και παλμούς.',
+    body_en:
+      'People who are regularly active sleep more deeply and fall asleep faster. Even a daily walk counts. Just avoid very intense exercise in the last hour before bed, as it raises body temperature and heart rate.',
+    source_url:
+      'https://www.mayoclinic.org/healthy-lifestyle/adult-health/in-depth/sleep/art-20048379',
+    needs_source: false,
+  },
+  {
+    slug: 'sleep-worry-list',
+    topic: 'sleep',
+    title_el: 'Γράψε τις έγνοιες σου πριν ξαπλώσεις',
+    title_en: 'Write your worries down before bed',
+    body_el:
+      'Αν το μυαλό τρέχει μόλις σβήσεις το φως, κράτα ένα σημειωματάριο δίπλα στο κρεβάτι. Γράψε τι σε απασχολεί και το πρώτο βήμα που θα κάνεις αύριο, κι άφησέ το εκεί. Το μυαλό χαλαρώνει πιο εύκολα όταν ξέρει ότι τίποτα δεν θα ξεχαστεί.',
+    body_en:
+      'If your mind races as soon as the light goes off, keep a notebook by the bed. Write down what is on your mind and the first step you will take tomorrow, then leave it there. The mind lets go more easily when it knows nothing will be forgotten.',
+    source_url: null,
+    needs_source: true,
+  },
+
+  // --- hydration ---------------------------------------------------------------------------------
+  {
+    slug: 'hydration-daily-fluid-target',
+    topic: 'hydration',
+    title_el: 'Περίπου 2–2,5 λίτρα υγρών τη μέρα',
+    title_en: 'Around 2 to 2.5 litres of fluid a day',
+    body_el:
+      'Η EFSA θεωρεί επαρκή πρόσληψη τα 2,0 λίτρα νερού την ημέρα για τις γυναίκες και τα 2,5 για τους άνδρες, συνολικά από ροφήματα και τροφές. Περίπου το ένα πέμπτο έρχεται από το φαγητό, οπότε τα υπόλοιπα 1,6–2 λίτρα είναι ποτήρια. Οι ανάγκες ανεβαίνουν με τη ζέστη, την άσκηση και την εγκυμοσύνη ή τον θηλασμό.',
+    body_en:
+      'EFSA considers 2.0 litres of water a day adequate for women and 2.5 litres for men, counting both drinks and food. Roughly a fifth comes from food, so the remaining 1.6–2 litres is what you drink. Needs go up with heat, exercise and during pregnancy or breastfeeding.',
+    source_url: 'https://www.efsa.europa.eu/en/topics/topic/dietary-reference-values',
+    needs_source: false,
+  },
+  {
+    slug: 'hydration-water-as-default-drink',
+    topic: 'hydration',
+    title_el: 'Κάνε το νερό το βασικό σου ποτό',
+    title_en: 'Make water your default drink',
+    body_el:
+      'Το νερό ενυδατώνει χωρίς θερμίδες, ζάχαρη ή οξέα που φθείρουν τα δόντια. Το νερό της βρύσης στις περισσότερες περιοχές της Ελλάδας είναι πόσιμο, φθηνό και πάντα διαθέσιμο. Αν βαριέσαι τη γεύση, πρόσθεσε φέτες λεμόνι, αγγούρι ή λίγα φύλλα δυόσμου.',
+    body_en:
+      'Water hydrates with no calories, sugar or tooth-eroding acids. Tap water in most of Greece is safe, cheap and always to hand. If you find it dull, add slices of lemon, cucumber or a few mint leaves.',
+    source_url:
+      'https://www.nhs.uk/live-well/eat-well/food-guidelines-and-food-labels/water-drinks-nutrition/',
+    needs_source: false,
+  },
+  {
+    slug: 'hydration-urine-colour-check',
+    topic: 'hydration',
+    title_el: 'Το χρώμα των ούρων δείχνει αν πίνεις αρκετά',
+    title_en: 'Your urine colour tells you if you are drinking enough',
+    body_el:
+      'Ανοιχτό κίτρινο, σαν αχυρένιο, σημαίνει καλή ενυδάτωση. Σκούρο κίτρινο ή πορτοκαλί σημαίνει ότι χρειάζεσαι νερό, ειδικά αν νιώθεις και κόπωση ή πονοκέφαλο. Μην περιμένεις τη δίψα — όταν διψάς, ήδη έχεις υστερήσει λίγο.',
+    body_en:
+      'Pale straw-yellow means you are well hydrated. Dark yellow or orange means you need water, especially if you also feel tired or have a headache. Do not wait for thirst — by the time you are thirsty you are already slightly behind.',
+    source_url: null,
+    needs_source: true,
+  },
+  {
+    slug: 'hydration-heat-and-exercise',
+    topic: 'hydration',
+    title_el: 'Πιες περισσότερο στη ζέστη και στην άσκηση',
+    title_en: 'Drink more in the heat and when exercising',
+    body_el:
+      'Ο ιδρώτας αφαιρεί νερό και άλατα, και στο ελληνικό καλοκαίρι αυτό γίνεται γρήγορα. Πιες νερό πριν βγεις, κράτα μπουκάλι μαζί σου και ξαναγέμισε μετά. Για άσκηση κάτω από μία ώρα, το σκέτο νερό αρκεί· δεν χρειάζονται αθλητικά ποτά.',
+    body_en:
+      'Sweat takes water and salts with it, and in a Greek summer that happens fast. Drink before you head out, carry a bottle and top up afterwards. For exercise under an hour, plain water is enough; you do not need sports drinks.',
+    source_url:
+      'https://www.mayoclinic.org/healthy-lifestyle/nutrition-and-healthy-eating/in-depth/water/art-20044256',
+    needs_source: false,
+  },
+  {
+    slug: 'hydration-swap-sugary-drinks',
+    topic: 'hydration',
+    title_el: 'Αντικατάστησε τα ζαχαρούχα αναψυκτικά',
+    title_en: 'Swap sugary drinks for water',
+    body_el:
+      'Ένα κουτάκι αναψυκτικό έχει περίπου 35 γραμμάρια ζάχαρης — σχεδόν όλο το ημερήσιο όριο που συστήνει ο ΠΟΥ. Οι χυμοί, ακόμη και οι φυσικοί, περιέχουν επίσης πολλή ζάχαρη χωρίς τις ίνες του φρούτου. Μετακινήσου σταδιακά: πρώτα σε ανθρακούχο νερό με λεμόνι, μετά σε σκέτο.',
+    body_en:
+      'A can of soft drink carries about 35 grams of sugar — nearly the whole daily limit WHO recommends. Juices, even freshly squeezed, also pack a lot of sugar without the fruit’s fibre. Move gradually: first to sparkling water with lemon, then to plain.',
+    source_url: 'https://www.who.int/news-room/fact-sheets/detail/healthy-diet',
+    needs_source: false,
+  },
+  {
+    slug: 'hydration-coffee-and-tea-count',
+    topic: 'hydration',
+    title_el: 'Ο καφές και το τσάι μετράνε, με μέτρο',
+    title_en: 'Coffee and tea count, in moderation',
+    body_el:
+      'Ο καφές και το τσάι συνεισφέρουν στα υγρά της ημέρας· δεν «αφυδατώνουν» όταν πίνονται με μέτρο. Η EFSA θεωρεί ασφαλή για υγιείς ενήλικες έως 400 mg καφεΐνης τη μέρα, περίπου 3–4 φλιτζάνια καφέ φίλτρου. Μέτρα και τα ενεργειακά ποτά και τη σοκολάτα στο σύνολο.',
+    body_en:
+      'Coffee and tea contribute to your daily fluids; they do not “dehydrate” you when drunk in moderation. EFSA considers up to 400 mg of caffeine a day safe for healthy adults, roughly 3–4 cups of filter coffee. Count energy drinks and chocolate in the total too.',
+    source_url: 'https://www.efsa.europa.eu/en/topics/topic/caffeine',
+    needs_source: false,
+  },
+  {
+    slug: 'hydration-water-rich-foods',
+    topic: 'hydration',
+    title_el: 'Φάε το νερό σου: φρούτα και λαχανικά',
+    title_en: 'Eat your water: fruit and vegetables',
+    body_el:
+      'Το καρπούζι, το αγγούρι, η ντομάτα, το πεπόνι και το μαρούλι είναι πάνω από 90 % νερό. Μαζί με σούπες, γιαούρτι και φρούτα, η τροφή καλύπτει περίπου το 20 % των ημερήσιων αναγκών σε υγρά. Μια καλοκαιρινή σαλάτα είναι και ενυδάτωση, όχι μόνο γεύμα.',
+    body_en:
+      'Watermelon, cucumber, tomato, melon and lettuce are more than 90 % water. Together with soups, yoghurt and fruit, food covers about 20 % of your daily fluid needs. A summer salad is hydration as well as a meal.',
+    source_url: 'https://nutritionsource.hsph.harvard.edu/water/',
+    needs_source: false,
+  },
+  {
+    slug: 'hydration-bottle-within-reach',
+    topic: 'hydration',
+    title_el: 'Κράτα ένα μπουκάλι νερό μπροστά σου',
+    title_en: 'Keep a water bottle within reach',
+    body_el:
+      'Πίνουμε ό,τι βλέπουμε. Ένα επαναγεμιζόμενο μπουκάλι στο γραφείο, στο αυτοκίνητο και στην τσάντα κάνει το νερό την εύκολη επιλογή. Δέσε το με συνήθειες που ήδη έχεις: ένα ποτήρι με το ξύπνημα, ένα με κάθε γεύμα, ένα πριν βγεις από το σπίτι.',
+    body_en:
+      'We drink what we see. A refillable bottle on your desk, in the car and in your bag makes water the easy choice. Tie it to habits you already have: a glass on waking, one with every meal, one before you leave the house.',
+    source_url: null,
+    needs_source: true,
+  },
+  {
+    slug: 'hydration-older-adults-schedule',
+    topic: 'hydration',
+    title_el: 'Στις μεγαλύτερες ηλικίες, πιες με πρόγραμμα',
+    title_en: 'In later life, drink on a schedule',
+    body_el:
+      'Με την ηλικία η αίσθηση της δίψας αμβλύνεται, ενώ ο κίνδυνος αφυδάτωσης αυξάνεται, ιδίως σε καύσωνα ή με κάποια φάρμακα. Μην περιμένεις να διψάσεις: βάλε σταθερές ώρες — πρωί, μετά από κάθε γεύμα, απόγευμα. Αν φροντίζεις κάποιον ηλικιωμένο, πρόσφερέ του νερό συχνά και σε μικρές ποσότητες.',
+    body_en:
+      'Thirst dulls with age while the risk of dehydration rises, especially in a heatwave or with some medicines. Do not wait to feel thirsty: set fixed times — morning, after each meal, afternoon. If you care for an older person, offer water often and in small amounts.',
+    source_url: null,
+    needs_source: true,
+  },
+  {
+    slug: 'hydration-alternate-alcohol-with-water',
+    topic: 'hydration',
+    title_el: 'Ένα ποτήρι νερό για κάθε ποτό',
+    title_en: 'A glass of water for every alcoholic drink',
+    body_el:
+      'Το αλκοόλ αυξάνει την αποβολή υγρών, γι’ αυτό και το επόμενο πρωί έρχεται με δίψα και πονοκέφαλο. Εναλλάσσοντας κάθε ποτό με ένα ποτήρι νερό πίνεις πιο αργά, πίνεις λιγότερο και ξυπνάς καλύτερα. Πιες κι ένα μεγάλο ποτήρι πριν κοιμηθείς.',
+    body_en:
+      'Alcohol makes you lose more fluid, which is why the next morning comes with thirst and a headache. Alternating each drink with a glass of water slows you down, means you drink less and helps you wake up better. Have a large glass before bed too.',
+    source_url: null,
+    needs_source: true,
+  },
+  {
+    slug: 'hydration-unsweetened-alternatives',
+    topic: 'hydration',
+    title_el: 'Ανθρακούχο, αρωματισμένο, αλλά χωρίς ζάχαρη',
+    title_en: 'Sparkling or flavoured — just not sweetened',
+    body_el:
+      'Αν το σκέτο νερό σε κουράζει, το ανθρακούχο νερό, το κρύο τσάι χωρίς ζάχαρη ή το νερό με φρούτα είναι εξίσου καλές επιλογές. Διάβασε την ετικέτα στα «αρωματισμένα νερά» του εμπορίου — πολλά περιέχουν ζάχαρη ή γλυκαντικά. Ό,τι φτιάχνεις μόνος σου το ελέγχεις.',
+    body_en:
+      'If plain water bores you, sparkling water, unsweetened iced tea or fruit-infused water are just as good. Read the label on shop-bought “flavoured waters” — many contain sugar or sweeteners. Whatever you make yourself, you control.',
+    source_url: 'https://nutritionsource.hsph.harvard.edu/healthy-drinks/',
+    needs_source: false,
+  },
+  {
+    slug: 'hydration-drink-with-meals',
+    topic: 'hydration',
+    title_el: 'Ένα ποτήρι νερό σε κάθε γεύμα',
+    title_en: 'A glass of water with every meal',
+    body_el:
+      'Τα γεύματα είναι τρεις έτοιμες «υπενθυμίσεις» μέσα στη μέρα. Βάλε μια κανάτα στο τραπέζι αντί για αναψυκτικό και σέρβιρε νερό πρώτα. Είναι ο πιο απλός τρόπος να καλύψεις σχεδόν το μισό της ημερήσιας ποσότητας χωρίς να το σκεφτείς.',
+    body_en:
+      'Meals are three built-in reminders a day. Put a jug on the table instead of a soft drink and pour water first. It is the simplest way to cover almost half your daily intake without thinking about it.',
+    source_url: null,
+    needs_source: true,
+  },
+
+  // --- nutrition ---------------------------------------------------------------------------------
+  {
+    slug: 'nutrition-five-portions-fruit-veg',
+    topic: 'nutrition',
+    title_el: 'Τουλάχιστον 5 μερίδες φρούτα και λαχανικά',
+    title_en: 'At least 5 portions of fruit and vegetables',
+    body_el:
+      'Ο ΠΟΥ συστήνει τουλάχιστον 400 γραμμάρια φρούτα και λαχανικά τη μέρα — περίπου πέντε χούφτες — εκτός από πατάτες. Μοίρασέ τα σε όλα τα γεύματα: φρούτο στο πρωινό, σαλάτα το μεσημέρι, λαχανικά στο δείπνο. Φρέσκα, κατεψυγμένα ή μαγειρεμένα, όλα μετράνε.',
+    body_en:
+      'WHO recommends at least 400 grams of fruit and vegetables a day — about five handfuls — not counting potatoes. Spread them across every meal: fruit at breakfast, salad at lunch, vegetables at dinner. Fresh, frozen or cooked all count.',
+    source_url: 'https://www.who.int/news-room/fact-sheets/detail/healthy-diet',
+    needs_source: false,
+  },
+  {
+    slug: 'nutrition-fibre-thirty-grams',
+    topic: 'nutrition',
+    title_el: 'Στόχος 30 γραμμάρια φυτικές ίνες τη μέρα',
+    title_en: 'Aim for 30 grams of fibre a day',
+    body_el:
+      'Οι περισσότεροι ενήλικες τρώνε περίπου 20 γραμμάρια ίνες, ενώ ο στόχος είναι 30. Οι ίνες βοηθούν το έντερο, τον κορεσμό και τη ρύθμιση του σακχάρου. Πρόσθεσε όσπρια δύο–τρεις φορές την εβδομάδα, προτίμησε ολικής άλεσης ψωμί και ζυμαρικά, και φάε το φρούτο ολόκληρο αντί για χυμό.',
+    body_en:
+      'Most adults eat about 20 grams of fibre a day, while the target is 30. Fibre supports your gut, keeps you full and helps steady blood sugar. Add pulses two or three times a week, choose wholegrain bread and pasta, and eat the fruit instead of drinking the juice.',
+    source_url:
+      'https://www.nhs.uk/live-well/eat-well/digestive-health/how-to-get-more-fibre-into-your-diet/',
+    needs_source: false,
+  },
+  {
+    slug: 'nutrition-protein-at-every-meal',
+    topic: 'nutrition',
+    title_el: 'Λίγη πρωτεΐνη σε κάθε γεύμα',
+    title_en: 'Some protein at every meal',
+    body_el:
+      'Αντί να συγκεντρώνεις όλη την πρωτεΐνη στο βραδινό, μοίρασέ τη στα τρία γεύματα: γιαούρτι ή αυγά το πρωί, όσπρια ή ψάρι το μεσημέρι, κοτόπουλο ή τυρί το βράδυ. Έτσι μένεις χορτάτος περισσότερο και στηρίζεις τους μύες, ειδικά όσο μεγαλώνεις. Προτίμησε φυτικές πηγές, ψάρι και πουλερικά πιο συχνά από κόκκινο και επεξεργασμένο κρέας.',
+    body_en:
+      'Rather than piling all your protein into dinner, spread it across the three meals: yoghurt or eggs in the morning, pulses or fish at lunch, chicken or cheese in the evening. You stay fuller for longer and support your muscles, especially as you age. Favour plant sources, fish and poultry more often than red and processed meat.',
+    source_url: 'https://nutritionsource.hsph.harvard.edu/what-should-you-eat/protein/',
+    needs_source: false,
+  },
+  {
+    slug: 'nutrition-choose-whole-grains',
+    topic: 'nutrition',
+    title_el: 'Προτίμησε δημητριακά ολικής άλεσης',
+    title_en: 'Choose whole grains over refined',
+    body_el:
+      'Το ψωμί ολικής, το καστανό ρύζι, η βρώμη και το πλιγούρι κρατούν το πίτουρο και το φύτρο, άρα τις ίνες, τις βιταμίνες και τα μέταλλα που χάνονται στο λευκό αλεύρι. Χορταίνουν περισσότερο και ανεβάζουν πιο ήπια το σάκχαρο. Ξεκίνα αλλάζοντας ένα προϊόν τη φορά — πρώτα το ψωμί, μετά τα ζυμαρικά.',
+    body_en:
+      'Wholegrain bread, brown rice, oats and bulgur keep the bran and germ — the fibre, vitamins and minerals lost in white flour. They fill you up more and raise blood sugar more gently. Start by switching one product at a time — bread first, then pasta.',
+    source_url: 'https://nutritionsource.hsph.harvard.edu/healthy-eating-plate/',
+    needs_source: false,
+  },
+  {
+    slug: 'nutrition-salt-under-five-grams',
+    topic: 'nutrition',
+    title_el: 'Λιγότερο από 5 γραμμάρια αλάτι τη μέρα',
+    title_en: 'Keep salt under 5 grams a day',
+    body_el:
+      'Ο ΠΟΥ συστήνει κάτω από 5 γραμμάρια αλάτι την ημέρα — ένα κουταλάκι του γλυκού — για υγιή αρτηριακή πίεση. Το περισσότερο αλάτι δεν έρχεται από την αλατιέρα αλλά από ψωμί, τυριά, αλλαντικά, ελιές και έτοιμα φαγητά. Μαγείρεψε με λεμόνι, ρίγανη, σκόρδο και άλλα μυρωδικά, και δοκίμασε πριν αλατίσεις.',
+    body_en:
+      'WHO recommends less than 5 grams of salt a day — one teaspoon — for healthy blood pressure. Most salt comes not from the shaker but from bread, cheese, cured meats, olives and ready meals. Cook with lemon, oregano, garlic and other herbs, and taste before you add salt.',
+    source_url: 'https://www.who.int/news-room/fact-sheets/detail/salt-reduction',
+    needs_source: false,
+  },
+  {
+    slug: 'nutrition-limit-free-sugars',
+    topic: 'nutrition',
+    title_el: 'Περιόρισε τα ελεύθερα σάκχαρα',
+    title_en: 'Limit free sugars',
+    body_el:
+      'Ο ΠΟΥ συστήνει τα ελεύθερα σάκχαρα — η προσθετή ζάχαρη και αυτή σε χυμούς, μέλι και σιρόπια — να μένουν κάτω από το 10 % των θερμίδων, ιδανικά κάτω από 5 %. Για έναν μέσο ενήλικα αυτό είναι περίπου 25–50 γραμμάρια, 6–12 κουταλάκια. Κοίτα τις ετικέτες: γιαούρτια με γεύση, δημητριακά πρωινού και σάλτσες συχνά κρύβουν πολλά.',
+    body_en:
+      'WHO recommends keeping free sugars — added sugar plus the sugar in juices, honey and syrups — below 10 % of calories, ideally below 5 %. For an average adult that is roughly 25–50 grams, or 6–12 teaspoons. Check labels: flavoured yoghurts, breakfast cereals and sauces often hide a lot.',
+    source_url: 'https://www.who.int/news-room/fact-sheets/detail/healthy-diet',
+    needs_source: false,
+  },
+  {
+    slug: 'nutrition-healthy-fats',
+    topic: 'nutrition',
+    title_el: 'Καλά λιπαρά: ελαιόλαδο, ξηροί καρποί, ψάρι',
+    title_en: 'Good fats: olive oil, nuts and fish',
+    body_el:
+      'Δεν χρειάζεται να φοβάσαι το λίπος, αλλά να διαλέγεις το είδος. Το ελαιόλαδο, οι ξηροί καρποί, το αβοκάντο και τα λιπαρά ψάρια δίνουν ακόρεστα λιπαρά που είναι καλά για την καρδιά. Περιόρισε το βούτυρο, τα λιπαρά κρέατα και τα βιομηχανικά γλυκά και σνακ, και απόφυγε εντελώς τα trans λιπαρά.',
+    body_en:
+      'You do not need to fear fat, only to choose the kind. Olive oil, nuts, avocado and oily fish provide unsaturated fats that are good for your heart. Cut back on butter, fatty meats and industrial sweets and snacks, and avoid trans fats altogether.',
+    source_url: 'https://www.who.int/news-room/fact-sheets/detail/healthy-diet',
+    needs_source: false,
+  },
+  {
+    slug: 'nutrition-legumes-several-times-a-week',
+    topic: 'nutrition',
+    title_el: 'Όσπρια δύο–τρεις φορές την εβδομάδα',
+    title_en: 'Pulses two or three times a week',
+    body_el:
+      'Φακές, φασόλια, ρεβίθια και φάβα δίνουν πρωτεΐνη, ίνες, σίδηρο και φυλλικό οξύ με ελάχιστο κόστος. Ένα γεύμα με όσπρια αντί για κρέας δύο–τρεις φορές την εβδομάδα είναι καλό για την καρδιά, το έντερο και το πορτοφόλι. Η ελληνική κουζίνα έχει ήδη τις συνταγές — απλώς βάλ’ τες πιο συχνά στο πρόγραμμα.',
+    body_en:
+      'Lentils, beans, chickpeas and split peas deliver protein, fibre, iron and folate at very little cost. A pulse-based meal in place of meat two or three times a week is good for your heart, your gut and your wallet. Greek cooking already has the recipes — just put them on the menu more often.',
+    source_url:
+      'https://www.mayoclinic.org/healthy-lifestyle/nutrition-and-healthy-eating/in-depth/meatless-meals/art-20048193',
+    needs_source: false,
+  },
+  {
+    slug: 'nutrition-healthy-plate-method',
+    topic: 'nutrition',
+    title_el: 'Το πιάτο: μισό λαχανικά, ένα τέταρτο πρωτεΐνη, ένα τέταρτο δημητριακά',
+    title_en: 'The plate: half vegetables, a quarter protein, a quarter grains',
+    body_el:
+      'Δεν χρειάζεσαι ζυγαριά για να ισορροπήσεις ένα γεύμα. Γέμισε το μισό πιάτο με λαχανικά και φρούτα, το ένα τέταρτο με πρωτεΐνη και το ένα τέταρτο με δημητριακά ολικής ή πατάτα. Μαγείρεψε με ελαιόλαδο, πιες νερό και ο κανόνας δουλεύει σε κάθε κουζίνα.',
+    body_en:
+      'You do not need scales to balance a meal. Fill half the plate with vegetables and fruit, a quarter with protein and a quarter with whole grains or potatoes. Cook with olive oil, drink water, and the rule works in any cuisine.',
+    source_url: 'https://nutritionsource.hsph.harvard.edu/healthy-eating-plate/',
+    needs_source: false,
+  },
+  {
+    slug: 'nutrition-read-the-label-per-100g',
+    topic: 'nutrition',
+    title_el: 'Διάβασε την ετικέτα ανά 100 γραμμάρια',
+    title_en: 'Read the label per 100 grams',
+    body_el:
+      'Οι «μερίδες» στις συσκευασίες είναι συχνά μικρότερες από όσο τρώει κανείς. Σύγκρινε προϊόντα στη στήλη «ανά 100 g»: πάνω από 22,5 g σάκχαρα ή 1,5 g αλάτι ανά 100 g θεωρείται πολύ. Κοίτα και τη λίστα συστατικών — όσο πιο κοντά στην αρχή η ζάχαρη, τόσο περισσότερη περιέχει.',
+    body_en:
+      'The “portions” on packaging are often smaller than what people actually eat. Compare products on the “per 100 g” column: over 22.5 g of sugars or 1.5 g of salt per 100 g counts as high. Check the ingredients list too — the closer sugar is to the start, the more there is.',
+    source_url:
+      'https://www.nhs.uk/live-well/eat-well/food-guidelines-and-food-labels/how-to-read-food-labels/',
+    needs_source: false,
+  },
+  {
+    slug: 'nutrition-mediterranean-pattern',
+    topic: 'nutrition',
+    title_el: 'Το μεσογειακό πρότυπο είναι ήδη δικό σου',
+    title_en: 'The Mediterranean pattern is already yours',
+    body_el:
+      'Λαχανικά, φρούτα, όσπρια, δημητριακά ολικής, ελαιόλαδο, ψάρι, λίγο γιαούρτι και τυρί, και κόκκινο κρέας σπάνια: αυτό είναι το διατροφικό πρότυπο με τα περισσότερα στοιχεία υπέρ της καρδιάς. Δεν είναι «δίαιτα» αλλά ο τρόπος που έτρωγαν οι παππούδες μας. Μαγείρεψε λαδερά, σαλάτες και όσπρια και κράτα τα γλυκά για τις γιορτές.',
+    body_en:
+      'Vegetables, fruit, pulses, whole grains, olive oil, fish, a little yoghurt and cheese, and red meat only rarely: this is the eating pattern with the strongest evidence for heart health. It is not a “diet” but how our grandparents ate. Cook olive-oil vegetable dishes, salads and pulses, and keep sweets for celebrations.',
+    source_url:
+      'https://www.mayoclinic.org/healthy-lifestyle/nutrition-and-healthy-eating/in-depth/mediterranean-diet/art-20047801',
+    needs_source: false,
+  },
+  {
+    slug: 'nutrition-handful-of-nuts',
+    topic: 'nutrition',
+    title_el: 'Μια χούφτα ανάλατους ξηρούς καρπούς',
+    title_en: 'A handful of unsalted nuts',
+    body_el:
+      'Αμύγδαλα, καρύδια, φουντούκια και φιστίκια Αιγίνης δίνουν καλά λιπαρά, πρωτεΐνη, ίνες και μαγνήσιο. Μια χούφτα την ημέρα — περίπου 30 γραμμάρια — είναι σνακ που χορταίνει χωρίς να εκτοξεύει το σάκχαρο. Διάλεξε ανάλατους και ωμούς ή ψημένους χωρίς λάδι, όχι καραμελωμένους.',
+    body_en:
+      'Almonds, walnuts, hazelnuts and pistachios provide good fats, protein, fibre and magnesium. A handful a day — about 30 grams — is a snack that fills you up without spiking blood sugar. Choose unsalted, raw or dry-roasted, not candied.',
+    source_url: 'https://nutritionsource.hsph.harvard.edu/nuts-for-the-heart/',
+    needs_source: false,
+  },
+  {
+    slug: 'nutrition-fish-twice-a-week',
+    topic: 'nutrition',
+    title_el: 'Ψάρι δύο φορές την εβδομάδα, το ένα λιπαρό',
+    title_en: 'Fish twice a week, one of them oily',
+    body_el:
+      'Δύο μερίδες ψάρι την εβδομάδα, από τις οποίες η μία λιπαρό — σαρδέλα, γαύρος, σκουμπρί, σολομός — δίνουν ωμέγα-3 λιπαρά και βιταμίνη D. Τα μικρά ψάρια είναι φθηνά, ελληνικά και με λιγότερο υδράργυρο από τα μεγάλα. Ψητά ή στον φούρνο με λεμόνι και ρίγανη είναι γεύμα δέκα λεπτών.',
+    body_en:
+      'Two portions of fish a week, one of them oily — sardines, anchovies, mackerel, salmon — supply omega-3 fats and vitamin D. Small fish are cheap, local and lower in mercury than large ones. Grilled or baked with lemon and oregano, it is a ten-minute meal.',
+    source_url: 'https://www.nhs.uk/live-well/eat-well/food-types/fish-and-shellfish-nutrition/',
+    needs_source: false,
+  },
+  {
+    slug: 'nutrition-limit-ultra-processed-foods',
+    topic: 'nutrition',
+    title_el: 'Λιγότερα έτοιμα και υπερεπεξεργασμένα',
+    title_en: 'Fewer ready-made and ultra-processed foods',
+    body_el:
+      'Πατατάκια, μπισκότα, αλλαντικά, αναψυκτικά και έτοιμα γεύματα συγκεντρώνουν αλάτι, ζάχαρη, κακά λιπαρά και θερμίδες σε μικρές ποσότητες που δεν χορταίνουν. Δεν χρειάζεται να τα κόψεις — κάνε τα την εξαίρεση και όχι τη βάση. Ένας απλός κανόνας: όσο λιγότερα συστατικά που δεν αναγνωρίζεις, τόσο καλύτερα.',
+    body_en:
+      'Crisps, biscuits, cured meats, soft drinks and ready meals pack salt, sugar, poor fats and calories into small amounts that do not fill you up. You need not cut them out — make them the exception rather than the base. A simple rule: the fewer ingredients you do not recognise, the better.',
+    source_url: null,
+    needs_source: true,
+  },
+
+  // --- movement ----------------------------------------------------------------------------------
+  {
+    slug: 'movement-150-minutes-a-week',
+    topic: 'movement',
+    title_el: '150 λεπτά μέτριας κίνησης την εβδομάδα',
+    title_en: '150 minutes of moderate activity a week',
+    body_el:
+      'Ο ΠΟΥ συστήνει για ενήλικες 150–300 λεπτά μέτριας αερόβιας δραστηριότητας την εβδομάδα, ή 75–150 λεπτά έντονης. «Μέτρια» σημαίνει γρήγορο περπάτημα, ποδήλατο ή κολύμπι όπου μπορείς να μιλάς αλλά όχι να τραγουδάς. Μοιρασμένα, είναι 30 λεπτά πέντε μέρες την εβδομάδα — ή 20 κάθε μέρα.',
+    body_en:
+      'WHO recommends 150–300 minutes of moderate aerobic activity a week for adults, or 75–150 minutes of vigorous activity. “Moderate” means brisk walking, cycling or swimming at a pace where you can talk but not sing. Spread out, that is 30 minutes five days a week — or 20 minutes every day.',
+    source_url: 'https://www.who.int/news-room/fact-sheets/detail/physical-activity',
+    needs_source: false,
+  },
+  {
+    slug: 'movement-strength-twice-a-week',
+    topic: 'movement',
+    title_el: 'Ενδυνάμωση δύο φορές την εβδομάδα',
+    title_en: 'Strength work twice a week',
+    body_el:
+      'Εκτός από το περπάτημα, οι μύες χρειάζονται αντίσταση: ο ΠΟΥ συστήνει ασκήσεις ενδυνάμωσης για όλες τις μεγάλες μυϊκές ομάδες τουλάχιστον δύο μέρες την εβδομάδα. Καθίσματα, push-ups, γέφυρες, λάστιχα ή βάρη — όλα μετράνε. Η μυϊκή μάζα προστατεύει τα οστά, τις αρθρώσεις και τον μεταβολισμό, ιδίως μετά τα 40.',
+    body_en:
+      'Beyond walking, your muscles need resistance: WHO recommends strengthening exercises for all major muscle groups on at least two days a week. Squats, push-ups, bridges, bands or weights — all count. Muscle protects your bones, joints and metabolism, especially after 40.',
+    source_url: 'https://www.who.int/news-room/fact-sheets/detail/physical-activity',
+    needs_source: false,
+  },
+  {
+    slug: 'movement-break-up-sitting',
+    topic: 'movement',
+    title_el: 'Σήκω από την καρέκλα κάθε 30–60 λεπτά',
+    title_en: 'Get up from your chair every 30 to 60 minutes',
+    body_el:
+      'Οι πολλές ώρες καθιστής ζωής κάνουν κακό ακόμη κι αν γυμνάζεσαι. Ο ΠΟΥ συστήνει να περιορίσεις τον καθιστό χρόνο και να τον αντικαθιστάς με κίνηση οποιασδήποτε έντασης. Βάλε ένα ξυπνητήρι, σήκω για νερό, πάρε τα τηλέφωνα όρθιος, ανέβα μια σκάλα — δύο λεπτά κάθε μισή ώρα κάνουν διαφορά.',
+    body_en:
+      'Long hours of sitting are harmful even if you exercise. WHO recommends limiting sedentary time and replacing it with activity of any intensity. Set a timer, get up for water, take calls standing, climb a flight of stairs — two minutes every half hour makes a difference.',
+    source_url: 'https://www.who.int/news-room/fact-sheets/detail/physical-activity',
+    needs_source: false,
+  },
+  {
+    slug: 'movement-add-steps-gradually',
+    topic: 'movement',
+    title_el: 'Πρόσθεσε βήματα σιγά σιγά',
+    title_en: 'Add steps a little at a time',
+    body_el:
+      'Δεν χρειάζεται να ξεκινήσεις από τα 10.000 βήματα. Μέτρησε πόσα κάνεις τώρα και πρόσθεσε 500–1.000 τη μέρα κάθε μία–δύο εβδομάδες. Κάθε επιπλέον χιλιάδα βήματα βοηθά — κατέβα μια στάση νωρίτερα, πάρκαρε πιο μακριά, περπάτα όσο μιλάς στο τηλέφωνο.',
+    body_en:
+      'You do not need to start at 10,000 steps. Count what you do now and add 500–1,000 a day every week or two. Every extra thousand helps — get off a stop early, park further away, walk while you take calls.',
+    source_url:
+      'https://www.mayoclinic.org/healthy-lifestyle/fitness/in-depth/walking/art-20046261',
+    needs_source: false,
+  },
+  {
+    slug: 'movement-brisk-walking',
+    topic: 'movement',
+    title_el: 'Ένας γρήγορος περίπατος 10 λεπτών μετράει',
+    title_en: 'A brisk 10-minute walk counts',
+    body_el:
+      'Το γρήγορο περπάτημα είναι δωρεάν, δεν θέλει εξοπλισμό και είναι ήπιο στις αρθρώσεις. «Γρήγορο» σημαίνει περίπου 5 χιλιόμετρα την ώρα, όπου ανεβαίνουν οι παλμοί και ζεσταίνεσαι αλλά μπορείς ακόμη να μιλάς. Ένας περίπατος 10 λεπτών την ημέρα είναι ένα καλό πρώτο βήμα προς τα 150 λεπτά της εβδομάδας.',
+    body_en:
+      'Brisk walking is free, needs no kit and is gentle on the joints. “Brisk” means roughly 5 km/h, where your heart rate rises and you warm up but can still talk. A 10-minute walk a day is a solid first step towards 150 minutes a week.',
+    source_url:
+      'https://www.nhs.uk/live-well/exercise/running-and-aerobic-exercises/walking-for-health/',
+    needs_source: false,
+  },
+  {
+    slug: 'movement-stairs-and-active-travel',
+    topic: 'movement',
+    title_el: 'Σκάλες αντί για ασανσέρ, πόδια αντί για αυτοκίνητο',
+    title_en: 'Stairs over the lift, feet over the car',
+    body_el:
+      'Η πιο εύκολη άσκηση είναι αυτή που δεν χρειάζεται να προγραμματίσεις. Ανέβα τις σκάλες, περπάτα ή πάρε ποδήλατο για μικρές διαδρομές, κατέβα από το λεωφορείο μια στάση νωρίτερα. Λίγα λεπτά κίνησης πολλές φορές μέσα στη μέρα αθροίζονται πιο εύκολα από μία ώρα γυμναστήριο.',
+    body_en:
+      'The easiest exercise is the kind you do not have to schedule. Take the stairs, walk or cycle short trips, get off the bus a stop early. A few minutes of movement many times a day add up more easily than an hour at the gym.',
+    source_url: 'https://www.nhs.uk/live-well/exercise/',
+    needs_source: false,
+  },
+  {
+    slug: 'movement-warm-up-and-cool-down',
+    topic: 'movement',
+    title_el: 'Ζέσταμα πριν, αποθεραπεία μετά',
+    title_en: 'Warm up before, cool down after',
+    body_el:
+      'Πέντε λεπτά ήπιας κίνησης — περπάτημα, ελαφρύ τρέξιμο, κυκλικές κινήσεις αρθρώσεων — προετοιμάζουν μύες και καρδιά και μειώνουν τον κίνδυνο τραυματισμού. Μετά την άσκηση, ρίξε ταχύτητα σταδιακά και κάνε διατάσεις όσο οι μύες είναι ακόμη ζεστοί. Μην κάνεις ποτέ στατικές διατάσεις σε κρύους μύες.',
+    body_en:
+      'Five minutes of gentle movement — walking, light jogging, joint circles — prepares your muscles and heart and lowers the risk of injury. After exercising, ease off gradually and stretch while the muscles are still warm. Never do static stretches on cold muscles.',
+    source_url:
+      'https://www.mayoclinic.org/healthy-lifestyle/fitness/in-depth/stretching/art-20047931',
+    needs_source: false,
+  },
+  {
+    slug: 'movement-stretch-and-mobility',
+    topic: 'movement',
+    title_el: 'Διατάσεις και κινητικότητα, λίγα λεπτά κάθε μέρα',
+    title_en: 'Stretch and mobilise for a few minutes daily',
+    body_el:
+      'Η ευλυγισία χάνεται αθόρυβα, ειδικά με πολλές ώρες καθιστής ζωής. Κράτα κάθε διάταση 20–30 δευτερόλεπτα, χωρίς αναπήδηση και χωρίς πόνο — μόνο αίσθηση τραβήγματος. Εστίασε σε ισχία, οπίσθιους μηριαίους, στήθος και αυχένα, που «κλείνουν» από το γραφείο.',
+    body_en:
+      'Flexibility is lost quietly, especially with hours of sitting. Hold each stretch for 20–30 seconds, without bouncing and without pain — just a feeling of pull. Focus on hips, hamstrings, chest and neck, the areas a desk tightens.',
+    source_url:
+      'https://www.mayoclinic.org/healthy-lifestyle/fitness/in-depth/stretching/art-20047931',
+    needs_source: false,
+  },
+  {
+    slug: 'movement-start-small-progress-slowly',
+    topic: 'movement',
+    title_el: 'Ξεκίνα μικρά, αύξανε αργά',
+    title_en: 'Start small, build up slowly',
+    body_el:
+      'Οι περισσότεροι τραυματισμοί και οι περισσότερες εγκαταλείψεις έρχονται από το «πολύ, πολύ γρήγορα». Ξεκίνα με όσο σου φαίνεται εύκολο και αύξανε διάρκεια ή ένταση το πολύ 10 % την εβδομάδα. Βάλε ρεαλιστικούς στόχους, γράψε τι έκανες και άφησε μέρες ξεκούρασης ανάμεσα στις δύσκολες προπονήσεις.',
+    body_en:
+      'Most injuries and most drop-outs come from “too much, too soon”. Start with what feels easy and increase duration or intensity by no more than about 10 % a week. Set realistic goals, log what you did and leave rest days between hard sessions.',
+    source_url:
+      'https://www.mayoclinic.org/healthy-lifestyle/fitness/in-depth/fitness/art-20048269',
+    needs_source: false,
+  },
+  {
+    slug: 'movement-every-minute-counts',
+    topic: 'movement',
+    title_el: 'Κάθε λεπτό κίνησης μετράει',
+    title_en: 'Every minute of movement counts',
+    body_el:
+      'Οι οδηγίες του ΠΟΥ από το 2020 δεν απαιτούν πλέον «τουλάχιστον 10 λεπτά συνεχόμενα»: κάθε λεπτό δραστηριότητας προσμετράται. Τρία λεπτά καθίσματα όσο βράζει το νερό, σκάλες στη δουλειά, χορός στην κουζίνα — όλα αθροίζονται στα 150. Κάτι είναι πάντα καλύτερο από τίποτα.',
+    body_en:
+      'Since 2020, WHO guidance no longer requires bouts of “at least 10 minutes”: every minute of activity counts. Three minutes of squats while the kettle boils, stairs at work, dancing in the kitchen — it all adds up to the 150. Something is always better than nothing.',
+    source_url: 'https://www.who.int/news-room/fact-sheets/detail/physical-activity',
+    needs_source: false,
+  },
+  {
+    slug: 'movement-balance-after-65',
+    topic: 'movement',
+    title_el: 'Μετά τα 65, δούλεψε και την ισορροπία',
+    title_en: 'After 65, train your balance too',
+    body_el:
+      'Ο ΠΟΥ συστήνει στους ενήλικες άνω των 65 να προσθέτουν ασκήσεις ισορροπίας και ενδυνάμωσης τρεις ή περισσότερες μέρες την εβδομάδα, για να μειώσουν τον κίνδυνο πτώσης. Στάσου στο ένα πόδι όσο πλένεις τα δόντια, περπάτα φτέρνα-δάχτυλα σε ευθεία, σήκω από την καρέκλα χωρίς χέρια. Κράτα κάτι σταθερό κοντά σου στην αρχή.',
+    body_en:
+      'WHO recommends that adults over 65 add balance and strength exercises on three or more days a week to cut the risk of falls. Stand on one leg while brushing your teeth, walk heel-to-toe in a straight line, rise from a chair without using your hands. Keep something steady within reach at first.',
+    source_url: 'https://www.who.int/news-room/fact-sheets/detail/physical-activity',
+    needs_source: false,
+  },
+  {
+    slug: 'movement-desk-posture-breaks',
+    topic: 'movement',
+    title_el: 'Ρύθμισε το γραφείο σου και κάνε διαλείμματα στάσης',
+    title_en: 'Set up your desk and take posture breaks',
+    body_el:
+      'Οθόνη στο ύψος των ματιών και στην απόσταση ενός τεντωμένου χεριού, αγκώνες σε ορθή γωνία, πέλματα στο πάτωμα, μέση ακουμπισμένη στην πλάτη της καρέκλας. Κάθε 30 λεπτά άλλαξε στάση, γύρισε τους ώμους και κοίτα μακριά για μερικά δευτερόλεπτα. Ο αυχένας και η μέση σε ευχαριστούν.',
+    body_en:
+      'Screen at eye level and about an arm’s length away, elbows at a right angle, feet flat on the floor, lower back against the chair. Every 30 minutes change position, roll your shoulders and look into the distance for a few seconds. Your neck and back will thank you.',
+    source_url:
+      'https://www.mayoclinic.org/healthy-lifestyle/adult-health/in-depth/office-ergonomics/art-20046169',
+    needs_source: false,
+  },
+  {
+    slug: 'movement-pick-what-you-enjoy',
+    topic: 'movement',
+    title_el: 'Διάλεξε κίνηση που σου αρέσει',
+    title_en: 'Pick the movement you enjoy',
+    body_el:
+      'Η καλύτερη άσκηση είναι αυτή που θα κάνεις ξανά την επόμενη εβδομάδα. Χορός, κολύμπι, ποδήλατο, πεζοπορία, παιχνίδι με τα παιδιά, κηπουρική — όλα μετράνε όσο ανεβάζουν τους παλμούς. Δοκίμασε κάτι καινούργιο με έναν φίλο· η παρέα είναι ο πιο σίγουρος τρόπος να μην το παρατήσεις.',
+    body_en:
+      'The best exercise is the one you will do again next week. Dancing, swimming, cycling, hiking, playing with the kids, gardening — all count as long as they raise your heart rate. Try something new with a friend; company is the surest way to keep going.',
+    source_url: null,
+    needs_source: true,
+  },
+
+  // --- habits ------------------------------------------------------------------------------------
+  {
+    slug: 'habits-wash-hands-properly',
+    topic: 'habits',
+    title_el: 'Πλύνε τα χέρια σου για 20 δευτερόλεπτα',
+    title_en: 'Wash your hands for 20 seconds',
+    body_el:
+      'Το πλύσιμο με σαπούνι και νερό για τουλάχιστον 20 δευτερόλεπτα — όσο δύο φορές το «Χρόνια πολλά» — είναι ο πιο αποτελεσματικός τρόπος να μη μεταδίδεις ιώσεις και γαστρεντερίτιδες. Τρίψε παλάμες, ράχη, ανάμεσα στα δάχτυλα, αντίχειρες και κάτω από τα νύχια. Πάντα πριν το φαγητό, μετά την τουαλέτα και μόλις γυρίσεις σπίτι.',
+    body_en:
+      'Washing with soap and water for at least 20 seconds — two rounds of “Happy Birthday” — is the most effective way to stop passing on colds and stomach bugs. Scrub palms, backs, between the fingers, thumbs and under the nails. Always before eating, after the toilet and as soon as you get home.',
+    source_url: 'https://www.nhs.uk/live-well/best-way-to-wash-your-hands/',
+    needs_source: false,
+  },
+  {
+    slug: 'habits-alcohol-less-is-better',
+    topic: 'habits',
+    title_el: 'Αλκοόλ: το λιγότερο είναι καλύτερο',
+    title_en: 'Alcohol: less is better',
+    body_el:
+      'Ο ΠΟΥ είναι σαφής: δεν υπάρχει ποσότητα αλκοόλ που να είναι εντελώς ακίνδυνη, και ο κίνδυνος μεγαλώνει με κάθε ποτό. Αν πίνεις, κράτα το σε μικρές ποσότητες, μοίρασέ το σε πολλές μέρες αντί να το συγκεντρώνεις σε μία, και βάλε τουλάχιστον δύο–τρεις μέρες την εβδομάδα χωρίς καθόλου. Ποτέ πριν την οδήγηση ή στην εγκυμοσύνη.',
+    body_en:
+      'WHO is clear: no amount of alcohol is entirely risk-free, and the risk grows with every drink. If you drink, keep it to small amounts, spread it over several days rather than one, and keep at least two or three alcohol-free days a week. Never before driving or during pregnancy.',
+    source_url: 'https://www.who.int/news-room/fact-sheets/detail/alcohol',
+    needs_source: false,
+  },
+  {
+    slug: 'habits-quit-smoking',
+    topic: 'habits',
+    title_el: 'Το κάπνισμα κόβεται — και η βοήθεια δουλεύει',
+    title_en: 'Smoking can be quit — and help works',
+    body_el:
+      'Η διακοπή του καπνίσματος είναι το μεγαλύτερο μεμονωμένο βήμα για την υγεία σου, σε όποια ηλικία κι αν γίνει. Οι πιθανότητες επιτυχίας διπλασιάζονται και παραπάνω όταν συνδυάζεις υποστήριξη από επαγγελματία με εγκεκριμένα βοηθήματα. Όρισε ημερομηνία, πες το στους γύρω σου και ζήτα παραπομπή σε ιατρείο διακοπής καπνίσματος.',
+    body_en:
+      'Stopping smoking is the single biggest step you can take for your health, at any age. Your chances of success more than double when you combine professional support with approved aids. Pick a date, tell the people around you and ask for a referral to a stop-smoking service.',
+    source_url: 'https://www.nhs.uk/live-well/quit-smoking/',
+    needs_source: false,
+  },
+  {
+    slug: 'habits-sun-protection',
+    topic: 'habits',
+    title_el: 'Σκιά, καπέλο και αντηλιακό 11:00–16:00',
+    title_en: 'Shade, hat and sunscreen between 11am and 4pm',
+    body_el:
+      'Ο ελληνικός ήλιος είναι δυνατός από την άνοιξη ως το φθινόπωρο. Στις ώρες αιχμής προτίμησε τη σκιά, φόρεσε καπέλο και γυαλιά και χρησιμοποίησε αντηλιακό τουλάχιστον SPF 30 με προστασία UVA, βάζοντάς το ξανά κάθε δύο ώρες και μετά το κολύμπι. Μην καίγεσαι ποτέ — κάθε έγκαυμα αυξάνει τον κίνδυνο για το δέρμα.',
+    body_en:
+      'The Greek sun is strong from spring to autumn. At peak hours stay in the shade, wear a hat and sunglasses and use sunscreen of at least SPF 30 with UVA protection, reapplying every two hours and after swimming. Never burn — every sunburn adds to the risk to your skin.',
+    source_url: 'https://www.nhs.uk/live-well/seasonal-health/sunscreen-and-sun-safety/',
+    needs_source: false,
+  },
+  {
+    slug: 'habits-vitamin-d-daylight',
+    topic: 'habits',
+    title_el: 'Βιταμίνη D: λίγος ήλιος τακτικά',
+    title_en: 'Vitamin D: a little sun, regularly',
+    body_el:
+      'Το δέρμα παράγει βιταμίνη D με το φως του ήλιου· λίγα λεπτά σε χέρια και πρόσωπο αρκετές μέρες την εβδομάδα συνήθως αρκούν — πολύ πριν κοκκινίσεις. Τον χειμώνα, βοηθούν λιπαρά ψάρια, αυγά και εμπλουτισμένα τρόφιμα. Αν βγαίνεις σπάνια έξω ή καλύπτεις το δέρμα σου, ρώτα τον γιατρό σου τι ισχύει για σένα.',
+    body_en:
+      'Your skin makes vitamin D from sunlight; a few minutes on arms and face several days a week is usually enough — well before you go red. In winter, oily fish, eggs and fortified foods help. If you rarely go outside or cover your skin, ask your doctor what applies to you.',
+    source_url: 'https://www.nhs.uk/conditions/vitamins-and-minerals/vitamin-d/',
+    needs_source: false,
+  },
+  {
+    slug: 'habits-brush-twice-with-fluoride',
+    topic: 'habits',
+    title_el: 'Βούρτσισμα δύο φορές τη μέρα με φθοριούχο οδοντόκρεμα',
+    title_en: 'Brush twice a day with fluoride toothpaste',
+    body_el:
+      'Βούρτσισε δύο λεπτά, το πρωί και πριν τον ύπνο, και φτύσε χωρίς να ξεπλύνεις ώστε να μείνει το φθόριο στα δόντια. Καθάρισε ανάμεσα στα δόντια με νήμα ή μεσοδόντια βουρτσάκια μία φορά τη μέρα. Τα υγιή ούλα δεν αφορούν μόνο το στόμα — συνδέονται και με την υγεία της καρδιάς.',
+    body_en:
+      'Brush for two minutes, in the morning and before bed, and spit without rinsing so the fluoride stays on your teeth. Clean between the teeth with floss or interdental brushes once a day. Healthy gums are not just about your mouth — they are linked to heart health too.',
+    source_url: 'https://www.nhs.uk/live-well/healthy-teeth-and-gums/how-to-keep-your-teeth-clean/',
+    needs_source: false,
+  },
+  {
+    slug: 'habits-know-your-numbers',
+    topic: 'habits',
+    title_el: 'Μάθε τους αριθμούς σου: πίεση, σάκχαρο, χοληστερίνη',
+    title_en: 'Know your numbers: blood pressure, sugar, cholesterol',
+    body_el:
+      'Η υψηλή πίεση, το υψηλό σάκχαρο και η χοληστερίνη δεν πονάνε — γι’ αυτό και είναι επικίνδυνα. Ένας τακτικός προληπτικός έλεγχος στον γιατρό σου, με συχνότητα που θα ορίσει εκείνος ανάλογα με την ηλικία και το ιστορικό σου, τα πιάνει νωρίς, όταν αλλάζουν εύκολα. Γράψε τις τιμές σου και κράτα τες μαζί σου.',
+    body_en:
+      'High blood pressure, high blood sugar and high cholesterol do not hurt — which is exactly why they are dangerous. A regular check-up with your doctor, at a frequency they set based on your age and history, catches them early, when they are easy to change. Write your numbers down and keep them with you.',
+    source_url: null,
+    needs_source: true,
+  },
+  {
+    slug: 'habits-stack-new-on-old',
+    topic: 'habits',
+    title_el: 'Κόλλησε τη νέα συνήθεια πάνω σε μια παλιά',
+    title_en: 'Attach a new habit to an old one',
+    body_el:
+      'Οι συνήθειες χτίζονται πιο εύκολα όταν έχουν σταθερό «σκανδάλη». Διάλεξε κάτι που ήδη κάνεις κάθε μέρα — τον πρωινό καφέ, το βούρτσισμα, το κλείσιμο του υπολογιστή — και βάλε αμέσως μετά τη νέα πράξη: «μετά τον καφέ, δέκα καθίσματα». Κράτα τη νέα συνήθεια τόσο μικρή που να είναι αδύνατο να την παραλείψεις.',
+    body_en:
+      'Habits form more easily when they have a fixed trigger. Pick something you already do every day — the morning coffee, brushing your teeth, shutting the laptop — and put the new action right after it: “after coffee, ten squats”. Keep the new habit so small it is impossible to skip.',
+    source_url: null,
+    needs_source: true,
+  },
+  {
+    slug: 'habits-portion-awareness',
+    topic: 'habits',
+    title_el: 'Μικρότερο πιάτο, σερβίρισμα στην κουζίνα',
+    title_en: 'Smaller plate, serve in the kitchen',
+    body_el:
+      'Τρώμε με τα μάτια: το ίδιο φαγητό σε μικρότερο πιάτο φαίνεται περισσότερο και χορταίνει το ίδιο. Σέρβιρε τις μερίδες στην κουζίνα αντί να βάζεις τις κατσαρόλες στο τραπέζι, και περίμενε δέκα λεπτά πριν ξανασερβιριστείς — ο κορεσμός αργεί να φτάσει στον εγκέφαλο. Φάε αργά, χωρίς οθόνη μπροστά σου.',
+    body_en:
+      'We eat with our eyes: the same food on a smaller plate looks like more and satisfies just as well. Plate up in the kitchen rather than putting the pots on the table, and wait ten minutes before going back for seconds — fullness takes a while to reach the brain. Eat slowly, without a screen in front of you.',
+    source_url:
+      'https://www.mayoclinic.org/healthy-lifestyle/weight-loss/in-depth/weight-loss/art-20047752',
+    needs_source: false,
+  },
+  {
+    slug: 'habits-cook-at-home-more',
+    topic: 'habits',
+    title_el: 'Μαγείρεψε στο σπίτι πιο συχνά',
+    title_en: 'Cook at home more often',
+    body_el:
+      'Όταν μαγειρεύεις εσύ, ελέγχεις το αλάτι, το λάδι, τη ζάχαρη και τη μερίδα — πράγματα που στο έτοιμο φαγητό είναι πάντα περισσότερα απ’ όσο νομίζεις. Δεν χρειάζεται να είσαι σεφ: πέντε απλές συνταγές που ξέρεις απ’ έξω αρκούν. Μαγείρεψε διπλή ποσότητα και φύλαξε τη μισή για αύριο.',
+    body_en:
+      'When you cook, you control the salt, oil, sugar and portion size — all of which are more than you think in takeaway food. You do not need to be a chef: five simple recipes you know by heart are enough. Cook a double batch and keep half for tomorrow.',
+    source_url: null,
+    needs_source: true,
+  },
+  {
+    slug: 'habits-twenty-twenty-twenty-eyes',
+    topic: 'habits',
+    title_el: 'Κανόνας 20-20-20 για τα μάτια',
+    title_en: 'The 20-20-20 rule for your eyes',
+    body_el:
+      'Οι πολλές ώρες μπροστά σε οθόνη κουράζουν τα μάτια και μειώνουν το βλεφάρισμα, με αποτέλεσμα ξηρότητα και πονοκέφαλο. Κάθε 20 λεπτά κοίτα κάτι σε απόσταση περίπου 6 μέτρων (20 πόδια) για 20 δευτερόλεπτα. Βλεφάρισε συνειδητά και ρύθμισε τη φωτεινότητα της οθόνης ώστε να ταιριάζει με τον χώρο.',
+    body_en:
+      'Hours in front of a screen tire your eyes and cut down on blinking, causing dryness and headaches. Every 20 minutes, look at something about 6 metres (20 feet) away for 20 seconds. Blink deliberately and match the screen brightness to the room.',
+    source_url: null,
+    needs_source: true,
+  },
+  {
+    slug: 'habits-plan-meals-and-shop-with-a-list',
+    topic: 'habits',
+    title_el: 'Σχεδίασε τα γεύματα και ψώνισε με λίστα',
+    title_en: 'Plan your meals and shop with a list',
+    body_el:
+      'Οι περισσότερες κακές επιλογές γίνονται όταν πεινάς και δεν έχεις πλάνο. Αφιέρωσε δέκα λεπτά την εβδομάδα για να αποφασίσεις τα κύρια γεύματα, γράψε τη λίστα και μην πας για ψώνια νηστικός. Έτσι τρως καλύτερα, πετάς λιγότερο φαγητό και ξοδεύεις λιγότερα.',
+    body_en:
+      'Most poor food choices happen when you are hungry and have no plan. Spend ten minutes a week deciding the main meals, write the list and never shop on an empty stomach. You eat better, waste less food and spend less.',
+    source_url: null,
+    needs_source: true,
+  },
+
+  // --- mental ------------------------------------------------------------------------------------
+  {
+    slug: 'mental-five-ways-to-wellbeing',
+    topic: 'mental',
+    title_el: 'Πέντε βήματα για ψυχική ευεξία',
+    title_en: 'Five steps to mental wellbeing',
+    body_el:
+      'Η έρευνα δείχνει πέντε πράγματα που στηρίζουν τη διάθεση: να συνδέεσαι με άλλους, να κινείσαι, να μαθαίνεις κάτι καινούργιο, να προσφέρεις στους γύρω σου και να προσέχεις την παρούσα στιγμή. Δεν χρειάζεται να τα κάνεις όλα μαζί. Διάλεξε ένα αυτή την εβδομάδα και κάν’ το λίγο κάθε μέρα.',
+    body_en:
+      'Research points to five things that support your mood: connecting with others, being active, learning something new, giving to those around you and paying attention to the present moment. You do not have to do all five at once. Pick one this week and do a little of it every day.',
+    source_url:
+      'https://www.nhs.uk/mental-health/self-help/guides-tools-and-activities/five-steps-to-mental-wellbeing/',
+    needs_source: false,
+  },
+  {
+    slug: 'mental-slow-breathing',
+    topic: 'mental',
+    title_el: 'Πέντε λεπτά αργή αναπνοή όταν ανεβαίνει το άγχος',
+    title_en: 'Five minutes of slow breathing when stress rises',
+    body_el:
+      'Η αργή, βαθιά αναπνοή είναι ο πιο γρήγορος διακόπτης του νευρικού συστήματος. Κάθισε αναπαυτικά, εισέπνευσε από τη μύτη μετρώντας ως το 4, άφησε την κοιλιά να φουσκώσει και εκπνεύσε αργά μετρώντας ως το 6. Επανάλαβε για 3–5 λεπτά· δουλεύει στο γραφείο, στο λεωφορείο, πριν από μια δύσκολη συζήτηση.',
+    body_en:
+      'Slow, deep breathing is the quickest switch for your nervous system. Sit comfortably, breathe in through your nose for a count of 4, let your belly rise, and breathe out slowly for a count of 6. Repeat for 3–5 minutes; it works at your desk, on the bus, before a difficult conversation.',
+    source_url:
+      'https://www.nhs.uk/mental-health/self-help/guides-tools-and-activities/breathing-exercises-for-stress/',
+    needs_source: false,
+  },
+  {
+    slug: 'mental-mindfulness-basics',
+    topic: 'mental',
+    title_el: 'Ενσυνειδητότητα: πρόσεξε το τώρα, χωρίς κριτική',
+    title_en: 'Mindfulness: notice the present, without judgement',
+    body_el:
+      'Η ενσυνειδητότητα δεν είναι να αδειάσεις το μυαλό, αλλά να παρατηρείς σκέψεις, αισθήσεις και ήχους όπως έρχονται, χωρίς να τους κολλάς. Ξεκίνα με δύο λεπτά: νιώσε τα πέλματα στο πάτωμα, την αναπνοή, τον ήχο γύρω σου. Όταν το μυαλό φύγει — και θα φύγει — απλώς το φέρνεις πίσω.',
+    body_en:
+      'Mindfulness is not about emptying your mind but about noticing thoughts, sensations and sounds as they come, without getting stuck on them. Start with two minutes: feel your feet on the floor, your breath, the sounds around you. When your mind wanders — and it will — you simply bring it back.',
+    source_url: 'https://www.nhs.uk/mental-health/self-help/tips-and-support/mindfulness/',
+    needs_source: false,
+  },
+  {
+    slug: 'mental-move-for-your-mood',
+    topic: 'mental',
+    title_el: 'Η κίνηση είναι φάρμακο για τη διάθεση',
+    title_en: 'Movement lifts your mood',
+    body_el:
+      'Η σωματική δραστηριότητα μειώνει τις ορμόνες του στρες και απελευθερώνει ενδορφίνες — γι’ αυτό νιώθεις πιο ελαφρύς μετά από έναν περίπατο, ακόμη κι αν δεν ήθελες να βγεις. Δεν χρειάζεται γυμναστήριο: 20 λεπτά περπάτημα σε ρυθμό που σε ζεσταίνει αρκούν. Όταν η μέρα πάει στραβά, βγες έξω πρώτα και σκέψου μετά.',
+    body_en:
+      'Physical activity lowers stress hormones and releases endorphins — which is why you feel lighter after a walk even when you did not want to go out. No gym required: 20 minutes of walking at a pace that warms you up is enough. When the day goes wrong, step outside first and think afterwards.',
+    source_url:
+      'https://www.mayoclinic.org/healthy-lifestyle/stress-management/in-depth/exercise-and-stress/art-20044469',
+    needs_source: false,
+  },
+  {
+    slug: 'mental-stay-connected',
+    topic: 'mental',
+    title_el: 'Κράτα επαφή με ανθρώπους που σε ξεκουράζουν',
+    title_en: 'Stay connected with people who restore you',
+    body_el:
+      'Οι καλές σχέσεις είναι από τους ισχυρότερους προστατευτικούς παράγοντες για την ψυχική υγεία. Ένα τηλεφώνημα, ένας καφές, μια βόλτα με κάποιον δικό σου κάνουν περισσότερο από ώρες στα κοινωνικά δίκτυα. Βάλε στο ημερολόγιο μια σταθερή συνάντηση την εβδομάδα και μην την ακυρώνεις εύκολα.',
+    body_en:
+      'Good relationships are among the strongest protective factors for mental health. A phone call, a coffee, a walk with someone close does more than hours on social media. Put one regular get-together a week in your calendar and do not cancel it lightly.',
+    source_url:
+      'https://www.mayoclinic.org/healthy-lifestyle/stress-management/in-depth/social-support/art-20044445',
+    needs_source: false,
+  },
+  {
+    slug: 'mental-time-in-nature',
+    topic: 'mental',
+    title_el: 'Λίγη φύση κάθε εβδομάδα',
+    title_en: 'A little nature every week',
+    body_el:
+      'Ο χρόνος σε πάρκο, στη θάλασσα ή στο βουνό χαμηλώνει το στρες και ξεκουράζει το μυαλό από τον θόρυβο της πόλης. Δεν χρειάζεται εκδρομή: ένας περίπατος σε έναν κοντινό χώρο πρασίνου χωρίς ακουστικά αρκεί. Πρόσεξε τα χρώματα, τους ήχους και τη μυρωδιά — είναι ενσυνειδητότητα χωρίς να το λες έτσι.',
+    body_en:
+      'Time in a park, by the sea or in the hills lowers stress and gives your mind a rest from city noise. It need not be an outing: a walk in a nearby green space without headphones is enough. Notice the colours, sounds and smells — it is mindfulness without calling it that.',
+    source_url: null,
+    needs_source: true,
+  },
+  {
+    slug: 'mental-limit-news-and-scrolling',
+    topic: 'mental',
+    title_el: 'Βάλε όρια στις ειδήσεις και στο σκρολάρισμα',
+    title_en: 'Set limits on news and scrolling',
+    body_el:
+      'Η συνεχής ροή ειδήσεων και η σύγκριση στα κοινωνικά δίκτυα τροφοδοτούν άγχος και χαμηλή διάθεση, ιδίως αργά το βράδυ. Διάλεξε μία ή δύο ώρες τη μέρα για να ενημερωθείς από αξιόπιστες πηγές και κλείσε τις ειδοποιήσεις τις υπόλοιπες. Παρατήρησε πώς νιώθεις μετά από μισή ώρα στο κινητό — και άσε αυτό να αποφασίσει.',
+    body_en:
+      'A constant news feed and social-media comparison fuel anxiety and low mood, especially late at night. Choose one or two times a day to catch up from reliable sources and turn off notifications for the rest. Notice how you feel after half an hour on your phone — and let that decide.',
+    source_url: null,
+    needs_source: true,
+  },
+  {
+    slug: 'mental-ask-for-help-early',
+    topic: 'mental',
+    title_el: 'Αν η κακή διάθεση κρατά εβδομάδες, μίλησε σε κάποιον',
+    title_en: 'If low mood lasts for weeks, talk to someone',
+    body_el:
+      'Όλοι έχουμε δύσκολες μέρες. Όταν όμως η θλίψη, η απώλεια ενδιαφέροντος ή η κόπωση κρατούν πάνω από δύο εβδομάδες και δυσκολεύουν την καθημερινότητα, αξίζει να μιλήσεις στον γιατρό σου ή σε ψυχολόγο. Η κατάθλιψη και το άγχος είναι συχνά και αντιμετωπίζονται αποτελεσματικά — το να ζητάς βοήθεια είναι δύναμη, όχι αδυναμία.',
+    body_en:
+      'Everyone has hard days. But when sadness, loss of interest or exhaustion last more than two weeks and get in the way of daily life, it is worth talking to your doctor or a psychologist. Depression and anxiety are common and respond well to treatment — asking for help is strength, not weakness.',
+    source_url: 'https://www.who.int/news-room/fact-sheets/detail/depression',
+    needs_source: false,
+  },
+  {
+    slug: 'mental-positive-self-talk',
+    topic: 'mental',
+    title_el: 'Πρόσεξε πώς μιλάς στον εαυτό σου',
+    title_en: 'Notice how you talk to yourself',
+    body_el:
+      'Ο εσωτερικός μας διάλογος συχνά είναι πιο σκληρός απ’ ό,τι θα λέγαμε ποτέ σε φίλο. Όταν πιάσεις τον εαυτό σου σε «πάντα τα χαλάω», ρώτα: θα το έλεγα αυτό σε κάποιον που αγαπώ; Αντικατάστησέ το με κάτι ρεαλιστικό — «αυτή τη φορά δεν πήγε καλά, να τι θα κάνω αλλιώς».',
+    body_en:
+      'Our inner dialogue is often harsher than anything we would say to a friend. When you catch yourself thinking “I always mess up”, ask: would I say this to someone I love? Replace it with something realistic — “this time it did not go well, here is what I will do differently”.',
+    source_url:
+      'https://www.mayoclinic.org/healthy-lifestyle/stress-management/in-depth/positive-thinking/art-20043950',
+    needs_source: false,
+  },
+  {
+    slug: 'mental-relaxation-practice',
+    topic: 'mental',
+    title_el: 'Μάθε μία τεχνική χαλάρωσης και κάν’ τη συνήθεια',
+    title_en: 'Learn one relaxation technique and make it a habit',
+    body_el:
+      'Προοδευτική μυϊκή χαλάρωση, καθοδηγούμενη νοερή απεικόνιση, αργή αναπνοή, γιόγκα ή tai chi — όλες χαμηλώνουν παλμούς, πίεση και μυϊκή ένταση. Σημασία έχει να διαλέξεις μία και να την εξασκείς 10 λεπτά τη μέρα, όχι μόνο όταν είσαι ήδη πιεσμένος. Όπως κάθε δεξιότητα, δουλεύει καλύτερα όσο την επαναλαμβάνεις.',
+    body_en:
+      'Progressive muscle relaxation, guided imagery, slow breathing, yoga or tai chi — all lower heart rate, blood pressure and muscle tension. What matters is to choose one and practise it for 10 minutes a day, not only when you are already stressed. Like any skill, it works better the more you repeat it.',
+    source_url:
+      'https://www.mayoclinic.org/healthy-lifestyle/stress-management/in-depth/relaxation-technique/art-20045368',
+    needs_source: false,
+  },
+  {
+    slug: 'mental-recognise-stress-signals',
+    topic: 'mental',
+    title_el: 'Μάθε να αναγνωρίζεις τα σημάδια του στρες',
+    title_en: 'Learn to recognise your stress signals',
+    body_el:
+      'Το στρες δεν εμφανίζεται μόνο ως άγχος: συχνά είναι πονοκέφαλος, σφιγμένο σαγόνι, πόνος στον αυχένα, στομαχικές ενοχλήσεις, ευερεθιστότητα ή κακός ύπνος. Όταν μάθεις τα δικά σου πρώιμα σημάδια, μπορείς να παρέμβεις νωρίς — ένα διάλειμμα, ένας περίπατος, μια συζήτηση — πριν γίνουν εξάντληση.',
+    body_en:
+      'Stress does not only show up as anxiety: often it is a headache, a clenched jaw, neck pain, an upset stomach, irritability or poor sleep. Once you know your own early signals, you can act early — a break, a walk, a conversation — before they turn into burnout.',
+    source_url:
+      'https://www.mayoclinic.org/healthy-lifestyle/stress-management/in-depth/stress-symptoms/art-20050987',
+    needs_source: false,
+  },
+  {
+    slug: 'mental-gratitude-three-good-things',
+    topic: 'mental',
+    title_el: 'Τρία καλά πράγματα πριν κοιμηθείς',
+    title_en: 'Three good things before you sleep',
+    body_el:
+      'Ο εγκέφαλος είναι φτιαγμένος να θυμάται τα προβλήματα. Για να ισορροπήσεις, γράψε ή πες κάθε βράδυ τρία πράγματα που πήγαν καλά σήμερα — όσο μικρά κι αν είναι — και γιατί. Μετά από δύο εβδομάδες οι περισσότεροι παρατηρούν ότι αρχίζουν να προσέχουν τα καλά όσο συμβαίνουν.',
+    body_en:
+      'The brain is built to remember problems. To balance that, write down or say aloud each night three things that went well today — however small — and why. After a couple of weeks most people notice they start spotting the good things as they happen.',
+    source_url: null,
+    needs_source: true,
+  },
+]
