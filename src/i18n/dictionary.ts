@@ -17,6 +17,15 @@ export interface ModuleCopy {
   blurb: string
 }
 
+/** The site header's primary navigation (P3.5): one label per routed module + the nav's own name. */
+export const NAV_IDS = ['recipes', 'fridge', 'diets', 'workouts', 'tips'] as const
+export type NavId = (typeof NAV_IDS)[number]
+
+export interface NavCopy extends Record<NavId, string> {
+  /** `aria-label` of the `<nav>` landmark. */
+  label: string
+}
+
 export interface BaseDictionary {
   langName: string
   switchTo: string
@@ -25,9 +34,17 @@ export interface BaseDictionary {
   heroLead: string
   heroImageAlt: string
   statusTitle: string
+  /** The home status box in LOCAL-ONLY mode (no account service). */
   statusBody: string
+  /** The same box when Supabase is configured (sign-in and saving work). */
+  statusBodyConfigured: string
   roadmap: string
   modules: Record<ModuleId, ModuleCopy>
+  nav: NavCopy
+  /** Secondary link on the recipes card → /fridge. */
+  fridgeLink: string
+  /** Note on the cost + calories cards: their panels live on every recipe page (P4.3), so they route to /recipes. */
+  panelsNote: string
   notMedicalAdvice: string
   notFoundTitle: string
   notFoundBody: string
@@ -77,9 +94,11 @@ const baseEn: BaseDictionary = {
     'Hygieia brings together health tips, every major diet, recipes tagged by diet, what you can cook from what is already in your fridge, what a meal costs and contains, and workouts for home, gym or calisthenics at three levels.',
   heroImageAlt:
     'A plate of grilled salmon with roasted vegetables and quinoa salad on a linen tablecloth.',
-  statusTitle: 'Early build',
+  statusTitle: 'Where things stand',
   statusBody:
-    'This is the foundation of the product. The modules below describe what is coming; none of them holds content yet.',
+    'All six modules are live on draft content that is still awaiting review: health tips, diets with weekly plans, recipes with their cost and calorie estimates, the fridge matcher and workouts. This copy runs without an account service, so sign-in and saving are switched off.',
+  statusBodyConfigured:
+    'All six modules are live: health tips, diets with weekly plans, recipes with their cost and calorie estimates, the fridge matcher and workouts; anything not yet approved by a reviewer is marked as a draft. Sign in to save plans, fridge lists and favourites.',
   roadmap: 'Coming',
   modules: {
     tips: {
@@ -110,6 +129,16 @@ const baseEn: BaseDictionary = {
         'Home, gym or calisthenics. Beginner, intermediate or advanced, each at three intensities.',
     },
   },
+  nav: {
+    label: 'Main navigation',
+    recipes: 'Recipes',
+    fridge: 'Fridge',
+    diets: 'Diets',
+    workouts: 'Workouts',
+    tips: 'Tips',
+  },
+  fridgeLink: 'What is in my fridge?',
+  panelsNote: 'Shown on every recipe page.',
   notMedicalAdvice:
     'Hygieia offers general information, not medical advice. Talk to a doctor or dietitian before changing your diet or training.',
   notFoundTitle: 'Page not found',
@@ -164,9 +193,11 @@ const baseEl: BaseDictionary = {
   heroLead:
     'Η Υγίεια συγκεντρώνει συμβουλές υγείας, κάθε γνωστή δίαιτα, συνταγές ανά δίαιτα, τι μπορείς να μαγειρέψεις με ό,τι έχεις ήδη στο ψυγείο, πόσο κοστίζει και τι περιέχει ένα γεύμα, και προπονήσεις για σπίτι, γυμναστήριο ή calisthenics σε τρία επίπεδα.',
   heroImageAlt: 'Πιάτο με ψητό σολομό, ψητά λαχανικά και σαλάτα κινόα πάνω σε λινό τραπεζομάντιλο.',
-  statusTitle: 'Πρώιμη έκδοση',
+  statusTitle: 'Πού βρισκόμαστε',
   statusBody:
-    'Αυτή είναι η βάση του προϊόντος. Οι ενότητες παρακάτω περιγράφουν τι έρχεται· καμία δεν έχει ακόμη περιεχόμενο.',
+    'Και οι έξι ενότητες λειτουργούν με πρόχειρο περιεχόμενο που εκκρεμεί προς έλεγχο: συμβουλές υγείας, δίαιτες με εβδομαδιαία πλάνα, συνταγές με εκτίμηση κόστους και θερμίδων, το ψυγείο και προπονήσεις. Αυτό το αντίγραφο λειτουργεί χωρίς υπηρεσία λογαριασμών, οπότε η σύνδεση και η αποθήκευση είναι απενεργοποιημένες.',
+  statusBodyConfigured:
+    'Και οι έξι ενότητες λειτουργούν: συμβουλές υγείας, δίαιτες με εβδομαδιαία πλάνα, συνταγές με εκτίμηση κόστους και θερμίδων, το ψυγείο και προπονήσεις· ό,τι δεν έχει εγκριθεί ακόμη από ελεγκτή σημειώνεται ως πρόχειρο. Συνδέσου για να αποθηκεύεις πλάνα, λίστες ψυγείου και αγαπημένα.',
   roadmap: 'Έρχεται',
   modules: {
     tips: {
@@ -198,6 +229,16 @@ const baseEl: BaseDictionary = {
         'Σπίτι, γυμναστήριο ή calisthenics. Αρχάριος, μεσαίος ή προχωρημένος, το καθένα σε τρεις εντάσεις.',
     },
   },
+  nav: {
+    label: 'Κύρια πλοήγηση',
+    recipes: 'Συνταγές',
+    fridge: 'Ψυγείο',
+    diets: 'Δίαιτες',
+    workouts: 'Προπονήσεις',
+    tips: 'Συμβουλές',
+  },
+  fridgeLink: 'Τι έχω στο ψυγείο;',
+  panelsNote: 'Εμφανίζεται σε κάθε σελίδα συνταγής.',
   notMedicalAdvice:
     'Η Υγίεια προσφέρει γενικές πληροφορίες, όχι ιατρικές συμβουλές. Μίλησε με γιατρό ή διαιτολόγο πριν αλλάξεις διατροφή ή προπόνηση.',
   notFoundTitle: 'Η σελίδα δεν βρέθηκε',

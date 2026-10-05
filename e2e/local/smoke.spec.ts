@@ -1,12 +1,12 @@
-import { el, en } from '../../src/i18n/dictionary'
+import { NAV_IDS, el, en } from '../../src/i18n/dictionary'
 import { expect, test } from '../support/fixtures'
 
-// Smoke of the CURRENT shell on the PRODUCTION build (PLAN P3.6, pulled forward before P3.5's
-// header/nav exists), served by e2e/support/pages-server.mjs with GitHub Pages semantics at the
-// project-site base `/hygieia/`: a file, else dist/404.html WITH status 404. A deep link is
-// therefore EXPECTED to be a 404 DOCUMENT; the assertions are on the rendered app, never on
-// response.ok() (PLAN §4). If dist/404.html is missing, the server answers plain text, the app
-// never boots and the deep-link tests go red.
+// Smoke of the shell on the PRODUCTION build (PLAN P3.6; header/nav from P3.5), served by
+// e2e/support/pages-server.mjs with GitHub Pages semantics at the project-site base `/hygieia/`:
+// a file, else dist/404.html WITH status 404. A deep link is therefore EXPECTED to be a 404
+// DOCUMENT; the assertions are on the rendered app, never on response.ok() (PLAN §4). If
+// dist/404.html is missing, the server answers plain text, the app never boots and the deep-link
+// tests go red.
 //
 // Every string is asserted against the dictionary VALUE (src/i18n/dictionary.ts), so a copy change
 // in one place cannot leave a stale literal here. The project runs with `locale: 'el-GR'`
@@ -24,6 +24,74 @@ test('/ renders the Greek shell: hero H1, lang="el", the toggle offers English',
   await expect(page.locator('html')).toHaveAttribute('lang', 'el')
   await expect(page.getByRole('button', { name: el.switchTo })).toBeVisible()
   await expect(page.getByText(el.notMedicalAdvice)).toBeVisible()
+  await expect(page.getByText(el.statusTitle)).toBeVisible()
+  await expect(page.getByText(el.statusBody)).toBeVisible()
+})
+
+test('the header nav lists the five modules on every route and marks the current one', async ({
+  page,
+}) => {
+  await page.goto(`${BASE}/`)
+  const nav = page.getByRole('banner').getByRole('navigation', { name: el.nav.label })
+  await expect(nav.getByRole('link')).toHaveText(NAV_IDS.map((id) => el.nav[id]))
+  await expect(nav.getByRole('link', { name: el.nav.recipes, exact: true })).toHaveAttribute(
+    'href',
+    `${BASE}/recipes`,
+  )
+  await expect(nav.locator('[aria-current="page"]')).toHaveCount(0)
+
+  // Client-side navigation through the nav: the URL moves, the page renders, the item is current.
+  await nav.getByRole('link', { name: el.nav.fridge, exact: true }).click()
+  await expect(page).toHaveURL(new RegExp(`${BASE}/fridge$`))
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(el.fridgeTitle)
+  await expect(nav.getByRole('link', { name: el.nav.fridge, exact: true })).toHaveAttribute(
+    'aria-current',
+    'page',
+  )
+  await expect(nav.locator('[aria-current="page"]')).toHaveCount(1)
+
+  // The brand link goes home.
+  await page
+    .getByRole('banner')
+    .getByRole('link', { name: /Hygieia/ })
+    .click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(el.heroTitle)
+
+  // The nav is on the not-found page too (Layout wraps the `*` route).
+  await page.goto(`${BASE}/no/such/page`)
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(el.notFoundTitle)
+  await expect(
+    page.getByRole('banner').getByRole('navigation', { name: el.nav.label }),
+  ).toBeVisible()
+})
+
+test('the home module cards link into their modules', async ({ page }) => {
+  await page.goto(`${BASE}/`)
+  const modules = page.getByRole('region', { name: 'modules' })
+  await expect(modules.getByRole('listitem')).toHaveCount(6)
+  const expected: Record<string, string> = {
+    [el.modules.tips.title]: '/tips',
+    [el.modules.diets.title]: '/diets',
+    [el.modules.recipes.title]: '/recipes',
+    [el.modules.cost.title]: '/recipes',
+    [el.modules.calories.title]: '/recipes',
+    [el.modules.workouts.title]: '/workouts',
+  }
+  for (const [title, path] of Object.entries(expected)) {
+    await expect(modules.getByRole('link', { name: title, exact: true })).toHaveAttribute(
+      'href',
+      `${BASE}${path}`,
+    )
+  }
+  await expect(modules.getByRole('link', { name: new RegExp(el.fridgeLink) })).toHaveAttribute(
+    'href',
+    `${BASE}/fridge`,
+  )
+  await expect(modules.getByText(el.roadmap)).toHaveCount(0)
+
+  await modules.getByRole('link', { name: el.modules.workouts.title, exact: true }).click()
+  await expect(page).toHaveURL(new RegExp(`${BASE}/workouts$`))
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(el.workoutsTitle)
 })
 
 test('the language toggle switches to English, sets <html lang="en"> and survives a reload', async ({
@@ -35,6 +103,9 @@ test('the language toggle switches to English, sets <html lang="en"> and survive
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(en.heroTitle)
   await expect(page.locator('html')).toHaveAttribute('lang', 'en')
   await expect(page.getByRole('button', { name: en.switchTo })).toBeVisible()
+  await expect(
+    page.getByRole('banner').getByRole('navigation', { name: en.nav.label }).getByRole('link'),
+  ).toHaveText(NAV_IDS.map((id) => en.nav[id]))
 
   // The choice is persisted (localStorage), so a reload stays in English.
   await page.reload()

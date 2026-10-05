@@ -359,3 +359,24 @@ effect`) and asserts A's rows unchanged — instead of adding new checks — bec
   text in `dist/`, and would hide the exact thing `check:bundle` exists to show. Unset variables resolve to `''` → local-only
   mode, so the deploy is correct before OP2.c/OP6.a and on pull requests from forks; the operator's variables, not a code
   change, flip the live site to configured mode.
+
+## 2026-10-06 — P3.5 navigation + Layout (builder, worktree `wt/c`)
+
+- **`NotFound` lifted to `src/routes/NotFound.tsx`, re-exported from `routes.tsx`.** `RecipePage` and `DietPage` render it for an
+  unknown slug and imported it from `routes.tsx`; once the route table imports those pages that is an import cycle. The pages' existing
+  import path keeps working through the re-export; new code imports from `routes/NotFound`.
+- **`Layout` is a layout route (`<Route element={<Layout />}>` + `<Outlet />`) and does NOT render `<main>`.** Every page already owns a
+  `<main>` landmark with its own max-width; a second one in the frame would be a duplicate-main a11y failure (Lighthouse/axe). The pages'
+  `min-h-dvh` (written before a frame existed) is neutralised from Layout with Tailwind child variants (`[&>main]:min-h-0 [&>main]:flex-1`)
+  so no page needed editing.
+- **The header nav is `<nav>` + `NavLink`s, no `<ul>`.** `NavLink` emits `aria-current="page"` itself with a prefix match (`/recipes/<slug>`
+  keeps Recipes current). No list so that tests scoping `listitem` (the home cards, the fridge chips) are not polluted by the frame.
+- **Cost and calories cards route to `/recipes` with a one-line note** (`panelsNote`): the P4.3 panels live on every recipe page, so there
+  is no page of their own. The `roadmap` badge is gone from the home page (every module has a live route); the key stays in the base
+  dictionary for a future module.
+- **Home status copy branches on `appEnv.mode`** (`statusBody` local-only vs `statusBodyConfigured`): the honest sentence about sign-in
+  differs between the two builds, and the build knows which it is.
+- **`/account` in local-only mode renders the sign-in-unavailable copy in place; it does not redirect.** `RequireAuth` redirects to
+  `/auth?next=…` only for the `anonymous` state (configured client, no session) — proven in `src/auth/guards.test.tsx`. The e2e spec
+  `admin-local-only.spec.ts` asserts the in-place copy and an unchanged URL; PLAN P4.12's "/account redirects to /auth" is read as the
+  anonymous case.
