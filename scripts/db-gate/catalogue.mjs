@@ -628,8 +628,16 @@ export function checksFor(e, h) {
       actAs(U.UA, async (s) => {
         const before = await snapshot(s, e.table)
         const o = await s.attempt(`update ${T} set status = 'approved' where status = 'pending'`)
+        // BLIND probe (no WHERE, constant SET): a statement that reads no column is gated by the
+        // UPDATE policy ALONE — Postgres ANDs the SELECT policies in only when the row is read — so
+        // an open write policy hides behind a correct read policy unless probed blind (prove-red
+        // gate gap, 2026-10-05).
+        const blind = await s.attempt(`update ${T} set status = 'approved'`)
         const after = await snapshot(s, e.table)
-        return [noEffect(o) && before.h === after.h, JSON.stringify(o)]
+        return [
+          noEffect(o) && noEffect(blind) && before.h === after.h,
+          JSON.stringify({ o, blind }),
+        ]
       }),
     )
     add(`UA's content edit has no effect`, () =>
@@ -814,20 +822,33 @@ export function checksFor(e, h) {
         return [n === want && n > 0, `${n}/${want}`]
       }),
     )
+    // Filtered AND blind probes: `where user_id = A` makes Postgres AND the SELECT policy in, which
+    // masks an open UPDATE/DELETE policy (`using (true)` left the gate GREEN, 2026-10-05). A blind
+    // `update … set …` / `delete from …` reads no column, so only the write policy decides — the
+    // statement an attacker actually sends. A's rows must be byte-identical afterwards.
     add(`UB's UPDATE of A's rows has no effect`, () =>
       actAs(U.UB, async (s) => {
         const before = await snapshot(s, e.table, ofA)
         const o = await s.attempt(`update ${T} set ${e.probe} where ${ofA}`)
+        const blind = await s.attempt(`update ${T} set ${e.probe}`)
+        const own = await s.sudo(() => s.count(e.table, ofB))
         const after = await snapshot(s, e.table, ofA)
-        return [noEffect(o) && before.h === after.h, JSON.stringify(o)]
+        return [
+          noEffect(o) && (!blind.ok || blind.affected <= own) && before.h === after.h,
+          JSON.stringify({ o, blind, own }),
+        ]
       }),
     )
     add(`UB's DELETE of A's rows has no effect`, () =>
       actAs(U.UB, async (s) => {
         const before = await snapshot(s, e.table, ofA)
         const o = await s.attempt(`delete from ${T} where ${ofA}`)
+        const blind = await s.attempt(`delete from ${T}`)
         const after = await snapshot(s, e.table, ofA)
-        return [noEffect(o) && before.h === after.h && after.n > 0, JSON.stringify(o)]
+        return [
+          noEffect(o) && before.h === after.h && after.n > 0,
+          JSON.stringify({ o, blind, left: after.n }),
+        ]
       }),
     )
     add(`UB's INSERT of a row of A is refused`, () =>
@@ -964,10 +985,13 @@ export function checksFor(e, h) {
       const before = await snapshot(s, e.table, ofA)
       const u = await s.attempt(`update ${T} set display_name = 'pwned' where ${ofA}`)
       const d = await s.attempt(`delete from ${T} where ${ofA}`)
+      // Blind probes too (no WHERE): only the write policy decides — see the `user` kind.
+      const bu = await s.attempt(`update ${T} set display_name = 'pwned'`)
+      const bd = await s.attempt(`delete from ${T}`)
       const after = await snapshot(s, e.table, ofA)
       return [
         noEffect(u) && noEffect(d) && before.h === after.h && after.n === 1,
-        JSON.stringify({ u, d }),
+        JSON.stringify({ u, d, blindUpdate: bu, blindDelete: bd }),
       ]
     }),
   )

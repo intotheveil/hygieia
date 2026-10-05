@@ -132,6 +132,16 @@ public, anon` (trigger fns: also `authenticated`). `npm run db:gate` sweeps for 
   must count before `seedFixture` or exclude `slug like 'fx-%'`, or the fixture inflates the count.
 - **PLAN §2 has 14 tables (the ledger counts), not 13** — the gate's `RLS is enabled on every hygieia
 table (14)` is right; P1.QA.2's `(13)` is the typo.
+- **A filtered write probe cannot see an open write policy (gate gap found by prove-red, 2026-10-05).**
+  `update … where user_id = A` reads a column, so Postgres ANDs the SELECT policy into the UPDATE/DELETE;
+  with a correct SELECT policy the probe affects 0 rows even when the UPDATE/DELETE policy is `using (true)`
+  — `saved_plans` UPDATE and `favourites` DELETE `using (true)` left the gate GREEN. A blind statement
+  (`update t set …` / `delete from t`, no WHERE) is gated by the write policy ALONE and is what an attacker
+  sends. Every write-policy check in `scripts/db-gate/catalogue.mjs` now runs a blind probe too; any NEW
+  check of a write policy must do the same. `npm run db:gate:prove-red` keeps it red (`saved-plans-update-true`,
+  `favourites-delete-true`).
+- **Check names in `catalogue.mjs` are pinned by `scripts/db-isolation.test.ts`** (`user` + `profiles`
+  kinds): add a check → add its case there too, or strengthen an existing check in place (P1.14 did).
 
 ## 6. CHANGELOG (append-only — what happened, newest first)
 
