@@ -497,3 +497,22 @@ one — `e2e/local/offline.spec.ts` red on `main`, P5.4 scope — out of gate). 
 lanes and `G0` per lane; the P1/P2 reviewer's finding is that the cadence did not hurt P1/P2 quality. This ADR
 binds for the current build only: the next feature cycle returns to the §9 default unless a new ADR says
 otherwise. Named in `.claude/CLAUDE.project.md` §2 "Deviations".
+
+## 2026-10-06 — P5.2 a11y matrix: WCAG 2.0/2.1 A+AA tags, gate on serious/critical only, contrast made measurable
+
+- **axe tags `wcag2a, wcag2aa, wcag21a, wcag21aa`; the gate is 0 `serious`/`critical`; `moderate`/`minor` are printed as a table and
+  attached, not gated.** The plan named `wcag2a, wcag2aa`; 2.1 adds the mobile-era rules (orientation, reflow, status messages) a PWA
+  should meet. Gating every impact would turn best-practice noise into red builds nobody reads; the table keeps the lower impacts visible
+  on every run so a regression is seen without blocking a merge.
+- **The language is seeded through localStorage (`hygieia.lang`) in `addInitScript`, not by clicking the toggle.** The cell then audits
+  the FIRST paint in that language (the returning-visitor path) and 24 cells cost one navigation each; the toggle is proven once in
+  `smoke.spec.ts`. The H1 assertion per language is what P5.5 leans on.
+- **`e2e/support/routes.ts` carries `h1(t, lang)` and an optional `ready` selector** so the one shared list drives both the Lighthouse and
+  the axe gate; detail-page H1s come from the seed row (import-time throw if the slug disappears).
+- **The body wash is a `body::before` pseudo-element, not `body { background-image }`.** With a gradient on an ancestor, axe-core files
+  every text node under `color-contrast: incomplete` (2 491 nodes site-wide) — a gate that passes because it cannot measure. A fixed,
+  `z-index: -1`, `pointer-events: none` pseudo-element is invisible to `elementsFromPoint`, so contrast is computed against the real
+  colour. Rule for future styling: no `background-image` on an element that contains text unless the text sits on its own opaque box.
+- **`clay-500` is never TEXT; `clay-700` (`#9c5530`, 5.0:1 on cream) is the text shade.** `clay-500` (3.0:1) stays for borders, tints,
+  bars and the wash. The tips eyebrow was the one shipped instance in a matrix-visible state; the alert lines still on `text-clay-500`
+  are in markup the AsyncState lane owns and are listed in BUILD_LOG for it.

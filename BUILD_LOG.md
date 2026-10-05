@@ -3,6 +3,70 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+## 2026-10-06 — P5.2 a11y matrix: axe on every route × both languages, contrast made decidable, tips eyebrow fixed — DONE (builder, worktree `wt/b`; not committed — the lead merges)
+
+**Delivered.** `e2e/local/a11y-matrix.spec.ts` — 12 routes (`e2e/support/routes.ts`) × `['el','en']` = **24 cells** on the PRODUCTION
+build served with Pages semantics. Per cell: `<html lang>` equals the chosen language; the H1 equals `route.h1(t, lang)` (dictionary
+value, or the bundled seed row for the two detail pages); `AxeBuilder` (`@axe-core/playwright` 4.13, new devDep) with tags
+`wcag2a, wcag2aa, wcag21a, wcag21aa` reports **0 `serious`/`critical`** violations (the gate); `moderate`/`minor` findings are printed as
+a table in the test output and attached as `axe-<route>-<lang>.json`, NOT gated (DECISIONS.md 2026-10-06). The language is seeded by
+writing `hygieia.lang` to localStorage in `context.addInitScript` BEFORE the page boots (documented in the spec header): the audit then
+sees the first paint of that language, the path a returning visitor takes; the toggle button itself is already proven by
+`smoke.spec.ts`. The key is mirrored as a local constant because `e2e/support/tsconfig.json` has no `jsx` and cannot import
+`LangProvider.tsx`; if it ever drifts every `en` cell fails on `<html lang>`.
+
+**`e2e/support/routes.ts` extended** (shared with `check:lighthouse`, which still passes its `parseRoutes` test): `h1: (t, lang) => string`
+per entry (detail pages read `RECIPES`/`DIETS` seed rows by slug and throw at import if the slug is gone) and an optional `ready` CSS
+selector that exists only once the page's async read has SETTLED (`main ul li`, `#recipe-steps`, `#fridge-results`, `#diet-recipes`,
+`#session-title`, `main section[aria-labelledby^="topic-"]`, `section[aria-label="modules"]`) so axe scans the loaded page, not the
+loading line. Still node-importable (erasable syntax, explicit `.ts` extensions).
+
+**What the baseline actually showed (the finding).** First run on `main`: 24/24 green, 0 violations of ANY impact on every cell — and
+a throwaway probe (`_axe-sanity.spec.ts`, deleted) showed why: axe filed **`color-contrast` as `incomplete` on EVERY text node of every
+route** — home 32, recipe 51, fridge 17, diets 58, diet 263, workouts 71, auth/account/admin/not-found 11 each, tips 259, **recipes 1686**
+— message "background color could not be determined due to a background gradient". `body` painted two radial-gradient
+`background-image`s, so the gate was blind to contrast on the whole site. The same probe proved the scan itself was live: an injected
+unlabelled input / `#ccc` text / icon-only link came back `label[critical]`, `color-contrast[serious]`, `link-name[serious]`.
+
+**Fixes (rule id · file · what).**
+
+1. `color-contrast` (decidability) · `src/index.css` · the two radial washes moved from `body { background-image … attachment: fixed }`
+   to `body::before { position: fixed; inset: 0; z-index: -1; pointer-events: none }`. Visually identical (screenshot checked: sage wash
+   top-left, clay wash right); a pseudo-element is not returned by `elementsFromPoint`, so axe resolves every text background to the plain
+   `paper-100`/card colour. After: `incomplete` = 0 on 11 routes, 2 on home (the `aria-hidden` glyph badges, "only non-text characters").
+2. `color-contrast` (serious, ×17 on `/tips`, both languages) · `src/tips/TipsPage.tsx` line 62 · the "source pending" eyebrow was
+   `text-xs text-clay-500` = **3.2:1** on the card (`#c9774a` on `#faf9f4`, 12px) — a real AA failure that the gradient had hidden.
+   New token `--color-clay-700: #9c5530` in `src/index.css` (5.0:1 on `paper-100`, 5.3:1 on a `paper-50/80` card); the eyebrow now uses
+   `text-clay-700`. PROVEN: restyling the 17 eyebrows back to `#c9774a` in-page makes axe report `color-contrast [serious] ×17`; as
+   shipped, 0 violations.
+
+**Violations table — before / after.** Before (gradient body): serious/critical 0, moderate/minor 0 on all 24 cells, color-contrast
+`incomplete` 2 491 nodes across the 12 routes (not measured). After: serious/critical 0, moderate/minor 0 on all 24 cells, color-contrast
+MEASURED on every text node, `incomplete` 2 (home glyph badges). The lead's expected list (ribbon/chip contrast, picker labels, duplicate
+landmarks, icon-only links, `aria-pressed` vs `aria-checked`) was checked by the measured run and is clean: ribbon `amber-900` on
+`amber-50` 8.75:1, `olive-700` muted on cream 7.6:1, `sage-700` chips 4.9–5.5:1, every input has a `<label for>`, one `<main>` per
+page (Layout leaves it to the page), nav links are text, recipes/nutrition toggles use `aria-pressed`, tips/workouts choosers are
+`role="radio"` + `aria-checked`.
+
+**Reported, NOT fixed here (outside every state the matrix renders; the lines belong to markup the AsyncState lane is rewriting):**
+`text-clay-500` as ALERT text is 3.0–3.2:1 in `src/fridge/FridgePage.tsx` 122/364, `src/recipes/RecipePage.tsx` 252,
+`src/plans/PlanView.tsx` 164, `src/account/AccountPage.tsx` 129/238, `src/auth/SignInPage.tsx` 118, `src/admin/PriceTable.tsx` 248,
+`src/admin/ReviewForm.tsx` 37 (`DANGER`); `text-olive-700/70 italic` (PlanView 280, empty cell) is 3.74:1;
+`placeholder:text-olive-700/60` (IngredientPicker 145) is 2.99:1 (axe does not gate placeholders; WCAG 1.4.3 counts them). Recommendation
+for the AsyncState lane / P5.QA: error copy in `text-clay-700`, the empty cell in `text-olive-700`. The `clay-500` TOKEN is unchanged
+(borders, tints, bars, the body wash all keep it).
+
+**Gates (worktree `wt/b`, 2026-10-06):** `npm run lint` → `✖ 21 problems (0 errors, 21 warnings)` — all pre-existing
+`react-refresh/only-export-components`, none in a file touched here · `npm run typecheck` → clean · `npm test` → `Test Files 62 passed (62)
+· Tests 3166 passed (3166)` · `npm run build` → `✓ built`, PWA precache 42 entries · `npm run check:pwa` → `check:pwa OK — Hygieia · Υγίεια,
+3 icons, sw.js present` · `E2E_PREBUILT=1 npm run e2e` → **`55 passed (13.9s)`** (31 existing + 24 matrix), console watchdog 0 errors.
+`npx prettier --check` clean on every touched file (`package.json` warns only on the CRLF checkout — HEAD's content passes; one line
+added). No existing assertion was changed.
+
+**Files.** `e2e/local/a11y-matrix.spec.ts` (new), `e2e/support/routes.ts`, `src/index.css`, `src/tips/TipsPage.tsx`, `package.json` +
+`package-lock.json` (`@axe-core/playwright`). `BRAIN.md` not touched (lead-owned in the lane model, as in the other lanes) — the lead
+should carry the gotcha "a gradient on an ancestor makes axe color-contrast `incomplete`, not failing" into BRAIN §5.
+
 ### Records follow-up for P1/P2 REVIEW items 2–3 — 2026-10-06 — DONE (builder, worktree `wt/a`; records only, no code)
 
 - **`DECISIONS.md` (+5 entries, appended):** four dated 2026-10-05 entries for the hand-offs the reviewer listed under

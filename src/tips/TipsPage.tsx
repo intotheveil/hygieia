@@ -59,7 +59,7 @@ function TipCard({ tip }: { tip: HealthTip }) {
           {t.readSource}
         </a>
       ) : (
-        <p className="text-xs font-medium tracking-wide text-clay-500 uppercase">
+        <p className="text-xs font-medium tracking-wide text-clay-700 uppercase">
           {t.sourcePending}
         </p>
       )}
