@@ -6,10 +6,16 @@
 // add ONE import + ONE spread here. `.gitattributes` marks this file `merge=union`: concurrent
 // appends merge cleanly. Keep every entry on its own line for that reason.
 
+import { recipesEl, recipesEn, type RecipesDictionary } from './recipes.ts'
+
 // Lanes extend this: `export interface FeatureDictionary extends RecipesDictionary, FridgeDictionary {}`.
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- empty until the first feature lands
-export interface FeatureDictionary {}
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- one supertype until the second feature lands; the next lane deletes this line
+export interface FeatureDictionary extends RecipesDictionary {}
 
-export const featuresEn: FeatureDictionary = {}
+export const featuresEn: FeatureDictionary = {
+  ...recipesEn,
+}
 
-export const featuresEl: FeatureDictionary = {}
+export const featuresEl: FeatureDictionary = {
+  ...recipesEl,
+}
