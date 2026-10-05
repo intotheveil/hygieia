@@ -142,6 +142,7 @@ table (14)` is right; P1.QA.2's `(13)` is the typo.
   `favourites-delete-true`).
 - **Check names in `catalogue.mjs` are pinned by `scripts/db-isolation.test.ts`** (`user` + `profiles`
   kinds): add a check → add its case there too, or strengthen an existing check in place (P1.14 did).
+- **A fixture must not fight a unique constraint that real data saturates (P1.12 follow-up, 2026-10-05).** `workout_templates` is `unique (workout_type, level, intensity)` and the P4.8 seed fills ALL 63 cells, so the gate's `fx-home-beginner-low` / `fx-gym-intermediate-moderate` fixture INSERTs collided (`fixture seeded` red on `workout_templates_cell_key`). There is no free cell to move to. `scripts/db-gate/catalogue.mjs` now ADOPTS the two lowest-slug seeded templates (`ADOPTED_TEMPLATE_SLUGS`, read from `src/content/seed/workouts.ts`): the first is flipped to `approved` with the fixture stamp, the second stays `pending`; both keep seeded slugs so the `= 63` seed count still binds. The flip runs with `set local session_replication_role = replica` — a plain superuser UPDATE would let `touch_updated_at` set `now()` and `stamp_review` set `reviewed_by = auth.uid()` (null), breaking the stamp checks. Any future saturated-unique content table needs the same adopt-not-insert pattern; the child `insert` probe must also use a position above every seeded slot (99; seeded max is 12).
 
 ## 6. CHANGELOG (append-only — what happened, newest first)
 
