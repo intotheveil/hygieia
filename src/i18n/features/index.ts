@@ -6,10 +6,20 @@
 // add ONE import + ONE spread here. `.gitattributes` marks this file `merge=union`: concurrent
 // appends merge cleanly. Keep every entry on its own line for that reason.
 
-// Lanes extend this: `export interface FeatureDictionary extends RecipesDictionary, FridgeDictionary {}`.
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- empty until the first feature lands
-export interface FeatureDictionary {}
+import { adminEl, adminEn, type AdminDictionary } from './admin.ts'
 
-export const featuresEn: FeatureDictionary = {}
+// Lanes extend this: one parent per line (kept so by prettier-ignore) so `merge=union` can merge
+// concurrent lanes' parents without conflicts.
+// prettier-ignore
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- a single parent until the next lane lands
+export interface FeatureDictionary
+  extends
+    AdminDictionary {}
 
-export const featuresEl: FeatureDictionary = {}
+export const featuresEn: FeatureDictionary = {
+  ...adminEn,
+}
+
+export const featuresEl: FeatureDictionary = {
+  ...adminEl,
+}

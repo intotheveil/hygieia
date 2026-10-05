@@ -187,3 +187,25 @@ effect`) and asserts A's rows unchanged — instead of adding new checks — bec
   the FK id in `ingredient_slug` / `exercise_slug`, rather than being dropped: an approved recipe over a still-
   pending ingredient is an admin-ordering state the UI should show honestly (the fridge matcher already
   reports such slugs under `unknown`).
+
+## 2026-10-06 — P4.10/P4.11 admin: status-only review, column-exact writes, no insert/delete
+
+- **The admin never inserts or deletes content; approve = a status update stamped by the DB.** `AdminContentSource` has
+  `listPending / listAll / update / setStatus` and no other method; `setStatus` sends exactly `{ status }` and the BEFORE UPDATE
+  trigger writes `reviewed_at` / `reviewed_by`. Content is born by seed migration (PLAN.md §1.6) and only ever edited or
+  re-statused by a reviewer — the client holds no grant for anything else, and the UI offers nothing the grant forbids.
+- **Writes are column-exact and refused twice.** `update` sends only the keys given; `id`, `slug`, `created_at`, `updated_at`,
+  `reviewed_at`, `reviewed_by` are `never` in `AdminPatch<T>` AND rejected at runtime (`locked`, nothing sent), as is `status`
+  (that is `setStatus`'s path) and any column outside `EDITABLE_COLUMNS[table]`, which a test keeps literally equal to the
+  migration's `grant update (…)` lists. Reason: the grant is the real guard, but a refused request would surface as an opaque
+  PostgREST 42501 — refusing before the request keeps the UI honest and the contract visible in TypeScript.
+- **The review form's field set is derived from the grant, rendered by kind, and pairs share one line editor.** `x_el`/`x_en`
+  arrays are edited in one component whose add/remove act on both languages, so equal length is structural, not validated.
+- **The price table sends the whole five-column price group, the review form sends only the diff.** A price quote
+  (`min/max/per/as_of/note`) is one fact — saving it as a unit keeps `as_of` honest even when only `max` moved; a content edit is
+  a correction to specific columns and must not re-send the rest.
+- **Admin dictionary keys are prefixed where another lane owns the plain name** (`adminSaved`, `adminSaveFailed`; `plans.ts` has a
+  plan-specific `saveFailed`): feature modules are spread into one `Dictionary`, so a shared key would silently last-win.
+- **`src/admin/useSettled.ts` instead of a shared `src/lib/useAsync.ts`:** four lanes each add their own copy of that path
+  concurrently; the admin lane keeps its (smaller) hook local to avoid a fifth conflicting file. The lead may fold it into the
+  survivor after merge.

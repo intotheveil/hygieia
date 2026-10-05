@@ -3,6 +3,81 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+## 2026-10-06 — P4.10 Admin review page `/admin` + P4.11 price table editor — DONE (builder, worktree `wt/b`; not yet committed)
+
+**Scope:** the review workbench behind `RequireAdmin` (P2.5's placeholder body replaced; export name kept; routes untouched) and
+the ingredient price editor as its "Prices" tab. Everything goes through a new `AdminContentSource` that can read every status and
+UPDATE content columns + `status`, and nothing else — no INSERT/DELETE method exists, matching the migration's grants.
+
+**`src/admin/adminSource.ts` (new):** `AdminContentSource { listPending(table); listAll(table, status?); update(table, id, patch);
+setStatus(table, id, status) }` over a typed adapter (`adminClientFor`: `select('*') → eq(…) → order('slug')`, `update(values) →
+eq('id', id)`), `AdminResult<T>` with errors `network | locked | empty | unknown`. `EDITABLE_COLUMNS` per table = the migration's
+UPDATE grant lists minus `status` (a test parses `20261006000300_hygieia_content.sql` via `?raw` and compares literally, order included).
+`LOCKED_COLUMNS = id, slug, created_at, updated_at, reviewed_at, reviewed_by` are refused at the type level (`AdminPatch<T>` maps them
+to `never`) AND at runtime (`pickContentColumns` → `locked`, nothing sent); `status` is refused by `update` too (that is `setStatus`'s
+job); an empty patch → `empty`. `setStatus` sends exactly `{ status }` — the DB trigger stamps `reviewed_by/at`.
+
+**`src/admin/fields.ts` (new, pure):** field model for the form — `EDITABLE_COLUMNS[table]` grouped into `x_el`/`x_en` pairs + singles
+in grant order; kind per column (text / long textarea / number / boolean / select over the enums.ts literals / date / lines for
+`string[]`); edit ⇄ column conversion (`toEdit`/`fromEdit`: numbers and dates edit as text; blank required text is invalid; the four
+nullable text columns save blank as `null`); `diffDraft` yields ONLY the changed columns + the invalid ones. `headingColumn/headingOf`
+for the list (title_* for recipes/templates/tips, name_* otherwise).
+
+**`src/admin/ReviewForm.tsx` (new):** slug/id read-only, status + review stamp (`reviewedBy`/`reviewedAt` or `notReviewedYet`), every
+pair in one `<fieldset>` side by side (el left with `lang="el"`, en right), paired `string[]` share ONE line editor (add appends to both,
+remove index i deletes from both → lengths can never differ; `evenLengths` pads defensively), `aria-invalid` on unsaveable inputs, Save
+disabled until dirty && valid and sends only the diff; Approve/Reject → `setStatus`; `role="status"` line `adminSaved`/`adminSaveFailed`.
+**`PendingList.tsx`** (slug + both headings per row, button opens the form). **`AdminPage.tsx`** (replaced): `client === null` →
+`adminUnavailable`; profile loading → `loading`; `!isAdmin` → 403 copy (defensive twin of RequireAdmin); then tabs per
+`CONTENT_TABLES` with pending-count badges + "Prices"; status filter pending/approved/rejected; after every write the lists re-read
+(`version` bump → new loader identity → `useSettled` re-runs). **`useSettled.ts`** (new, admin-local): derived-loading hook keyed by
+loader identity (no `set-state-in-effect`); NOT `src/lib/useAsync.ts` — four other lanes each add their own copy of that path, so the
+admin lane avoids a fifth. **`prices.ts` + `PriceTable.tsx`** (new): all ingredients (no status filter), sorted by `name_<lang>` with
+`localeCompare(lang)`, one row in edit mode at a time (other Edit buttons disabled), inputs with `sr-only` labels, `checkDraft` (both
+prices finite ≥ 0, `min ≤ max`, ISO date) → `role="alert"` `priceMinMaxError`/`priceNumberError` + `aria-invalid`, Save sends exactly
+the five price columns; the saved row is reflected locally without a reload.
+
+**`src/i18n/features/admin.ts` (new) + `index.ts`:** `AdminDictionary` (adminIntro, adminUnavailable, sideBySideHint, pending/approved/
+rejectedTab, `kinds: Record<ContentTable, string>`, noPending, noRowsForStatus, adminLoadFailed, backToList, approve, reject,
+saveChanges, adminSaved, adminSaveFailed, reviewedBy, reviewedAt, notReviewedYet, addLine, removeLine, lineNumber, prices, priceMin,
+priceMax, pricePer, asOf, priceNote, priceMinMaxError, priceNumberError, editRow, cancel). `adminTitle` and the 403 copy are reused
+from the base dictionary. Deviation from the brief: `saved`/`saveFailed` are named `adminSaved`/`adminSaveFailed` because lane `wt/f`
+(plans.ts) already defines `saveFailed` with plan-specific copy — same-named keys across feature modules would silently last-win in the
+spread. `index.ts` extends on its own line (prettier-ignore block, as lane `wt/d` does) with an `eslint-disable-next-line
+no-empty-object-type` that is only needed while the interface has one parent.
+
+**`src/auth/fake-client.ts` (shared double, extended):** `contentTables: { rows, error, updateError }` routes the six content tables to a
+builder that records `select/order/eq/update`, APPLIES the recorded `.eq` filters to the rows (so `status = pending` narrows like the DB)
+and applies an `update` payload to the matching rows (so a reload sees the change). `RecordedCall.op` gains `'update'`.
+
+**Out-of-scope edit (flagged):** `src/auth/guards.test.tsx` asserted the P2.5 placeholder copy (`adminPlaceholder`) for an admin; P4.10
+replaces that page by definition, so the three assertions now point at `adminIntro` (test name updated). No other file outside the task's
+scope was touched; `adminPlaceholder` stays in the base dictionary unused (`dictionary.ts` is off-limits to lanes).
+
+**Tests (4 new files, 80 tests):** `adminSource.test.ts` (filters per table; `listAll` unfiltered by default; parse failures → unknown;
+error classification; update sends only given columns / drops undefined / refuses each LOCKED column, `status`, another table's column,
+empty; setStatus exact payload; no insert/delete method; the real adapter over the fake client records `update → eq('id')`; grant-list
+contract vs the migration), `fields.test.ts` (grouping per table covers every editable column once; kinds; conversions; diff never carries
+identity/review columns), `AdminPage.test.tsx` (adminUnavailable + 403 + loading in both languages; six `status = pending` queries and
+counts; both-language tab labels; list shows slug + both titles; status filter re-queries with `status = approved`; form renders pairs in
+one fieldset with `lang`, textarea/select/checkbox/readonly; approve/reject exact payloads and list refresh; save sends only changed
+columns; blank required blocks Save; refused save shows the failure line; approved row shows the stamp and no Approve; paired line
+editor removes/adds in both languages and saves equal-length arrays), `PriceTable.test.tsx` (model: five columns exactly, min>max /
+negative / NaN / non-ISO blocked; UI: unfiltered read, en vs el sort order, bilingual headers, min>max alert + aria-invalid + nothing
+sent, valid save = exactly the five price columns by id + row reflects it, one row at a time + cancel restores, refused save, load failed).
+
+**Gates (2026-10-06, `D:/projects/hygieia-wt/b`):** `npm run lint` 0 errors (7 pre-existing react-refresh warnings: LangProvider,
+routes, DraftRibbon, …) · `npm run typecheck` clean · `npm test` 45/46 files, **2920 passed, 3 failed — all three in
+`scripts/gen-seed-sql.test.ts` (`seed:check: differs 20261006000700_hygieia_seed_recipes.sql`, `missing
+20261006000900_hygieia_seed_workouts.sql`), a PRE-EXISTING drift on the merged base: this task touches no file under
+`src/content/seed/**` or `supabase/migrations/**`; `npm run seed:gen` on the lead's side settles it** · `npm run build` green (PWA
+precache 24 entries) · `check:pwa OK — Hygieia · Υγίεια, 3 icons, sw.js present` · `prettier --check` on every touched file clean.
+
+**Not done / next:** nothing committed (the lead merges `wt/b`). The live half of P4.10's acceptance (approve one recipe on the operator
+machine, `db:live-check` extended to assert `recipes?status=eq.approved ≥ 1`, ribbon gone in configured mode) is an OPERATOR step after
+OP1/OP2. BRAIN.md left to the lead (shared across lanes, not `merge=union`). P4.12 e2e specs may drive `/admin` through the fake-free
+path only once a configured backend exists.
+
 ## 2026-10-05 — P5.5 bilingual completeness sweep (dictionary + seed tests; pulled forward) — DONE (builder, worktree `wt/b`; not yet committed)
 
 **Scope:** the test-hardening half of P5.5 only (PLAN.md §0 bilingual rule, ADR-0002). UI copy review and the P5.2 a11y-matrix H1
