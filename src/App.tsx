@@ -1,3 +1,4 @@
+import { AccountMenu } from './components/AccountMenu'
 import { MODULE_IDS, type ModuleId } from './i18n/dictionary'
 import { useLang } from './i18n/LangProvider'
 
@@ -56,7 +57,10 @@ export default function App() {
           </span>
           <span className="font-display text-lg text-sage-700">· Υγίεια</span>
         </a>
-        <LangSwitch />
+        <div className="flex items-center gap-2">
+          <AccountMenu />
+          <LangSwitch />
+        </div>
       </header>
 
       <main id="top" className="flex flex-1 flex-col gap-14 pb-16">

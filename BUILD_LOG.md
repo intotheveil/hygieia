@@ -259,6 +259,102 @@ is timeout-based (15 s default, injectable) because the client exposes no "excha
 `useProfile()` and the `signOut` key. Merge order with P1.13 (schema pin in `src/lib/supabase.ts`) is
 free — this lane never touched that file.
 
+### P2.4 `UserDataSource`: fridge lists, saved plans, favourites — DONE (builder, `wt/e`; not yet committed)
+
+- `src/user/source.ts` — the contract: `UserDataSource { kind: 'supabase' | 'disabled'; reason?;
+  userId?; fridgeLists { list, save, remove }; favourites { list, add, remove }; savedPlans { list, save,
+  remove } }`, `Result<T> = { ok: true; data } | { ok: false; error: 'disabled' | 'network' | 'unknown' }`
+  (nothing throws), row types (`FridgeList`, `SavedPlan`, `Favourite`) and WRITE payload types
+  (`FridgeListInput { id?, name, ingredient_slugs }`, `SavedPlanInput { diet_id, week_start, plan }`,
+  `FavouriteInput { recipe_id }`) — none has a `user_id` member, so sending it is a type error.
+  `USER_TABLES` pins the three table names; `JsonValue` types the `plan jsonb`.
+- `src/user/disabled.ts` — `disabledSource(reason)`: every list `{ ok: true, data: [] }`, every write
+  `{ ok: false, error: 'disabled' }`.
+- `src/user/supabase.ts` — `userDataClientFor(HygieiaClient)` typed adapter (the P2.3 pattern; a direct
+  structural assignment hits TS2589) pinning exactly: `fridge_lists` `select(…).order('updated_at')` /
+  `upsert(values).select(…).single()` / `delete().eq('id', id)`; `saved_plans` `select(…).order('week_start')`
+  / `insert(values).select(…).single()` / `delete().eq('id', id)`; `favourites` `select(…).order('created_at')`
+  / bare `insert({ recipe_id })` / `delete().eq('recipe_id', …)`. `supabaseSource(client, uid)` wraps each
+  call in `run()`: PostgREST error → `classifyError` (`TypeError` or code-less error = `network`; a
+  SQLSTATE/`PGRST…` code or any other thrown `Error` = `unknown`), rows parsed defensively (a malformed
+  row → `unknown`, never a crash). **`user_id` is never sent and never filtered on** — the column default
+  `auth.uid()` supplies it and RLS scopes every verb (DECISIONS.md 2026-10-05). `uid` is recorded as
+  `userId` for consumers and so the hook re-binds on session change; it is in no payload or filter.
+  Column lists are explicit (no `*`, no `user_id`). Table names unqualified (schema pin is P1.13's).
+- `src/user/useUserData.ts` — `useOptionalAuth()` (new in `AuthProvider.tsx`: the context or null, so
+  components on `/` degrade without a provider) → `disabled('local-only')` when the client is null (or no
+  provider), `disabled('signed-out')` while loading/anonymous, else the supabase source bound to the uid;
+  memoised on `(client, uid)` so effects may depend on the instance.
+- `src/components/SignedOutNote.tsx` — `local-only` → `userDataUnavailableLocal`; `signed-out` →
+  `userDataSignInToSave` + link to `/auth?next=<pathname+search>` (URL-encoded; `safeNextPath` screens it on
+  return).
+- `src/auth/fake-client.ts` — EXTENDED (not a second fake): `from(table)` keeps the `profiles` behaviour
+  and gives every other table a thenable builder (`select/order/single/maybeSingle/eq/insert/upsert/delete`)
+  that RECORDS `{ table, op, payload, filters }` into `fake.calls`; options `userTables: { rows, error,
+  reject }`. A written row comes back WITH `user_id` (simulating the DB default).
+- Dictionary: 5 keys under `// user data (P2.4)`: `userDataUnavailableLocal, userDataSignInToSave, saved,
+  save, remove` (both languages; parity test green).
+- Tests `src/user/source.test.ts` (14): disabled impl for both reasons (7 writes refused, 3 lists empty);
+  supabase impl targets exactly `{fridge_lists, saved_plans, favourites}` and never `profiles`; sweep over
+  10+ recorded calls: no `user_id` in any payload, no `user_id` filter, uid absent from the serialised calls,
+  column lists carry neither `*` nor `user_id`; favourites add/remove shapes; fridge upsert with/without `id`;
+  plans insert shape; list parsing; malformed row → `unknown`; `42501` → `unknown` for every op; rejected
+  `TypeError` → `network` for every op; code-less error → `network`; `classifyError` table; hook: null client
+  and no provider → `local-only`; loading and anonymous → `signed-out` (no table call made); signed-in →
+  `supabase` with `userId`, referentially stable across re-renders; `SIGNED_OUT` → back to `signed-out`.
+
+### P2.5 Route guards, account menu, `/admin` placeholder — DONE (builder, `wt/e`; not yet committed)
+
+- `src/auth/RequireAuth.tsx` — `loading` → one `role=status` line (`loading`); `unavailable` → the sign-in
+  page's unavailable copy + home link; `anonymous` → `<Navigate replace to="/auth?next=<pathname+search>">`;
+  `signed-in` → children.
+- `src/auth/RequireAdmin.tsx` — `RequireAuth` around an `AdminGate` that reads `useProfile()`: `idle`/`loading`
+  → loading line; `!isAdmin` (including a profile read ERROR — never fail open) → bilingual 403
+  (`notAllowedTitle`/`notAllowedBody` + home link); admin → children.
+- `src/components/AccountMenu.tsx` — `useOptionalAuth()`: no provider / `unavailable` / `loading` → renders
+  nothing (so `App.test.tsx`, which mounts `/` without `AuthProvider`, is untouched and green); `anonymous` →
+  "Sign in" link to `/auth`; `signed-in` → `<nav aria-label=account>` with a link to `/account` showing the
+  email (id when the provider gave none) and a sign-out button calling `signOut()`. Shows the EMAIL, not the
+  profile display name, on purpose: `useProfile()` would start a second `ensureProfile` bootstrap from the
+  header on every page (and P2.3's display name is the email local-part anyway).
+- `src/account/AccountPage.tsx` — placeholder: `h1 = account`, three `role=tab` buttons (`savedPlans`,
+  `savedFridgeLists`, `favourites`), one `tabpanel` listing rows from `useUserData()` (`week_start · diet_id`,
+  `name (n)`, `recipe_id`) or `nothingSavedYet`; loading derived from "outcome is for this source instance"
+  (no synchronous setState in the effect). A disabled source renders `SignedOutNote`. A failed list shows as
+  empty — P4.6 owns the error state and editing (no key was added for it).
+- `src/admin/AdminPage.tsx` — placeholder: `adminTitle` + `adminPlaceholder` ("review tools arrive in P4")
+  + home link. P4.10 replaces the file.
+- `src/App.tsx` — header right side is now `<div class="flex items-center gap-2"><AccountMenu/><LangSwitch/></div>`;
+  nothing else changed. `src/routes/routes.tsx` — `/account` → `<RequireAuth><AccountPage/></RequireAuth>`,
+  `/admin` → `<RequireAdmin><AdminPage/></RequireAdmin>`, appended before `*`.
+- Dictionary: 10 keys under `// guards (P2.5)`: `account, notAllowedTitle, notAllowedBody, adminTitle,
+  adminPlaceholder, savedPlans, savedFridgeLists, favourites, nothingSavedYet, loading`. `adminTitle` is ONE
+  key beyond the lead's list — the admin page needed an `h1` and the bilingual rule forbids a literal.
+- Tests `src/auth/guards.test.tsx` (29, through the real `AppRoutes` + a `LocationProbe`): anonymous at
+  `/account` → location `/auth?next=%2Faccount` and the sign-in page renders; query string preserved
+  (`%2Faccount%3Ftab%3Dfavourites`); local-only → unavailable copy, stays on `/account` (en+el); loading →
+  `loading` line (en+el); signed-in → account page with three tabs and `nothingSavedYet` (en+el); seeded
+  rows listed per tab, reads only, three tables; `/admin`: anonymous → `/auth?next=%2Fadmin`; non-admin →
+  403 (en+el) and no placeholder; first-time user (no row) → 403 with ONE insert without `is_admin`; profile
+  read failure → 403; admin → placeholder (en+el) and no 403; profile pending → loading line and neither
+  outcome (en+el); local-only → unavailable copy (en+el). `AccountMenu`: signed-in → email + `/account`
+  link + sign-out calling `signOut` (en+el); id fallback; anonymous → `/auth` link (en+el); nothing in
+  local-only, while loading, and without any provider; sits in the home `banner` beside the language switch.
+
+**Gates (G0, worktree `D:/projects/hygieia-wt/e`, 2026-10-05):** `npm run lint` 0 errors (6 warnings: the 5
+pre-existing `react-refresh/only-export-components` + the same on `useOptionalAuth`) · `npm run typecheck`
+clean · `npm test` **16 files / 274 tests green** (231 → 274: +14 `source.test.ts`, +29 `guards.test.tsx`;
+`App.test.tsx` untouched and green) · `npm run build` green (24 precache entries, `dist/404.html` byte-equal
+to `index.html`; `fakeClient` absent from `dist/assets/*.js`) · `check:pwa OK — Hygieia · Υγίεια, 3 icons,
+sw.js present` · Prettier clean on every touched file. `npm ci` was run once in the worktree (pglite missing).
+
+**Not exercised live (OPERATOR-P2 / P2.QA):** a real favourite/fridge-list round trip against the shared
+project (needs the P1.7 tables applied live and the P1.13 schema pin) and the admin flag flip. Everything
+here is proven against the fake only.
+
+**For the lead to route (outside this lane's file scope):** BRAIN.md §3/§6/§7 for P2.4/P2.5 (per CLAUDE.md
+§0; `BRAIN.md` was not in the task's file list); DECISIONS.md has the `user_id` rule (appended by this task).
+
 ## 2026-10-05 — P1 Data spine (in progress; PLAN.md §P1)
 
 ### P1.9 Seed content: ingredients — DONE (builder, worktree `wt/b`; not yet committed)

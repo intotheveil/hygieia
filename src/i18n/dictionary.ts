@@ -44,6 +44,23 @@ export interface Dictionary {
   callbackWorking: string
   callbackFailed: string
   backToSignIn: string
+  // user data (P2.4)
+  userDataUnavailableLocal: string
+  userDataSignInToSave: string
+  saved: string
+  save: string
+  remove: string
+  // guards (P2.5)
+  account: string
+  notAllowedTitle: string
+  notAllowedBody: string
+  adminTitle: string
+  adminPlaceholder: string
+  savedPlans: string
+  savedFridgeLists: string
+  favourites: string
+  nothingSavedYet: string
+  loading: string
 }
 
 export const en: Dictionary = {
@@ -109,6 +126,25 @@ export const en: Dictionary = {
   callbackWorking: 'Signing you in…',
   callbackFailed: 'The sign-in link did not work. It may have expired or already been used.',
   backToSignIn: 'Back to sign-in',
+  // user data (P2.4)
+  userDataUnavailableLocal:
+    'This copy of Hygieia runs without an account service, so saving plans, fridge lists and favourites is switched off. Everything else works.',
+  userDataSignInToSave: 'Sign in to save plans, keep fridge lists and mark favourites.',
+  saved: 'Saved',
+  save: 'Save',
+  remove: 'Remove',
+  // guards (P2.5)
+  account: 'Account',
+  notAllowedTitle: 'Not allowed',
+  notAllowedBody: 'This page is for Hygieia reviewers only. Your account does not have that role.',
+  adminTitle: 'Review',
+  adminPlaceholder:
+    'The review tools — approving, rejecting and editing content in both languages — arrive in a later phase (P4). Nothing to do here yet.',
+  savedPlans: 'Saved plans',
+  savedFridgeLists: 'Fridge lists',
+  favourites: 'Favourites',
+  nothingSavedYet: 'Nothing saved yet.',
+  loading: 'Loading…',
 }
 
 export const el: Dictionary = {
@@ -176,6 +212,27 @@ export const el: Dictionary = {
   callbackFailed:
     'Ο σύνδεσμος σύνδεσης δεν λειτούργησε. Ίσως έχει λήξει ή έχει ήδη χρησιμοποιηθεί.',
   backToSignIn: 'Πίσω στη σύνδεση',
+  // user data (P2.4)
+  userDataUnavailableLocal:
+    'Αυτό το αντίγραφο της Υγίειας λειτουργεί χωρίς υπηρεσία λογαριασμών, οπότε η αποθήκευση πλάνων, λιστών ψυγείου και αγαπημένων είναι απενεργοποιημένη. Όλα τα υπόλοιπα λειτουργούν.',
+  userDataSignInToSave:
+    'Συνδέσου για να αποθηκεύεις πλάνα, να κρατάς λίστες ψυγείου και να σημειώνεις αγαπημένα.',
+  saved: 'Αποθηκεύτηκε',
+  save: 'Αποθήκευση',
+  remove: 'Αφαίρεση',
+  // guards (P2.5)
+  account: 'Λογαριασμός',
+  notAllowedTitle: 'Δεν επιτρέπεται',
+  notAllowedBody:
+    'Αυτή η σελίδα είναι μόνο για τους ελεγκτές της Υγίειας. Ο λογαριασμός σου δεν έχει αυτόν τον ρόλο.',
+  adminTitle: 'Έλεγχος περιεχομένου',
+  adminPlaceholder:
+    'Τα εργαλεία ελέγχου — έγκριση, απόρριψη και επεξεργασία περιεχομένου και στις δύο γλώσσες — έρχονται σε επόμενη φάση (P4). Δεν υπάρχει κάτι να κάνεις εδώ ακόμη.',
+  savedPlans: 'Αποθηκευμένα πλάνα',
+  savedFridgeLists: 'Λίστες ψυγείου',
+  favourites: 'Αγαπημένα',
+  nothingSavedYet: 'Δεν έχεις αποθηκεύσει τίποτα ακόμη.',
+  loading: 'Φόρτωση…',
 }
 
 export const dictionaries: Record<Lang, Dictionary> = { el, en }

@@ -67,3 +67,12 @@ export function useAuth(): AuthContextValue {
   if (!ctx) throw new Error('useAuth must be used within <AuthProvider>')
   return ctx
 }
+
+/**
+ * The same value, or null outside the provider. For components that appear on pages which may be
+ * rendered without auth (the header's AccountMenu, per-user hooks) and must then degrade to
+ * "no account service" rather than crash.
+ */
+export function useOptionalAuth(): AuthContextValue | null {
+  return useContext(AuthContext)
+}
