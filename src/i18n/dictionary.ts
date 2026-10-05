@@ -61,6 +61,9 @@ export interface Dictionary {
   favourites: string
   nothingSavedYet: string
   loading: string
+  // content source (P1.13)
+  draftRibbon: string
+  draftRibbonHint: string
 }
 
 export const en: Dictionary = {
@@ -145,6 +148,10 @@ export const en: Dictionary = {
   favourites: 'Favourites',
   nothingSavedYet: 'Nothing saved yet.',
   loading: 'Loading…',
+  // content source (P1.13)
+  draftRibbon: 'Draft — awaiting review',
+  draftRibbonHint:
+    'This content has not been checked by a reviewer yet. It is shown so the app works without a backend; details may change once it is approved.',
 }
 
 export const el: Dictionary = {
@@ -233,6 +240,10 @@ export const el: Dictionary = {
   favourites: 'Αγαπημένα',
   nothingSavedYet: 'Δεν έχεις αποθηκεύσει τίποτα ακόμη.',
   loading: 'Φόρτωση…',
+  // content source (P1.13)
+  draftRibbon: 'Πρόχειρο — εκκρεμεί έλεγχος',
+  draftRibbonHint:
+    'Αυτό το περιεχόμενο δεν έχει ελεγχθεί ακόμη από ελεγκτή. Εμφανίζεται ώστε η εφαρμογή να λειτουργεί χωρίς υπηρεσία δεδομένων· οι λεπτομέρειες μπορεί να αλλάξουν όταν εγκριθεί.',
 }
 
 export const dictionaries: Record<Lang, Dictionary> = { el, en }

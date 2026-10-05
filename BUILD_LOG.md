@@ -241,6 +241,55 @@ fixture rows off real cells (e.g. a fixture-only combination is impossible — a
 
 **Next:** lead merges `wt/a` (do not commit here). When `recipes/group2.ts` or `workouts.ts` lands: `npm run seed:gen && npm run
 seed:check` — the generated files change and must be re-committed with the content. P1.13 (`ContentSource`) and P1.14 are independent.
+## 2026-10-05 — P1.13 `ContentSource` layer: bundled + supabase, schema-pinned client, draft ribbon — DONE (builder, worktree `wt/c`; not yet committed)
+
+**Delivered** (PLAN §1 item 5, task P1.13):
+
+- `src/content/source.ts` — the contract: `ContentSource { kind; listIngredients; listDiets; listRecipes(filter?);
+getRecipe(slug); listExercises; listWorkoutTemplates; getWorkoutTemplate(type, level, intensity); listTips }`, every
+  method `Promise<Result<T>>` (`{ ok, data } | { ok: false, error: 'network' | 'unknown' }`), never throws. Row types =
+  seed + `{ id, status }` (`Ingredient`, `Diet`, `Exercise`, `HealthTip`); `Recipe` adds `lines: { line, ingredient | null }[]`,
+  `WorkoutTemplate` adds `slots: { block, exercise | null }[]`. Because a `Recipe` IS a `RecipeSeed`, the pure engines
+  (fridge matcher, nutrition, cost) take rows unchanged. `filterRecipes` / `matchesRecipeFilter` shared by both impls
+  (`dietSlugs` = union; empty/absent = all).
+- `src/content/bundled.ts` — `createBundledSource(seeds)` + `bundledSource` over the real seed modules; every row
+  `status: 'pending'`, `id = seedId(table, slug) = hexToUuid(md5('hygieia:<table>:<slug>'))` — byte-equal to the
+  migration's `md5(...)::uuid`. Lines/slots resolved by slug once, lazily. Imports `./seed/workouts.ts`, which did NOT
+  exist: added as a `// STUB — replaced at merge` module exporting `WORKOUT_TEMPLATES: readonly WorkoutTemplateSeed[] = []`
+  (same pattern as the recipes group stubs; the P4.8 lane's file replaces it).
+- `src/content/md5.ts` — pure-TS RFC 1321 MD5 (`md5`, `md5Bytes`, `hexToUuid`), no dependency (Web Crypto has no MD5).
+- `src/content/supabase.ts` — `supabaseSource(client)` / `supabaseSourceFor(adapter)`; every query carries
+  `.eq('status', 'approved')` (defence in depth over RLS), embeds `recipe_ingredients(*, ingredient:ingredients(*))`,
+  `recipe_diets(diet:diets(slug))`, `workout_template_exercises(*, exercise:exercises(*))`; `getRecipe`/`getWorkoutTemplate`
+  via `maybeSingle()`. Typed adapter `contentClientFor` (same TS2589 avoidance as `profileClientFor`). Rows parsed
+  defensively by `Spec<T>` (a `Kind` per key; `numeric` accepted as number or numeric string); a bad row → `unknown`;
+  thrown `TypeError` / code-less error → `network`; children sorted by `position`; hidden child embed → `null`.
+- `src/content/db-types.ts` — `Database` for schema `hygieia`: Row/Insert/Update + Relationships for all 13 §2 tables
+  (content, children, profiles, per-user, `schema_migrations`), columns transcribed from the four migrations.
+- `src/content/index.ts` — `contentSource = appEnv.mode === 'configured' && supabase ? supabaseSource(supabase) : bundledSource`.
+- `src/lib/supabase.ts` — `CLIENT_OPTIONS.db = { schema: 'hygieia' }`; `createClient<Database, 'hygieia'>(…)`. **The fully
+  typed client compiles against `auth/profile.ts` and `user/supabase.ts` unchanged** — no fallback to an untyped client.
+- `src/components/DraftRibbon.tsx` — `<DraftRibbon kind status?>` + `isDraft()`; renders `role="note"` with `draftRibbon`
+  - `draftRibbonHint` when `kind === 'bundled'` or `status !== 'approved'`; nothing for an approved row / no row under supabase.
+- `src/i18n/dictionary.ts` — `draftRibbon` ("Draft — awaiting review" / "Πρόχειρο — εκκρεμεί έλεγχος"), `draftRibbonHint`,
+  appended at the end under `// content source (P1.13)`.
+- Tests: `src/content/md5.test.ts` (24 node-crypto vectors incl. padding boundaries + UTF-8), `src/content/source.test.ts`
+  (bundled ≥ 160/8/40, EVERY recipe line resolves, ids match the formula with a hand-computed vector, vegan filter, unknown
+  slug → `ok(null)`, fixture source for workouts/unresolved slugs/union filter; supabase fake recording the exact
+  `from().select().eq()…maybeSingle()` chain: approved on every list, embed strings, key filters, row mapping incl. hidden
+  ingredient, TypeError → `network`, coded error → `unknown`, malformed row → `unknown`; contract "never rejects" for both),
+  `src/components/DraftRibbon.test.tsx` (both strings per language; nothing for approved/supabase), `src/lib/supabase.test.ts`
+  (`CLIENT_OPTIONS.db.schema === 'hygieia'`, PKCE kept, `clientFor` local → null).
+
+**Gates (2026-10-05, in `wt/c`):** `npm run lint` 0 errors (7 pre-existing-pattern react-refresh warnings, one new for `isDraft`
+exported beside the component — same pattern as `LangProvider`) · `npm run typecheck` clean · `npm test` **30 files, 1414 tests
+green** · `npm run build` green (chunk-size warning is pre-existing; seed data is NOT in the bundle — nothing imports
+`contentSource` yet) · `npm run check:pwa` OK.
+
+**Notes for the lead:** (1) `src/content/seed/workouts.ts` is a stub to be REPLACED by the P4.8 file at merge, like the recipes
+group stubs. (2) BRAIN.md §5 candidates (not edited — out of this task's scope): "Database Row/Insert types must be `type`
+aliases, not `interface`s, or supabase-js collapses `Insert` to `never`"; "`src/**` tests have no node types — no `node:crypto`
+in Vitest jsdom tests, pin vectors instead". (3) `listRecipes` diet filter is a UNION (DECISIONS.md) — P3.1 should match.
 
 ## 2026-10-05 — P6.2 Bundle secret scan `npm run check:bundle` — DONE (builder, worktree `wt/e`; not yet committed)
 

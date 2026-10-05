@@ -163,3 +163,27 @@ effect`) and asserts A's rows unchanged — instead of adding new checks — bec
   "not seeded yet" note — the assertion binds the moment the module lands.
 - **The generator is forward-compatible on purpose.** All six kinds are implemented now, though P4.8/P4.9 nominally "add" them,
   so those tasks only author content and run `seed:gen`; they do not touch the generator.
+## 2026-10-05 — P1.13 ContentSource: md5 in pure TS, same-row types for the client, union diet filter
+
+- **Seed ids are computed in the browser with a ~100-line pure-TS MD5** (`src/content/md5.ts`), not a
+  dependency and not Web Crypto (which has no MD5). PLAN §1.6 fixes `id = md5('hygieia:<table>:<slug>')::uuid`
+  and the bundled source must hand out the SAME ids as the seed migration so a favourite or saved plan made
+  against one source resolves against the other. `md5.test.ts` pins the implementation to 24 vectors computed
+  with node `crypto` (RFC §A.5, UTF-8 Greek, astral emoji, every padding boundary). MD5 here is an id
+  derivation, never a security primitive.
+- **The client is typed with `Database` for schema `hygieia`** (`createClient<Database, 'hygieia'>`,
+  `src/content/db-types.ts`, hand-maintained from the migrations). Rows are `type` aliases, NOT `interface`s:
+  supabase-js constrains `Row`/`Insert` to `Record<string, unknown>`, which interfaces do not satisfy (no
+  implicit index signature) — with interfaces `Insert` silently collapses to `never` and every `.insert(values)`
+  fails to compile. P2.3/P2.4's adapters compiled unchanged against the typed client; no fallback needed.
+- **The ContentSource talks through a typed adapter (`contentClientFor`) with `data: unknown`** and parses rows
+  with a per-table `Spec<T>` (one `Kind` per key, enforced by the type) rather than relying on PostgREST's
+  select-string typing: embeds (`recipe_ingredients(*, ingredient:ingredients(*))`) would need `Relationships`
+  typing that is fragile and TS2589-prone, and a runtime check catches a drifted column where a type cannot.
+- **`listRecipes({ dietSlugs })` is a UNION** (tagged with at least one) and is applied client-side in both
+  sources after the approved list is fetched: a PostgREST `!inner` filter on the embed would also truncate the
+  recipe's own `diet_slugs` to the matching tags. P3.1's `?diet=a,b` relies on this.
+- **A child whose parent-side row is hidden stays visible as `ingredient: null` / `exercise: null`**, keyed by
+  the FK id in `ingredient_slug` / `exercise_slug`, rather than being dropped: an approved recipe over a still-
+  pending ingredient is an admin-ordering state the UI should show honestly (the fridge matcher already
+  reports such slugs under `unknown`).
