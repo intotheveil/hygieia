@@ -3,6 +3,87 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+### P1.QA + P2.QA — 2026-10-06 — VALIDATED (every local P1/P2 criterion PASS) — plus ONE out-of-gate FAIL for the lead: `e2e/local/offline.spec.ts` is deterministically red on `main` (P5.4 scope; CI runs it, so `main` is red in CI)
+
+**Independent QA (agent `qa`, not a builder).** Fresh clone `git clone https://github.com/intotheveil/hygieia` → scratchpad `hygieia-qa` at **`fb171c7`**
+(= remote `main` = `D:/projects/hygieia` HEAD, clean tree); `npm ci` exit 0 (node v24.11.1 / npm 11.6.2). Nothing under `D:/projects/hygieia` was touched except
+this entry. Every line below was produced by me in the clone; nothing is taken from a builder's claim. The shell had no `SUPABASE_ACCESS_TOKEN` /
+`HYGIEIA_SUPABASE_PROJECT_REF` / `VITE_SUPABASE_*` set (verified before the env-unset checks).
+
+**P1.QA.1 / P2.QA.1 — G1+ chain on the fresh clone (verdict lines verbatim):**
+- `npm run lint` → `✖ 21 problems (0 errors, 21 warnings)` (all `react-refresh/only-export-components`), exit 0 — PASS
+- `npm run typecheck` → `tsc -b` silent, exit 0 — PASS
+- `npm test` → `Test Files  60 passed (60)` · `Tests  3123 passed (3123)` · `Duration 28.12s` — PASS
+- `npm run build` → `✓ built in 384ms` · `dist/assets/index-D1L_Jn9Y.js 1,204.32 kB │ gzip: 305.13 kB` · `precache 42 entries (2029.34 KiB)` — PASS
+- `npm run check:pwa` → `check:pwa OK — Hygieia · Υγίεια, 3 icons, sw.js present` — PASS
+- `npm run check:bundle` → `check:bundle: OK, no secret-looking value or server-only name in 10 files (1261461 bytes) in dist` — PASS
+- `npm run db:check` → `PASS  migration guard: 10 migration(s) stay inside schema hygieia` — PASS
+- `npm run db:gate` → `GATE PASSED — 227 checks green: migrations apply (twice) on a fresh copy of the shared project; the structural sweep, catalogue coverage, orphan scan and isolation + role matrix hold; Alyssos is untouched.` (228 `PASS` lines, 0 `FAIL`, exit 0) — PASS
+- `npm run seed:check` → `seed:check: OK — 6 seed migration(s) identical to the generator's output` — PASS
+- `PROVE_RED_JOBS=4 npm run db:gate:prove-red` → `PROVE-RED PASSED — 25/25 sabotages went RED on the expected FAIL line; control GREEN. Wall 21.7s (4 jobs).` — PASS
+- `npm run e2e` (after `npx playwright install chromium`) → **`1 failed` / `7 passed (18.3s)`**: the 7 smoke specs green, `offline.spec.ts:74` red. NOT a P1/P2 criterion (e2e is G3, from P3.6; the red spec is P5.4's) — detail in the last paragraph.
+
+**P1.QA.2 — `db:gate` lines (verbatim, trimmed). The true table count is 14, not the plan text's 13:**
+- `PASS  RLS is enabled on every hygieia table (14)`
+- fridge_lists: `UB reads ZERO rows of A — 0 rows` · `UB's INSERT of a row of A is refused — {"ok":false,"error":"permission denied for table fridge_lists"}` · `UA reads all of A's rows — 1/1`
+- saved_plans: `UB reads ZERO rows of A — 0 rows` · `UB's INSERT of a row of A is refused — … permission denied for table saved_plans` · `UA reads all of A's rows — 1/1`
+- favourites: `UB reads ZERO rows of A — 0 rows` · `UB's INSERT of a row of A is refused — … permission denied for table favourites` · `UA reads all of A's rows — 1/1`
+- profiles: `UB reads ZERO rows of A (UA's profile) — 0 rows` · `UA's update of is_admin is refused (no column grant) — … permission denied for table profiles` · `anon cannot execute hygieia.is_admin()` · `authenticated holds no INSERT or UPDATE privilege on is_admin`
+- anon reads, every content table (`PASS  hygieia.<t>: anon reads exactly N approved rows and 0 pending`): ingredients `N = 2 approved of 325; read 2, pending 0` · diets `N = 1 approved of 18; read 1, pending 0` · recipes `N = 1 approved of 154; read 1, pending 0` · exercises `N = 1 approved of 138; read 1, pending 0` · workout_templates `N = 1 approved of 63; read 1, pending 0` · health_tips `N = 1 approved of 77; read 1, pending 0`
+- every content table (×6): `UA's status update has no effect — {"o":{"ok":true,"affected":0},"blind":{"ok":true,"affected":0}}` and `ADMIN's status update takes effect and is stamped (reviewed_by = ADMIN, reviewed_at > fixture) — {… "status":"approved","reviewed_by":"00000000-0000-4000-8000-0000000000ad","later":true,"touched":true}`
+- `PASS  orphan scan: zero dangling references over every hygieia foreign key — 18 FKs clean`
+- `PASS  zero objects in public/auth/supabase_migrations changed (relations, policies, functions, triggers, spatial_ref_sys RLS)` · `PASS  no trigger on auth.users`
+- seed counts: ingredients `>= 160 … — 322 seeded rows` · diets `>= 8 … — 16 seeded rows` · recipes `>= 40 … — 152 seeded rows` · exercises `>= 60 … — 136 seeded rows` · `workout_templates: seeded rows (slug not like 'fx-%') = 63 … — 63 seeded rows` · health_tips `>= 30 … — 75 seeded rows`
+- seed-id rule, every content table: `every row id = md5('hygieia:<table>:' || slug)::uuid (seed-id rule) — <n> rows checked, 0 off-formula` (325 / 18 / 154 / 138 / 63 / 77)
+- all 10 files `applied`, then `PASS  re-apply … (idempotent-safe)` ×10 — PASS
+
+**P1.QA.3 — prove-red:** `GREEN       control — the untouched archive copy: exit 0, GATE PASSED, 228 PASS (4.0s)`; 25 × `RED ok      <sabotage> — exit 1, … expected matched`
+(recipes-select-true-anon, fridge-lists-select-true, saved-plans-update-true, favourites-delete-true, recipe-ingredients-select-true, favourites-rls-disabled, is-admin-update-grant,
+is-admin-returns-true, execute-is-admin-to-anon, is-admin-revoke-deleted, drop-stamp-review-trigger, definer-no-search-path, definer-search-path-public, definer-search-path-pg-temp,
+anon-insert-recipes, ledger-select-to-authenticated, public-table, auth-users-trigger, orphan-table-no-catalogue, table-dropped-stale-entry, view-owner-rights, enum-mismatch,
+seed-random-id, not-idempotent, apply-error) → `PROVE-RED PASSED` — PASS
+
+**P1.QA.4 — env unset:** `npm run db:apply` → `db:apply: missing env SUPABASE_ACCESS_TOKEN and HYGIEIA_SUPABASE_PROJECT_REF. Export SUPABASE_ACCESS_TOKEN (a Supabase personal access token) and HYGIEIA_SUPABASE_PROJECT_REF in the shell; no .env file is read and nothing is sent.` **exit 2** — PASS.
+No-network proof: `scripts/db-apply.test.ts:175` `'exits 2 and sends nothing when %s is missing'` (both / the token / the ref) asserts `expect(r.api.calls).toHaveLength(0)`; run alone → 3/3 ✓.
+`npm run db:live-check` → `LIVE-CHECK SKIPPED — missing: SUPABASE_ACCESS_TOKEN, HYGIEIA_SUPABASE_PROJECT_REF, VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY. … Skipped is NOT passed … Nothing was sent.` exit 0 — PASS
+
+**P1.QA.5 — seed drift:** baseline `OK` exit 0 → edited `src/content/seed/diets.ts:19` `name_en: 'Mediterranean diet'` → `'QA-MUTATED Mediterranean diet'` →
+`seed:check: differs  20261006000600_hygieia_seed_diets.sql (run npm run seed:gen)` · `seed:check: FAIL — 1 file(s) out of step with src/content/seed` **exit 1** → `git checkout -- .` → `OK` again — PASS.
+(A first attempt mutated `diets.test.ts` by mistake and correctly did NOT trip the check; redone against the data file.)
+
+**P1.QA.6 —** `git grep -n` for the three forbidden phrases (`supabase db push`, `supabase link`, `supabase db reset`) over `scripts .github` → only `scripts/db-apply.mjs:7` — the comment that FORBIDS them (`// (no supabase db push, link, db reset or migration * — ADR-0003 rule 1)`) — PASS
+
+**P1.QA.7 — dev shell:** `npm run dev -- --host 127.0.0.1 --port 5173 --strictPort` → `VITE v8.3.2 ready in 286 ms`; `curl -i http://127.0.0.1:5173/hygieia/` → `HTTP/1.1 200 OK`, `Content-Type: text/html`,
+body has `<html lang="el">`, `<title>Hygieia · Υγίεια</title>`, `<div id="root"></div>`, `<script type="module" src="/hygieia/@vite/client">`; `/hygieia/el/` → 200; server killed, port refused afterwards — PASS.
+Console-error half: no browser here; covered by the 7 green smoke specs on the production build (`e2e/support/fixtures.ts:37` fails any test that logged a console/page error), incl.
+`/ renders the Greek shell: hero H1, lang="el"`, `the language toggle switches to English … survives a reload`, `an English browser › gets the English shell by default` — PASS
+
+**P2.QA.2 — cross-tenant:** the fridge_lists / saved_plans / favourites / profiles lines above all PASS; `npx vitest run scripts/db-isolation.test.ts` → `Test Files 1 passed` · `Tests 61 passed (61)` — PASS
+**P2.QA.3a — session persists (unit):** `src/auth/AuthProvider.test.tsx` › `keeps the session persisted and the PKCE flow on (CLIENT_OPTIONS contract)` (asserts `CLIENT_OPTIONS.auth.persistSession` is `true`, line 85) and `seeds from the persisted session before any event arrives` (fake `getSession()` → `signed-in`); also `src/lib/supabase.test.ts` › `keeps the PKCE auth settings`. Run alone (with `db-apply.test.ts`): 3 files / 45 tests green — PASS
+**P2.QA.3b — built app: sign in, reload, still signed in:** NOT RUN — operator (OPERATOR-P2)
+**P2.QA.4a — role gating (gate + unit):** gate lines `UA's status update has no effect` ×6 and `ADMIN's status update takes effect and is stamped` ×6 PASS; `npx vitest run src/auth/guards.test.tsx` → `Tests 29 passed (29)` — PASS
+**P2.QA.4b — live `/admin` for the operator, 403 for a second account:** NOT RUN — operator (OPERATOR-P2)
+**P2.QA.5 — `LIVE-CHECK PASSED` on the operator machine:** NOT RUN — operator (OPERATOR-P2). The no-env half (`SKIPPED` listing four names, exit 0) PASSED above.
+**P2.QA.6 — both sign-in methods live:** NOT RUN — operator (OPERATOR-P2)
+**P2.QA.7 —** after the build: `git grep -nE "@gmail|service_role|sbp_" -- src dist` → no match (exit 1); plain `grep -rcoE` over the untracked `dist/` → 0 files with a match; `git grep` for any email literal in non-test `src/` → nothing — PASS
+
+**RED-verify, done independently of the builders:** added `supabase/migrations/20261006009999_hygieia_qa_sabotage.sql` (`drop policy if exists fridge_lists_select_own …; create policy fridge_lists_select_own on hygieia.fridge_lists for select to authenticated using (true);`)
+→ `npm run db:gate` → `FAIL  hygieia.fridge_lists: UB reads ZERO rows of A — 1 rows` · `GATE FAILED — 1 check(s) red, 227 green.` **exit 1**; file deleted, `git status` clean — PASS (the gate sees a real leak).
+
+**Verdict: P1.QA VALIDATED · P2.QA VALIDATED on every local criterion; items 3b / 4b / 5 / 6 await OPERATOR-P2 and are recorded as NOT RUN, never as passed.**
+Cosmetic, not a criterion: the gate verdict says `227 checks green` while 228 `PASS` lines print (one PASS line — the fixture seed — is not counted as a check); prove-red's control reports `228 PASS`. For the builder's attention only.
+
+**OUT-OF-GATE FAIL — for the lead (G3 / P5.4 scope; `.github/workflows/deploy.yml` runs `npm run e2e` on every push, so `main` at `fb171c7` is red in CI):**
+`e2e/local/offline.spec.ts:74 › the app installs a service worker, then works offline` fails at step `1. online load: a service worker controls the page on the FIRST load (clientsClaim)`:
+`Error: a service worker controls the page · Expected: true · Received: false · Timeout 10000ms exceeded`. **Deterministic:** `E2E_PREBUILT=1 npx playwright test e2e/local/offline.spec.ts --repeat-each 3` → `3 failed`.
+**Root cause (proven, not inferred):** the built `dist/sw.js` contains `self.skipWaiting()` but **no `clientsClaim()`**. vite-plugin-pwa 2.0.0 (`node_modules/vite-plugin-pwa/dist/index.js:874-877`) sets `workbox.clientsClaim = true`
+only when `(injectRegister === "auto" || injectRegister == null) && registerType === "autoUpdate"`; commit **`a94daa9`** (P5.3 Lighthouse) added `injectRegister: 'script-defer'` to `vite.config.ts`, which silently switched the auto-claim off.
+Building the clone with `a94daa9~1`'s `vite.config.ts` → `sw.js` has `e.clientsClaim()`; with HEAD's → absent. Diagnostic in the scratch clone only (restored after): adding `clientsClaim: true` under `workbox:` (next to `navigateFallback`)
+→ rebuild → `sw.js` has `e.clientsClaim()` → the spec passes `2 passed (1.8s)` (993 ms / 980 ms). **Suggested fix for the builder:** set `workbox.clientsClaim: true` (and, to be explicit, `skipWaiting: true`) in `vite.config.ts`, re-run `npm run e2e`.
+The P5.3 entry's claim that the SW "calls skipWaiting() + clientsClaim()" was true before `a94daa9` only; no entry after `a94daa9` records an `npm run e2e` run that included `offline.spec.ts`.
+Gotcha: a stray `pages-server` on 4173 survived the failed run on Windows and had to be killed before the re-run (`reuseExistingServer: false` then refuses to start with "already used").
+
+
 ## 2026-10-06 — P4.3 Recipe page: nutrition + cost panels — DONE (builder, worktree `wt/f`; not committed — the lead merges)
 
 **Delivered.**

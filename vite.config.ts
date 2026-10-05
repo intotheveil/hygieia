@@ -78,6 +78,10 @@ export default defineConfig({
       workbox: {
         // woff2: the self-hosted font subsets; webp: the hero variants (scripts/brand.mjs).
         globPatterns: ['**/*.{js,css,html,svg,png,jpg,webp,woff2,webmanifest}'],
+        // Explicit, because `injectRegister: 'script-defer'` (P5.3) switches off the plugin's implicit
+        // clientsClaim for autoUpdate — found by P1.QA: offline.spec.ts went red (no SW controlled the page).
+        clientsClaim: true,
+        skipWaiting: true,
         navigateFallback: '/hygieia/index.html',
       },
     }),
