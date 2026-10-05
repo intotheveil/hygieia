@@ -28,7 +28,7 @@ export interface WorkoutsDictionary {
   rest: string
   duration: string
   /** Suffix after the duration figure: "25 min". */
-  minutes: string
+  minutesUnit: string
   equipment: string
   bodyweight: string
   showCue: string
@@ -72,7 +72,7 @@ export const workoutsEn: WorkoutsDictionary = {
   seconds: 's',
   rest: 'rest',
   duration: 'Duration',
-  minutes: 'min',
+  minutesUnit: 'min',
   equipment: 'Equipment',
   bodyweight: 'Bodyweight only — no equipment needed',
   showCue: 'Coaching cue',
@@ -116,7 +116,7 @@ export const workoutsEl: WorkoutsDictionary = {
   seconds: 'δευτ.',
   rest: 'ξεκούραση',
   duration: 'Διάρκεια',
-  minutes: 'λεπτά',
+  minutesUnit: 'λεπτά',
   equipment: 'Εξοπλισμός',
   bodyweight: 'Μόνο με το βάρος του σώματος — χωρίς εξοπλισμό',
   showCue: 'Οδηγία εκτέλεσης',

@@ -14,10 +14,17 @@ const SAME_VALUE_ALLOWLIST: readonly string[] = [
   'calisthenics',
   'keto',
   'paleo',
+  // Units are written Latin-script in Greek too ("320 kcal").
+  'kcal',
+  'ml',
 ]
 
 /** Keys whose `en` leaf may carry Greek script: the switcher names the other language in its own script. */
-const GREEK_IN_EN_ALLOWLIST_KEYS: readonly string[] = ['switchTo']
+const GREEK_IN_EN_ALLOWLIST_KEYS: readonly string[] = [
+  'switchTo',
+  // The fridge search hint shows one example in each script, in both languages.
+  'searchIngredientsPlaceholder',
+]
 
 /** Keys whose `el` leaf may carry no Greek script at all (the mirror of the rule above). */
 const LATIN_IN_EL_ALLOWLIST_KEYS: readonly string[] = ['switchTo', 'types.calisthenics']

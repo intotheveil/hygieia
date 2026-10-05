@@ -16,7 +16,7 @@ import {
 } from '../content/index.ts'
 import { useLang } from '../i18n/LangProvider'
 import type { Lang } from '../i18n/dictionary'
-import { useAsync } from '../lib/useAsync'
+import { useAsyncResult } from '../lib/useAsync'
 import { PlanView } from '../plans/PlanView'
 import { NotFound } from '../routes/routes'
 import { dietName, dietSummary } from './DietsPage'
@@ -72,7 +72,7 @@ export function DietPage({ source = contentSource }: { source?: ContentSource })
   const { t, lang } = useLang()
   const { slug = '' } = useParams<{ slug: string }>()
   const load = useCallback(() => loadDiet(source, slug), [source, slug])
-  const { state, reload } = useAsync(load)
+  const state = useAsyncResult(load)
 
   if (state.status === 'loading') {
     return (
@@ -83,14 +83,14 @@ export function DietPage({ source = contentSource }: { source?: ContentSource })
       </main>
     )
   }
-  if (!state.value.ok) {
+  if (state.status === 'error') {
     return (
       <main className={SHELL}>
         <div role="alert" className="flex flex-col items-start gap-3 text-olive-900">
           <p>{t.loadFailed}</p>
           <button
             type="button"
-            onClick={reload}
+            onClick={state.reload}
             className="rounded-full bg-olive-900 px-4 py-1.5 text-sm font-medium text-paper-50 hover:bg-olive-700"
           >
             {t.retry}
@@ -99,7 +99,7 @@ export function DietPage({ source = contentSource }: { source?: ContentSource })
       </main>
     )
   }
-  const { diet, recipes, ingredients } = state.value.data
+  const { diet, recipes, ingredients } = state.data
   if (diet === null) return <NotFound />
 
   return (

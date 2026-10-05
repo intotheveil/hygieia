@@ -284,6 +284,67 @@ assertions become `mediterranean` (diet_id fallback label) + `Week of 5 October 
 
 **Next:** P3.5 wires `/diets`, `/diets/:slug` into `routes.tsx` + header nav and may swap the recipe link list for `RecipeCard`;
 `e2e/local/diets.spec.ts` (P4.12). BRAIN.md §3/§6 left for the lead's merge (not merge=union).
+## 2026-10-06 — P3.1 recipes list `/recipes` + P3.2 recipe detail `/recipes/:slug` (UI halves) — DONE (builder, worktree `wt/c`; not yet committed)
+
+**Scope:** the React halves of P3.1/P3.2 on top of the pure `src/recipes/filter.ts` (wt/b) and the P1.13 `ContentSource`.
+Routes and navigation are NOT wired (P3.5): the pages are exported and tested under `MemoryRouter` + `Routes`.
+`src/routes/routes.tsx`, `src/App.tsx` and `src/i18n/dictionary.ts` were not touched.
+
+**New:** `src/recipes/RecipesPage.tsx` (`<RecipesPage source?>`, default `contentSource`) — diet chips from `listDiets()`, meal
+chips from `MEAL_TYPES`, title search (`<label>` + `type="search"`), filter state in the URL via `useSearchParams` round-tripped
+through `parse/serializeRecipeFilterParams` (`knownDietSlugs` = the loaded catalogue, so `?diet=unicorn` is dropped); chips are
+`aria-pressed` buttons (chip clicks push history, typing replaces); the typed query is kept VERBATIM in `?q=` (serialize trims,
+which would eat a trailing space mid-phrase); result count (`role="status"`), "clear filters" only when something narrows,
+loading / error (`role="alert"` + retry) / empty states, `DraftRibbon kind`, grid `<ul aria-label>` of `RecipeCard`s.
+`src/recipes/RecipeCard.tsx` — `<li>` with `<h2><Link to=/recipes/:slug>` (stretched link), portions · minutes · meals, diet
+chips by localized name. `src/recipes/RecipePage.tsx` — title, meta, `DraftRibbon kind status`, diet chips as `<Link>`s to
+`/recipes?diet=<slug>` (built with `serializeRecipeFilterParams`; `/diets/:slug` arrives P4.4), ingredients `<ul>` via
+`formatRecipeLine`, steps `<ol>`, back link, `FavouriteButton` through `useUserData().favourites` (`aria-pressed`; a click on a
+disabled source shows `SignedOutNote`; the button is never `disabled` so the explanation is reachable), unknown slug →
+the existing `NotFound` imported from `src/routes/routes.tsx`. `src/recipes/format.ts` — `formatQuantity(q, lang)` (¼ ½ ¾ glyphs,
+`1½`, else ≤2 decimals via `Intl.NumberFormat` `el-GR`/`en-GB`: `0,1` / `0.1`), `formatUnit` (dictionary `units.<Unit>` plural
+forms, singular for `0 < q <= 1`), `ingredientName` (slug fallback for a hidden ingredient), `lineNote`, `dietName`,
+`formatLine` / `formatRecipeLine` → `200 g Feta`, `2 pieces Egg`, `400 γρ. Λευκά φασόλια (ξερά)`.
+`src/i18n/fill.ts` — `fill(template, vars)` (`{n}` placeholders; unknown placeholder stays visible), `PluralForms {one, other}`
+(CLDR categories for BOTH el and en), `pluralForm`, `plural`. `src/lib/useAsync.ts` — `useAsync(fn)` stores ONLY the settled
+outcome tagged with (`fn` identity, attempt); "loading" is derived, so no `setState` in an effect; `fn` is invoked on a microtask
+(a sync throw is a `failed` outcome, not a sync `setState`); `retry()`; stale promises ignored. Callers pass a `useCallback` fn —
+the exhaustive-deps lint stays where the deps are. `src/i18n/features/recipes.ts` — `RecipesDictionary` + `recipesEn`/`recipesEl`:
+`recipesTitle recipesIntro filterByDiet filterByMeal searchRecipes resultsCount{one,other} noRecipesMatch clearFilters
+portions{one,other} minutes{one,other} loadFailed retry ingredients steps dietTags mealTypes addToFavourites removeFromFavourites
+favouriteFailed units:Record<Unit,PluralForms> meals:Record<MealType,string>` (el: `γρ.` `ml` `τεμάχιο/τεμάχια` `κ.σ.` `κ.γ.`
+`φέτα/φέτες` `σκελίδα/σκελίδες` `ματσάκι/ματσάκια`; `Εκτέλεση` for steps). `loading` was NOT added — `BaseDictionary` already has it.
+
+**Edited:** `src/i18n/features/index.ts` (one import, `FeatureDictionary extends RecipesDictionary`, one spread per language —
+the `no-empty-object-type` disable STAYS with a reason: with a single supertype the rule still fires; the second lane deletes it).
+`src/recipes/filter.ts`: `filterRecipes`/`sortRecipes` made generic `<R extends RecipeSeed>(…): R[]` so a `Recipe` row keeps
+`id`/`status`/`lines` through the filter (backwards-compatible; `filter.test.ts` unchanged and green).
+
+**Tests (42 new; suite 46 files / 2168 tests):** `RecipesPage.test.tsx` (9) — 152 cards (≥ 120) linking to `/recipes/<slug>`,
+ribbon, card meta; keto chip → only the 48 keto recipes and `?diet=keto`, un-toggle restores; URL arrival
+`?diet=keto,vegan&meal=breakfast&q=egg` pre-presses chips and narrows; `φασολ` (el) finds `Φασολάδα` accent-insensitively
+(7 results, matches `normalizeForSearch`) and writes `?q=`; trailing space survives; empty state + clear in BOTH languages;
+failing injected source → `loadFailed`, retry calls `listRecipes` again (1 → 2) and the list appears; junk URL tokens dropped.
+`RecipePage.test.tsx` (7) — `fasolada-white-bean-soup` in el and en: title, meta, every line equals `formatRecipeLine`, unit
+label is the dictionary's (`400 γρ.` / `400 g`), steps in order, diet chip → `/recipes?diet=mediterranean`, ribbon; unknown slug
+→ not-found copy (both languages); favourite click with no `AuthProvider` → `userDataUnavailableLocal` (both languages), still
+`aria-pressed=false`; failing `getRecipe` → alert + retry (1 → 2); hidden ingredient renders as its slug. `format.test.ts` (16),
+`useAsync.test.tsx` (4: resolve, reject + sync throw, retry, stale ignored), `fill.test.ts` (6).
+
+**Gates (worktree `wt/c`, 2026-10-06):** `npm run typecheck` clean · `npm run lint` → `✖ 7 problems (0 errors, 7 warnings)`
+(all 7 are pre-existing `react-refresh/only-export-components` warnings in AuthProvider/DraftRibbon/LangProvider/routes) ·
+`npm test` → `Test Files 1 failed | 45 passed (46)`, `Tests 3 failed | 2165 passed (2168)` — the 3 failures are
+`scripts/gen-seed-sql.test.ts` (`differs 20261006000700_hygieia_seed_recipes.sql`, `missing 20261006000900_hygieia_seed_workouts.sql`),
+PRE-EXISTING on this branch: proven by `git stash -u` → same 3 fail → `git stash pop`; `npm run seed:check` says the same; no
+seed or migration file is touched by this task · `npm run build` → `✓ built in 221ms`, PWA `precache 24 entries` (the
+">500 kB chunk" warning also pre-exists: bundled seed content) · `npm run check:pwa` → `check:pwa OK — Hygieia · Υγίεια, 3 icons, sw.js present`
+· Prettier clean on every new/edited file.
+
+**Not done / next:** P3.5 wires `/recipes` and `/recipes/:slug` into `routes.tsx` + nav. Note for P3.5: `RecipePage` imports
+`NotFound` from `routes.tsx`, so adding the route creates an import cycle (`routes → RecipePage → routes`) — harmless at runtime
+(`NotFound` is used at render time, not module-eval) but P3.5 may prefer to lift `NotFound` into `src/routes/NotFound.tsx`.
+The seed-migration drift (`seed:check` FAIL) belongs to whoever owns P1.12's seed files on `main`. `BRAIN.md` not edited by this
+lane (the lead owns the cross-lane cockpit); the facts above are the input for its §3/§6.
 
 ## 2026-10-05 — P3.1 `filterRecipes` + P3.4 `fridge/storage.ts` (PURE halves, pulled forward) — DONE (builder, worktree `wt/b`; not yet committed)
 

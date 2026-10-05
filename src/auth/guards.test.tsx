@@ -102,9 +102,13 @@ describe('RequireAuth at /account', () => {
       },
     })
     renderAt('/account', fake.client)
-    expect(await screen.findByText('2026-10-05 · mediterranean')).toBeInTheDocument()
+    // A plan shows the diet's name when its id resolves in the catalogue, else the raw diet_id,
+    // over a "Week of <date>" line; a fridge list shows its name over "N items".
+    expect(await screen.findByText('mediterranean')).toBeInTheDocument()
+    expect(screen.getByText(`${en.weekOf} 5 October 2026`)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('tab', { name: en.savedFridgeLists }))
-    expect(screen.getByText('Weekend (2)')).toBeInTheDocument()
+    expect(screen.getByText('Weekend')).toBeInTheDocument()
+    expect(screen.getByText(`2 ${en.itemCount}`)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('tab', { name: en.favourites }))
     expect(screen.getByText('greek-salad')).toBeInTheDocument()
     // Reads only: the page never wrote anything, and nothing carried user_id.

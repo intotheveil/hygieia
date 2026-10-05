@@ -245,3 +245,23 @@ effect`) and asserts A's rows unchanged — instead of adding new checks — bec
   keys across feature modules merge harmlessly (later spread wins); differing types would be a TS error at the composition point.
 - **2026-10-06 (P4.6) — `src/lib/useAsync.ts` stores only the SETTLED outcome tagged with (loader, attempt)**; "loading" is derived, so
   no state is set synchronously inside an effect (react-hooks `set-state-in-effect`) and a stale result never shows for a new key.
+## 2026-10-06 — P3.1/P3.2 UI: async outcome as state, plural forms in the dictionary, URL keeps the raw query
+
+- **`useAsync(fn)` keys on the `fn` identity, not a `deps` array.** `react-hooks/set-state-in-effect` is an error here, so the
+  hook stores only the settled outcome tagged with (`fn`, attempt) and DERIVES "loading"; `fn` runs on a microtask so even a
+  synchronous throw is recorded asynchronously. Callers memoise with `useCallback(…, deps)`, which keeps `exhaustive-deps`
+  on the caller where the real dependencies are visible (a `deps` passthrough would need a lint disable inside the hook).
+- **Counted strings are `PluralForms { one, other }` + `fill('{n}')`, not functions in the dictionary.** Both Greek and English
+  have exactly these two CLDR categories, so one rule serves both; dictionary entries stay literals the type checks (ADR-0002)
+  and `dictionary.test.ts`'s leaf walk still sees every string. `one` also covers `0 < q < 1` ("½ piece", "½ ματσάκι").
+- **Unit labels live in the dictionary (`units.<Unit>`), keyed by the enum.** A new `Unit` literal is a type error in
+  `recipes.ts`, not an English abbreviation leaking into Greek. Greek: `γρ.`, `ml`, `τεμάχιο/α`, `κ.σ.`, `κ.γ.`, `φέτα/ες`,
+  `σκελίδα/ες`, `ματσάκι/α`.
+- **The recipes list writes the typed query to `?q=` verbatim** (after `serializeRecipeFilterParams`, which trims): otherwise a
+  trailing space is eaten on every keystroke and a two-word search cannot be typed. `parse` still trims for filtering.
+- **Diet chips on the detail page link to `/recipes?diet=<slug>` for now** (built with the codec, not a string template);
+  P4.4 retargets them to `/diets/:slug`.
+- **`filterRecipes` / `sortRecipes` are generic over `R extends RecipeSeed`** so a `Recipe` row keeps `id`/`status`/`lines`
+  through the filter instead of the page re-joining by slug.
+- **`FeatureDictionary extends RecipesDictionary {}` keeps a reasoned `no-empty-object-type` disable** until a second feature
+  module is spread in: the interface form (one supertype per line) is what lets parallel lanes append under `merge=union`.

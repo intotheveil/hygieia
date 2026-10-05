@@ -21,7 +21,7 @@ import type { Block, Intensity, Level, WorkoutType } from '../content/enums.ts'
 import type { WorkoutBlockSeed } from '../content/types.ts'
 import { useLang } from '../i18n/LangProvider'
 import type { Dictionary, Lang } from '../i18n/dictionary'
-import { useAsync } from '../lib/useAsync'
+import { useAsyncResult } from '../lib/useAsync'
 
 // --- URL state -----------------------------------------------------------------------------------
 
@@ -187,7 +187,7 @@ function SessionCard({
           <span className="font-medium text-olive-900">{t.duration}</span>
           <span aria-hidden="true"> · </span>
           <span data-testid="session-duration">
-            {template.duration_min} {t.minutes}
+            {template.duration_min} {t.minutesUnit}
           </span>
         </p>
         <p className="leading-relaxed text-olive-700">{notes}</p>
@@ -268,7 +268,7 @@ export function WorkoutsPage({ source = contentSource }: WorkoutsPageProps) {
     () => source.getWorkoutTemplate(type, level, intensity),
     [source, type, level, intensity],
   )
-  const state = useAsync(load)
+  const state = useAsyncResult(load)
 
   const select = (patch: Partial<WorkoutSelection>) =>
     setParams(serializeWorkoutSelection({ ...selection, ...patch }))

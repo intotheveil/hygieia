@@ -14,7 +14,7 @@ import { TIP_TOPICS } from '../content/enums.ts'
 import type { TipTopic } from '../content/enums.ts'
 import { useLang } from '../i18n/LangProvider'
 import { fill } from '../i18n/fill'
-import { useAsync } from '../lib/useAsync'
+import { useAsyncResult } from '../lib/useAsync'
 
 export const TOPIC_PARAM = 'topic'
 
@@ -78,7 +78,7 @@ export function TipsPage({ source = contentSource }: TipsPageProps) {
   const topic = parseTopic(params)
 
   const load = useCallback(() => source.listTips(), [source])
-  const state = useAsync(load)
+  const state = useAsyncResult(load)
 
   const groups = state.status === 'ready' ? groupByTopic(state.data) : []
   const total = groups.reduce((sum, group) => sum + group.tips.length, 0)

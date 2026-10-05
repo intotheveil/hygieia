@@ -40,8 +40,14 @@ export function recipeTitle(recipe: RecipeSeed, lang: Lang): string {
   return lang === 'el' ? recipe.title_el : recipe.title_en
 }
 
-/** Narrow `recipes` by the filter (see module header). Preserves input order; never mutates. */
-export function filterRecipes(recipes: readonly RecipeSeed[], filter: RecipeFilter): RecipeSeed[] {
+/**
+ * Narrow `recipes` by the filter (see module header). Preserves input order; never mutates.
+ * Generic so a `Recipe` row (id, status, lines) comes back as a `Recipe`, not a bare seed.
+ */
+export function filterRecipes<R extends RecipeSeed>(
+  recipes: readonly R[],
+  filter: RecipeFilter,
+): R[] {
   const diets = toSet(filter.dietSlugs)
   const meals = toSet(filter.mealTypes)
   const needle = normalizeForSearch(filter.query ?? '')
@@ -68,7 +74,7 @@ function compareStrings(a: string, b: string): number {
  * A NEW array sorted by the localized title after `normalizeForSearch` (so accents and case do
  * not scatter entries), then by slug — a total order, so the result is deterministic.
  */
-export function sortRecipes(recipes: readonly RecipeSeed[], lang: Lang): RecipeSeed[] {
+export function sortRecipes<R extends RecipeSeed>(recipes: readonly R[], lang: Lang): R[] {
   const keyed = recipes.map((recipe) => ({
     recipe,
     key: normalizeForSearch(recipeTitle(recipe, lang)),

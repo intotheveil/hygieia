@@ -8,7 +8,7 @@ import { DraftRibbon } from '../components/DraftRibbon'
 import { contentSource, type ContentSource, type Diet, type Result } from '../content/index.ts'
 import { useLang } from '../i18n/LangProvider'
 import type { Lang } from '../i18n/dictionary'
-import { useAsync } from '../lib/useAsync'
+import { useAsyncResult } from '../lib/useAsync'
 
 export function dietName(diet: Diet, lang: Lang): string {
   return lang === 'el' ? diet.name_el : diet.name_en
@@ -21,7 +21,7 @@ export function dietSummary(diet: Diet, lang: Lang): string {
 export function DietsPage({ source = contentSource }: { source?: ContentSource }) {
   const { t, lang } = useLang()
   const load = useCallback((): Promise<Result<Diet[]>> => source.listDiets(), [source])
-  const { state, reload } = useAsync(load)
+  const state = useAsyncResult(load)
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-6xl flex-col gap-6 px-4 py-10 sm:px-6">
@@ -35,12 +35,12 @@ export function DietsPage({ source = contentSource }: { source?: ContentSource }
         <p role="status" className="text-olive-700">
           {t.loading}
         </p>
-      ) : !state.value.ok ? (
+      ) : state.status === 'error' ? (
         <div role="alert" className="flex flex-col items-start gap-3 text-olive-900">
           <p>{t.loadFailed}</p>
           <button
             type="button"
-            onClick={reload}
+            onClick={state.reload}
             className="rounded-full bg-olive-900 px-4 py-1.5 text-sm font-medium text-paper-50 hover:bg-olive-700"
           >
             {t.retry}
@@ -48,7 +48,7 @@ export function DietsPage({ source = contentSource }: { source?: ContentSource }
         </div>
       ) : (
         <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {state.value.data.map((diet) => (
+          {state.data.map((diet) => (
             <li
               key={diet.slug}
               className="flex flex-col gap-3 rounded-2xl border border-olive-900/10 bg-paper-50/80 p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"

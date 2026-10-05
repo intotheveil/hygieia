@@ -6,10 +6,15 @@
 // add ONE import, ONE parent in `extends`, and ONE spread per language here. Concurrent lanes
 // conflict on these few lines on purpose: the conflict is mechanical (keep both) and the lead
 // resolves it at merge. (A `merge=union` attribute was tried and garbled the file — do not re-add.)
+//
+// A key may live in ONE module only. Two modules declaring the same key with different types is a
+// type error here (`minutes`, 2026-10-06); with the same type the LAST spread silently wins — so
+// shared copy (`loadFailed`, `retry`, `loading`…) has one owner (plans) and the others reuse it.
 
 import { dietsEl, dietsEn, type DietsDictionary } from './diets.ts'
 import { fridgeEl, fridgeEn, type FridgeDictionary } from './fridge.ts'
 import { plansEl, plansEn, type PlansDictionary } from './plans.ts'
+import { recipesEl, recipesEn, type RecipesDictionary } from './recipes.ts'
 import { tipsEl, tipsEn, type TipsDictionary } from './tips.ts'
 import { workoutsEl, workoutsEn, type WorkoutsDictionary } from './workouts.ts'
 
@@ -19,6 +24,7 @@ export interface FeatureDictionary
     DietsDictionary,
     FridgeDictionary,
     PlansDictionary,
+    RecipesDictionary,
     TipsDictionary,
     WorkoutsDictionary {}
 
@@ -26,6 +32,7 @@ export const featuresEn: FeatureDictionary = {
   ...dietsEn,
   ...fridgeEn,
   ...plansEn,
+  ...recipesEn,
   ...tipsEn,
   ...workoutsEn,
 }
@@ -34,6 +41,7 @@ export const featuresEl: FeatureDictionary = {
   ...dietsEl,
   ...fridgeEl,
   ...plansEl,
+  ...recipesEl,
   ...tipsEl,
   ...workoutsEl,
 }

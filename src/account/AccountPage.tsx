@@ -73,7 +73,8 @@ export function AccountPage({
   const [removeError, setRemoveError] = useState<UserDataError | null>(null)
 
   const load = useCallback(() => loadAll(userData, content), [userData, content])
-  const { state, reload } = useAsync(load)
+  const state = useAsync(load)
+  const { reload } = state
 
   const remove = useCallback(
     async (action: () => Promise<Result<void>>) => {
@@ -133,10 +134,12 @@ export function AccountPage({
               <p role="status" className="text-olive-700">
                 {t.loading}
               </p>
+            ) : state.status === 'error' ? (
+              <LoadFailed onRetry={reload} />
             ) : (
               <Panel
                 tab={tab}
-                data={state.value}
+                data={state.data}
                 source={userData}
                 lang={lang}
                 onRemove={remove}
@@ -205,20 +208,7 @@ function Panel({
             }
           })
 
-  if (!result.ok) {
-    return (
-      <div role="alert" className="flex flex-col items-start gap-3 text-olive-900">
-        <p>{t.loadFailed}</p>
-        <button
-          type="button"
-          onClick={onRetry}
-          className="rounded-full bg-olive-900 px-4 py-1.5 text-sm font-medium text-paper-50 hover:bg-olive-700"
-        >
-          {t.retry}
-        </button>
-      </div>
-    )
-  }
+  if (!result.ok) return <LoadFailed onRetry={onRetry} />
   if (result.data.length === 0) return <p className="text-olive-700">{t.nothingSavedYet}</p>
   return (
     <ul className="flex flex-col gap-2 text-olive-900">
@@ -253,6 +243,23 @@ function Panel({
         </li>
       ))}
     </ul>
+  )
+}
+
+/** The bilingual failure copy with a retry — for a rejected load and for a tab whose read failed. */
+function LoadFailed({ onRetry }: { onRetry: () => void }) {
+  const { t } = useLang()
+  return (
+    <div role="alert" className="flex flex-col items-start gap-3 text-olive-900">
+      <p>{t.loadFailed}</p>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="rounded-full bg-olive-900 px-4 py-1.5 text-sm font-medium text-paper-50 hover:bg-olive-700"
+      >
+        {t.retry}
+      </button>
+    </div>
   )
 }
 
