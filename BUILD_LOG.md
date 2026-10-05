@@ -3,6 +3,64 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+## 2026-10-05 — P6.1 Fleet telemetry behind `VITE_FLEET_*` (no-op without env) — DONE (builder, worktree `wt/e`; not yet committed)
+
+**Pulled forward** by the lead (independent of P5). Donor is **Enodia** (`D:/projects/enodia-transit/src/lib/telemetry/*` +
+`src/telemetry.ts`). The six modules were copied with `cp` and proven **byte-identical** with `cmp`: `types.ts`, `fingerprint.ts`,
+`scrub.ts`, `rate-limit.ts`, `fleet-telemetry-server.ts`, `fleet-telemetry.ts`. Only the env NAMES changed, and only in the entry file
+(PLAN §1.11): Enodia's `VITE_FLEET_TELEMETRY_URL/KEY` → Hygieia's `VITE_FLEET_URL`, `VITE_FLEET_KEY`, `VITE_FLEET_PRODUCT_ID`.
+The donor's `index.ts` barrel was NOT lifted (not in scope; `src/telemetry.ts` imports `./lib/telemetry/fleet-telemetry` directly).
+The `?__fleet_test=1` production hook floated in P6.QA.4 was NOT added (lead rejected it; QA throws from DevTools).
+
+**Contract delivered (`src/telemetry.ts`):** `startTelemetry()` reads the three names each by full literal `import.meta.env.<NAME>`
+(declared in `src/lib/env.ts` `ImportMetaEnv`; already allow-listed in `eslint.config.js`), via a pure `resolveFleetEnv(raw)`
+(any name unset/blank after trim → `null`). Off → returns a no-op disposer with ZERO side effects: `window.onerror` /
+`onunhandledrejection` untouched, no fetch. On → `initFleetTelemetry` installs both hooks CHAINING the previous handler, scrubs
+(donor scrubber: JWT / PEM / Bearer / provider keys / `key=value` / email / IPv4 / CC / phone), computes the `fingerprint` over the
+SCRUBBED message + top stack frame BEFORE any network call, routes through the storm batcher (coalesce same fingerprint 10 s, flush
+1.5 s or 50 rows, queue cap 500 with counted drops) and bulk-POSTs `<VITE_FLEET_URL>/rest/v1/fleet_errors` with headers `apikey` +
+`Authorization: Bearer <write-only key>` + `Prefer: return=minimal`, `keepalive`. `getContext()` supplies ONLY `{ page: location.pathname,
+lang: document.documentElement.lang }`; the scrubber's allow-list (`role`/`page`/`action`) keeps `page` and drops `lang` on the wire
+(fleet contract; `lang` stays supplied as the lead specified). Init failure never escapes (`try` around resolve + init; a window whose
+`onerror` setter throws is tested). `src/main.tsx` calls `startTelemetry()` once, before `createRoot(...).render`.
+
+**Tests (new, 66 across 5 files; suite now 30 files / 681 tests):** `src/telemetry.test.ts` (15): all three blank via `vi.stubEnv` → both
+hooks stay `null`, zero fetch; each single name blank → same; pre-existing `onerror` untouched when off; all set via `vi.stubEnv` +
+`startTelemetry()` → both hooks installed; a thrown `Error` carrying a planted email + a planted `sk-…` token (assembled at runtime, the
+repo secret scan rejects the literal) → after the 1.5 s fake-timer flush EXACTLY ONE `fetch` to
+`https://fleet.example.supabase.co/rest/v1/fleet_errors`, `POST`, correct headers, body = 1-row array with `product_id`, `source: client`,
+`severity: error`, `environment`, base36 `fingerprint` equal to `fingerprint({product_id, scrubbed message, scrubbed stack})`,
+`user_context_json = { page }`; the wire body contains neither planted value, matches no email regex and no `sk-` token regex, and shows
+`[REDACTED_EMAIL]` + `token=[REDACTED]`; the previous `onerror` is still called with the same `Error`; the disposer restores it; `fetch`
+undefined → neither init nor capture+flush throws; a throwing `onerror` setter → init does not throw. Lifted donor tests verbatim:
+`fingerprint.golden.test.ts` (8), `fingerprint.test.ts` (14), `rate-limit.test.ts` (12), `scrub.test.ts` (17; the donor's real operator
+email/phone fixtures replaced by `someone@example.com` / `+30 210 000 0000` — Hygieia is a PUBLIC repo; assertions unchanged).
+
+**Golden fingerprints pinned (fleet-wide STORED KEY — the separator is `\u0000`; a change here re-keys every BRAIN §8 ledger row, it is
+never a test to update):** `{ab, c, ''}` → `2ms8kdh0a0y6d` · `{a, bc, ''}` → `z371mcjwee0p` · `{92864d31, "TypeError: x is not a function",
+"    at foo (/a/b.ts:1:2)"}` → `15n3u2i5k5rxn` · `{'', '', ''}` → `4hk40ymxlq0d` · `{p, "Cannot read properties of undefined (reading
+'id')", "at R (/x.js:9:1)"}` → `xrbxwyc9qpv2` · `{unicode, "héllo — ✓", "at Ω (/u.ts:3:3)"}` → `2axw4kq0vfxo3` · `{nums, "failed after
+1234ms at 0x7ff", "at n (/n.ts:1:1)"}` → `1jumjk618j1vf`. All seven are the donor's own vectors and pass against the byte-identical copy.
+
+**Gates (2026-10-05, worktree `D:/projects/hygieia-wt/e`):** `npm run lint` 0 errors (6 pre-existing react-refresh warnings in
+`AuthProvider.tsx`, `LangProvider.tsx`, `routes.tsx`; none in the new files) · `npm run typecheck` clean · `npm test` **30 files / 681
+tests green** · `npm run build` green · `check:bundle: OK, no secret-looking value or server-only name in 10 files (566540 bytes) in dist` ·
+`check:pwa OK — Hygieia · Υγίεια, 3 icons, sw.js present`. Prettier clean on every touched file (`src/lib/env.ts` is checked out CRLF by
+autocrlf — index is LF — so `prettier --check` on the working copy warns on line endings only; LF-normalised content passes).
+
+**Real artifact exercised:** the production bundle `dist/assets/index-*.js` ships the catcher (`rest/v1/fleet_errors` ×1,
+`onunhandledrejection` ×4, the `[REDACTED_*]` markers). Built with no env, `import.meta.env.VITE_FLEET_*` inlined to `void 0` and the
+three `VITE_FLEET_*` strings appear ONLY as property names (`RawFleetEnv` keys, same as the pre-existing `VITE_SUPABASE_*` names) — no
+value, so the deployed site runs telemetry OFF until OP6.a sets the repository variables and P6.4 wires them into the build.
+
+**For the lead → DECISIONS.md / BRAIN (out of this task's file scope):** (1) `lang` is supplied by `getContext()` as specified but is
+NOT an allow-listed context key in the fleet scrubber, so it never reaches the dashboard — either accept (page only) or extend
+`ALLOWED_CONTEXT_KEYS` fleet-wide in Zeus first (it is a fleet contract, not a Hygieia choice). (2) `startTelemetry()` returns a
+disposer (no-op when off) so tests restore handlers; `main.tsx` ignores it. (3) The BRAIN §8 ledger header can be created at P6.5.
+
+**Not done / next:** nothing committed (the lead merges `wt/e`). P6.QA.4 uses DevTools `throw new Error('fleet-smoke')` on the deployed
+site once OP6.a + P6.4 land; the first ledger row goes to BRAIN §8 then.
+
 ## 2026-10-05 — P6.2 Bundle secret scan `npm run check:bundle` — DONE (builder, worktree `wt/e`; not yet committed)
 
 **Pulled forward** by the lead (independent of P5). Lifted from Themis `scripts/check-bundle-secrets.mjs`, reshaped to the

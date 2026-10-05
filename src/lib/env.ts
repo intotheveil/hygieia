@@ -13,6 +13,10 @@ declare global {
   interface ImportMetaEnv {
     readonly VITE_SUPABASE_URL?: string
     readonly VITE_SUPABASE_ANON_KEY?: string
+    // Fleet telemetry (PLAN P6.1); read ONLY in src/telemetry.ts, each by its full literal name.
+    readonly VITE_FLEET_URL?: string
+    readonly VITE_FLEET_KEY?: string
+    readonly VITE_FLEET_PRODUCT_ID?: string
   }
 }
 
