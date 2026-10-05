@@ -1,3 +1,2 @@
 BUILD_LOG.md merge=union
 DECISIONS.md merge=union
-src/i18n/features/index.ts merge=union
