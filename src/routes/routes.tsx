@@ -1,5 +1,7 @@
 import { Link, Route, Routes } from 'react-router-dom'
 import App from '../App'
+import { CallbackPage } from '../auth/CallbackPage'
+import { SignInPage } from '../auth/SignInPage'
 import { useLang } from '../i18n/LangProvider'
 
 /**
@@ -33,6 +35,8 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<App />} />
+      <Route path="/auth" element={<SignInPage />} />
+      <Route path="/auth/callback" element={<CallbackPage />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   )
