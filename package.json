@@ -12,7 +12,13 @@
     "test": "vitest run",
     "format": "prettier --write .",
     "icons": "node scripts/icons.mjs",
-    "check:pwa": "node scripts/check-pwa.mjs"
+    "check:pwa": "node scripts/check-pwa.mjs",
+    "db:check": "node scripts/check-migrations.mjs",
+    "db:gate": "node scripts/db-gate.mjs",
+    "db:gate:prove-red": "node scripts/db-gate-prove-red.mjs",
+    "db:apply": "node scripts/db-apply.mjs",
+    "seed:gen": "node scripts/gen-seed-sql.mjs",
+    "seed:check": "node scripts/gen-seed-sql.mjs --check"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",
@@ -21,6 +27,7 @@
     "react-router-dom": "^7.18.4"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@eslint/js": "^10.0.1",
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/jest-dom": "^7.0.1",
