@@ -3,6 +3,61 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+## 2026-10-06 — P4.8 `/workouts` page + P4.9 `/tips` page (UI halves) — DONE (builder, worktree `wt/d`; not yet committed)
+
+**Scope:** the React halves of P4.8 and P4.9 only. No seed, script, migration, route or header edits — `routes.tsx` /
+`App.tsx` / `SiteHeader.tsx` are P3.5's; `dictionary.ts` is never touched (feature dictionaries compose through
+`src/i18n/features/index.ts`).
+
+**Files:** `src/workouts/WorkoutsPage.tsx` + `.test.tsx`, `src/tips/TipsPage.tsx` + `.test.tsx`,
+`src/i18n/features/workouts.ts`, `src/i18n/features/tips.ts`, `src/i18n/features/index.ts` (two imports, two `extends`
+parents one-per-line under `// prettier-ignore` so `merge=union` merges concurrent lanes, two spreads), NEW
+`src/i18n/fill.ts` (`fill('{n} tips', { n })`), NEW `src/lib/useAsync.ts` (loading/ready/error over a `Result` promise;
+the settled outcome is stored WITH the `run` identity that produced it, so "loading" is derived and no setState runs
+synchronously in an effect — callers `useCallback` their `run`). Neither helper existed in any sibling worktree; duplicates
+reconcile at merge.
+
+**`/workouts`:** three `role="radiogroup"` chip groups (type ×7, level ×3, intensity ×3; chips are `role="radio"` +
+`aria-checked`), URL state `?type=&level=&intensity=` (always all three keys; junk → defaults home/beginner/moderate), one
+session card: title, `duration_min`, notes, equipment line (distinct localized `equipment_*` across the session, or
+`bodyweight`), warm-up → main → cool-down as `<ol>` of `name · sets × reps-or-seconds · rest N s` (rest omitted when 0),
+each with the coaching cue in `<details>`, `DraftRibbon` (kind + row status), the `notMedicalAdvice` disclaimer,
+loading / error (`workoutsLoadFailed`) / empty (`noSession`) states. Content comes from
+**`contentSource.getWorkoutTemplate(type, level, intensity)`** — NOT `workouts/session.ts` over seed arrays — so supabase
+mode works unchanged; `blocksOf(template)` groups the source's `slots` in `BLOCKS` order and applies the same
+whole-or-nothing rule as `resolveSession` (a hidden exercise → `noSession`). Pages take an optional `source` prop
+(default `contentSource`) so tests inject fakes for the states.
+
+**`/tips`:** topic filter chips ("all" + 6 `TIP_TOPICS`, each with its count) as a `radiogroup`, URL state `?topic=`
+(absent/unknown → all), tips grouped under one `<h2>` per topic in `TIP_TOPICS` order with `tipsCount`, cards
+(`<article>`: title, body, `source_url` link with `target="_blank" rel="noopener noreferrer"` or the `sourcePending`
+label when `needs_source`), `DraftRibbon`, loading / error (`tipsLoadFailed`) / empty (`tipsEmpty`).
+
+**Dictionary keys added** (en + el, both pass the parity test): workouts — `workoutsTitle workoutsIntro pickType pickLevel
+pickIntensity types.* levels.* intensities.* blocks.* sets reps seconds rest duration minutes equipment bodyweight showCue
+noSession workoutsLoadFailed`; tips — `tipsTitle tipsIntro allTopics topics.* readSource sourcePending tipsCount tipsEmpty
+tipsLoadFailed`. Beyond the brief's list: `minutes` (duration unit), `workoutsLoadFailed` / `tipsLoadFailed` (error
+states), `tipsEmpty` (empty state) — named per-feature to avoid union-merge collisions with other lanes.
+
+**Tests (41 new):** workouts — URL parse/serialize/junk, `workFigure` both languages, default session has all three
+blocks with ≥ 1 item and a cue per item, intensity → `high` changes the work figures AND the duration and writes the URL,
+type change keeps the other keys, all 63 combinations render a session (loop, `unmount` each), headings + all 13 selector
+labels + block headings in both languages, Greek-script exercise names in `el`, loading / error / empty / hidden-exercise
+states. tips — parse/group helpers, 75 cards under 6 headings with per-topic counts, `sleep` filter shows only sleep tips
+and writes `?topic=sleep`, deep link `?topic=hydration`, `needs_source` → `sourcePending` with no link, sourced tip →
+link with `rel="noopener noreferrer"` + `target="_blank"`, every link safe, both languages, loading / error / empty.
+
+**Gates (worktree `wt/d`):** `npm run lint` 0 errors (15 warnings, all `react-refresh/only-export-components`, the
+pattern `routes.tsx`/`LangProvider.tsx` already carry) · `npm run typecheck` clean · `npm test` **2148 passed, 3 failed —
+all three in `scripts/gen-seed-sql.test.ts` and PRE-EXISTING on this worktree's base (reproduced with every change of
+this task stashed): `seed:check` reports `missing 20261006000900_hygieia_seed_workouts.sql` and `differs
+…000700_hygieia_seed_recipes.sql` — the P4.8/P4.9 DATA lane's generated SQL has not landed in `wt/d`; `scripts/` and
+`supabase/migrations/` are out of this task's scope** · `npm run build` green (PWA precache 24 entries) · `npm run
+check:pwa` OK.
+
+**Next:** P3.5 wires `/workouts` and `/tips` into `routes.tsx` + `SiteHeader`; the data lane lands the regenerated seed
+SQL (clears the 3 red tests); `e2e/local/workouts.spec.ts` / `tips.spec.ts` once the routes exist.
+
 ## 2026-10-05 — P3.1 `filterRecipes` + P3.4 `fridge/storage.ts` (PURE halves, pulled forward) — DONE (builder, worktree `wt/b`; not yet committed)
 
 **Scope:** the React-free halves of P3.1 and P3.4 only — `src/recipes/filter.ts` + `filter.test.ts`, `src/fridge/storage.ts` +
@@ -51,6 +106,7 @@ unversioned branch — no shipped data exists yet, so leniency buys nothing and 
 
 **Not done / next:** nothing committed (the lead merges `wt/b`). UI halves — `RecipesPage.tsx`, `RecipeCard.tsx`, `FridgePage.tsx`,
 `IngredientPicker.tsx`, their page tests and the P3.1/P3.4 dictionary keys — are still open and consume these modules.
+
 ## 2026-10-05 — P5.4 Offline / PWA behaviour e2e — DONE (builder, worktree `wt/d`; not yet committed)
 
 **Pulled forward** by the lead (depends only on the P3.6 Playwright harness, on main). Delivered ONLY
@@ -162,6 +218,7 @@ disposer (no-op when off) so tests restore handlers; `main.tsx` ignores it. (3) 
 
 **Not done / next:** nothing committed (the lead merges `wt/e`). P6.QA.4 uses DevTools `throw new Error('fleet-smoke')` on the deployed
 site once OP6.a + P6.4 land; the first ledger row goes to BRAIN §8 then.
+
 ## 2026-10-05 — P6.3 Live smoke `npm run smoke:live` — DONE (builder, worktree `wt/d`; not yet committed)
 
 **Pulled forward** by the lead (independent). HTTP only, no browser: `scripts/smoke-live.mjs` exercises the DEPLOYED
@@ -222,6 +279,7 @@ PASS  GET brand/og-hygieia.jpg → 200 image/jpeg
 SKIPPED (backend) — set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
 SMOKE PASSED — 14 probes against https://intotheveil.github.io/hygieia/ (2308 ms)
 ```
+
 exit 0. This is the current deployed P0/PWA artifact (bundle `index-BCspQXd6.js`); the backend probes have not yet been run
 live — they need the anon env (OP2.c) and are P6.4's / P6.QA step 2's observable.
 
@@ -233,6 +291,7 @@ live — they need the anon env (OP2.c) and are P6.4's / P6.QA step 2's observab
 Pages build; after it, `smoke:live` with the anon env is the proof that the deploy is in configured mode (approved rows ≥ 1,
 pending `[]`, profiles `[]`). `DECISIONS.md`/`BRAIN.md` were out of this task's declared scope — the three small decisions above
 are for the lead to lift if judged durable.
+
 ## 2026-10-05 — P1.12 Seed generator + generated seed migrations + `seed:check` — DONE (builder, worktree `wt/a`; not yet committed)
 
 **What:** `scripts/gen-seed-sql.mjs` replaces the P1.1 stub. It imports the TS seed modules by `.ts` path (node 24 type
@@ -294,6 +353,7 @@ fixture rows off real cells (e.g. a fixture-only combination is impossible — a
 
 **Next:** lead merges `wt/a` (do not commit here). When `recipes/group2.ts` or `workouts.ts` lands: `npm run seed:gen && npm run
 seed:check` — the generated files change and must be re-committed with the content. P1.13 (`ContentSource`) and P1.14 are independent.
+
 ## 2026-10-05 — P1.13 `ContentSource` layer: bundled + supabase, schema-pinned client, draft ribbon — DONE (builder, worktree `wt/c`; not yet committed)
 
 **Delivered** (PLAN §1 item 5, task P1.13):
@@ -405,6 +465,7 @@ build\` first.` → **exit 2**. The planted value never appeared unmasked in any
 
 **Not done / next:** nothing committed (the lead merges `wt/e`). P6.3 imports `scanText` from `./check-bundle-secrets.mjs`
 (signature `scanText(text, { file })` → `Finding[]`, pure). `G6` = `G3 && npm run check:bundle` is now runnable.
+
 ## 2026-10-05 — P4.8 (data + domain half) workout templates seed + session resolver — DONE (builder, worktree `wt/d`; not yet committed)
 
 The DATA + DOMAIN half of P4.8: the 63 templates and the resolver with their tests. The `/workouts`
@@ -714,6 +775,7 @@ in `src/auth/AuthProvider.tsx`, `src/i18n/LangProvider.tsx`, `src/routes/routes.
 
 **Not done / next:** nothing committed (the lead merges `wt/g` and replaces the two stubs with the real group
 files, then flips the two constants and re-runs the test). P1.12 (seed generator) consumes `RECIPES`.
+
 ## 2026-10-05 — P1.11 group 2 recipes seed (low-carb & protein-centric) — DONE (builder, worktree `wt/b`; not yet committed)
 
 **Scope:** one of three parallel builders for P1.11. Delivered ONLY
@@ -727,14 +789,14 @@ Greek in plural imperative; loanwords (keto, paleo, Atkins, Cobb, Meatza) Latin-
 
 **Coverage matrix (diet × meal type; requirement ≥ 5 total and ≥ 2 each for breakfast/lunch/dinner):**
 
-| diet | total | breakfast | lunch | dinner | snack |
-|---|---|---|---|---|---|
-| paleo | 27 | 7 | 20 | 20 | 4 |
-| low-carb | 59 | 18 | 39 | 37 | 12 |
-| keto | 48 | 14 | 32 | 31 | 8 |
-| atkins | 44 | 12 | 31 | 30 | 6 |
-| carnivore | 10 | 3 | 6 | 7 | 1 |
-| high-protein | 39 | 6 | 32 | 33 | 4 |
+| diet         | total | breakfast | lunch | dinner | snack |
+| ------------ | ----- | --------- | ----- | ------ | ----- |
+| paleo        | 27    | 7         | 20    | 20     | 4     |
+| low-carb     | 59    | 18        | 39    | 37     | 12    |
+| keto         | 48    | 14        | 32    | 31     | 8     |
+| atkins       | 44    | 12        | 31    | 30     | 6     |
+| carnivore    | 10    | 3         | 6     | 7      | 1     |
+| high-protein | 39    | 6         | 32    | 33     | 4     |
 
 **Compliance rules applied (checked by a throwaway script against every tag, 0 violations):** `carnivore` =
 meat/poultry/fish categories + egg, butter, ghee, hard cheese, tallow, lard, bone broth/marrow, salt, water
