@@ -25,6 +25,24 @@ export interface RecipesDictionary {
   addToFavourites: string
   removeFromFavourites: string
   favouriteFailed: string
+  // Nutrition + cost panels (P4.3). `{min}`/`{max}`/`{date}`/`{items}` and the three macro
+  // percentages are filled by `src/i18n/fill.ts`.
+  nutritionTitle: string
+  costTitle: string
+  kcal: string
+  protein: string
+  carbs: string
+  fat: string
+  perPortion: string
+  perRecipe: string
+  typicalValuesNote: string
+  notCounted: string
+  confidenceTypical: string
+  costRange: string
+  pricesAsOf: string
+  unpriced: string
+  priceBasisNote: string
+  macroBarLabel: string
   units: Record<Unit, PluralForms>
   meals: Record<MealType, string>
 }
@@ -47,6 +65,23 @@ export const recipesEn: RecipesDictionary = {
   addToFavourites: 'Add to favourites',
   removeFromFavourites: 'Remove from favourites',
   favouriteFailed: 'The change to your favourites could not be saved. Try again.',
+  nutritionTitle: 'Nutrition',
+  costTitle: 'Estimated cost',
+  kcal: 'kcal',
+  protein: 'Protein',
+  carbs: 'Carbs',
+  fat: 'Fat',
+  perPortion: 'Per portion',
+  perRecipe: 'Per recipe',
+  typicalValuesNote:
+    'Typical values from USDA FoodData Central reference ranges; actual figures vary with brand, ripeness and cooking.',
+  notCounted: 'Not counted (no nutrition data): {items}',
+  confidenceTypical: 'Confidence: typical values',
+  costRange: 'About {min}–{max}',
+  pricesAsOf: 'Prices as of {date}',
+  unpriced: 'Not priced: {items}',
+  priceBasisNote: 'Typical Greek supermarket range; prices vary by shop, season and brand.',
+  macroBarLabel: 'Energy split: {protein}% protein, {carbs}% carbs, {fat}% fat',
   units: {
     g: { one: 'g', other: 'g' },
     ml: { one: 'ml', other: 'ml' },
@@ -84,6 +119,24 @@ export const recipesEl: RecipesDictionary = {
   addToFavourites: 'Προσθήκη στα αγαπημένα',
   removeFromFavourites: 'Αφαίρεση από τα αγαπημένα',
   favouriteFailed: 'Η αλλαγή στα αγαπημένα δεν αποθηκεύτηκε. Δοκίμασε ξανά.',
+  nutritionTitle: 'Διατροφική αξία',
+  costTitle: 'Εκτιμώμενο κόστος',
+  kcal: 'kcal',
+  protein: 'Πρωτεΐνη',
+  carbs: 'Υδατάνθρακες',
+  fat: 'Λίπος',
+  perPortion: 'Ανά μερίδα',
+  perRecipe: 'Ανά συνταγή',
+  typicalValuesNote:
+    'Τυπικές τιμές από τα εύρη αναφοράς του USDA FoodData Central· τα πραγματικά νούμερα διαφέρουν ανάλογα με τη μάρκα, την ωρίμανση και το μαγείρεμα.',
+  notCounted: 'Δεν υπολογίστηκαν (χωρίς διατροφικά δεδομένα): {items}',
+  confidenceTypical: 'Αξιοπιστία: τυπικές τιμές',
+  costRange: 'Περίπου {min}–{max}',
+  pricesAsOf: 'Τιμές με ημερομηνία {date}',
+  unpriced: 'Χωρίς τιμή: {items}',
+  priceBasisNote:
+    'Τυπικό εύρος ελληνικού σούπερ μάρκετ· οι τιμές διαφέρουν ανά κατάστημα, εποχή και μάρκα.',
+  macroBarLabel: 'Κατανομή ενέργειας: {protein}% πρωτεΐνη, {carbs}% υδατάνθρακες, {fat}% λίπος',
   units: {
     g: { one: 'γρ.', other: 'γρ.' },
     ml: { one: 'ml', other: 'ml' },

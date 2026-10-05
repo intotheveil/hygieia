@@ -326,3 +326,18 @@ effect`) and asserts A's rows unchanged — instead of adding new checks — bec
 - **The bilingual sweep's allow-lists are the right place for `kcal`, `ml` and the two-script fridge hint** — the copy is deliberate
   (units are Latin-script in Greek; the hint shows one example per script in both languages), so the test's own exception list grows,
   the strings do not change.
+
+## 2026-10-06 — P4.3 nutrition + cost panels: one toggle, energy-share macro bar, UTC date, no €0 range
+
+- **One scope toggle on the page, owned by `RecipeView`, rendered inside `NutritionPanel`.** Both panels take the same `scope` prop; the
+  cost panel shows a caption ("Per portion" / "Per recipe") instead of a second toggle, so there is exactly one control and no way for the
+  two figures to disagree. `onScopeChange` is optional so the nutrition panel can be reused read-only (plan day totals later).
+- **The macro bar splits ENERGY, not grams** (Atwater 4/4/9 kcal per g). A gram-based bar would make 50 g of oil look like 50 g of rice;
+  the energy share is what "how fatty is this" means to a reader. Rounded shares may sum to 99–101; the bar's `aria-label` carries them.
+- **Figures round only at the edge.** The engines stay unrounded (P4.1/P4.2); `src/recipes/panelFormat.ts` is the single place a number
+  becomes a string, through `Intl` for `el-GR` / `en-GB` — never hand-built decimals or a hard-coded "€" position (Greek puts it after).
+- **`pricesAsOf` is formatted in UTC.** A date-only ISO string parses as UTC midnight; a formatter in the viewer's zone would show the
+  previous day west of Greenwich. `timeZone: 'UTC'` pins the calendar day the seed meant.
+- **A recipe with no priced line shows no range.** `€0.00–€0.00` would read as "free"; the `unpriced` list already explains the gap.
+- **`costRange` copy is "About {min}–{max}" / "Περίπου {min}–{max}"**, not a bare `{min}–{max}` template: the bilingual sweep rejects an
+  `el` leaf identical to its `en` twin, and "about" is honest copy for a range anyway.

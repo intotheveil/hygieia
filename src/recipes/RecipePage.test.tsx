@@ -2,13 +2,20 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { contentSource } from '../content/index'
 import { fail, type ContentSource, type Recipe } from '../content/source'
+import { computeCost } from '../cost/compute'
+import { indexBySlug } from '../fridge/match'
 import { LangProvider } from '../i18n/LangProvider'
 import { el, en, type Lang } from '../i18n/dictionary'
-import { plural } from '../i18n/fill'
+import { fill, plural } from '../i18n/fill'
+import { computeNutrition } from '../nutrition/compute'
 import { formatRecipeLine } from './format'
+import { formatEuro, formatIsoDate, formatWhole } from './panelFormat'
 import { RecipePage } from './RecipePage'
 
 const SLUG = 'fasolada-white-bean-soup'
+
+/** jest-dom collapses an element's NBSP (Intl puts one before "€") to a space; do the same to an expected string. */
+const ws = (s: string) => s.replace(/\s+/g, ' ')
 
 function renderAt(slug: string, lang: Lang = 'en', source?: ContentSource) {
   return render(
@@ -85,6 +92,77 @@ describe('<RecipePage>', () => {
         'href',
         '/recipes',
       )
+    },
+  )
+
+  it.each(['en', 'el'] as const)(
+    'renders the nutrition and cost panels under the ingredients with plausible figures in %s, one shared toggle',
+    async (lang) => {
+      const dict = lang === 'el' ? el : en
+      const recipe = await seeded(SLUG)
+      const bySlug = indexBySlug(
+        recipe.lines.flatMap((line) => (line.ingredient === null ? [] : [line.ingredient])),
+      )
+      const nutrition = computeNutrition(recipe, bySlug)
+      const cost = computeCost(recipe, bySlug)
+      renderAt(SLUG, lang)
+
+      const nutritionPanel = await screen.findByRole('region', { name: dict.nutritionTitle })
+      const costPanel = screen.getByRole('region', { name: dict.costTitle })
+      expect(nutritionPanel).toHaveAttribute('data-testid', 'nutrition-panel')
+      expect(costPanel).toHaveAttribute('data-testid', 'cost-panel')
+
+      // Order on the page: ingredients, then nutrition, then cost, then the method.
+      const ingredients = screen.getByRole('region', { name: dict.ingredients })
+      const steps = screen.getByRole('region', { name: dict.steps })
+      expect(ingredients.compareDocumentPosition(nutritionPanel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(nutritionPanel.compareDocumentPosition(costPanel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(costPanel.compareDocumentPosition(steps) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+
+      // Plausible: a portion of fasolada is a few hundred kcal and a few euros, nothing unknown/unpriced.
+      expect(nutrition.perPortion.kcal).toBeGreaterThan(200)
+      expect(nutrition.perPortion.kcal).toBeLessThan(1200)
+      expect(nutrition.unknown).toEqual([])
+      expect(cost.unpriced).toEqual([])
+      expect(cost.perPortion.min).toBeGreaterThan(0.3)
+      expect(cost.perPortion.max).toBeLessThan(10)
+      expect(cost.asOf).not.toBeNull()
+
+      // Per portion by default, exactly the engine's figures rounded.
+      expect(within(nutritionPanel).getByTestId('nutrition-kcal')).toHaveTextContent(
+        formatWhole(nutrition.perPortion.kcal, lang),
+      )
+      expect(within(costPanel).getByTestId('cost-range')).toHaveTextContent(
+        ws(
+          fill(dict.costRange, {
+            min: formatEuro(cost.perPortion.min, lang),
+            max: formatEuro(cost.perPortion.max, lang),
+          }),
+        ),
+      )
+      expect(within(costPanel).getByTestId('cost-as-of')).toHaveTextContent(
+        fill(dict.pricesAsOf, { date: formatIsoDate(cost.asOf ?? '', lang) }),
+      )
+      expect(within(nutritionPanel).getByText(dict.typicalValuesNote)).toBeInTheDocument()
+      expect(within(costPanel).getByText(dict.priceBasisNote)).toBeInTheDocument()
+      expect(within(nutritionPanel).queryByTestId('nutrition-not-counted')).not.toBeInTheDocument()
+      expect(within(costPanel).queryByTestId('cost-unpriced')).not.toBeInTheDocument()
+
+      // ONE toggle on the page; flipping it moves BOTH panels to per-recipe figures.
+      expect(screen.getAllByRole('button', { name: dict.perRecipe })).toHaveLength(1)
+      fireEvent.click(screen.getByRole('button', { name: dict.perRecipe }))
+      expect(within(nutritionPanel).getByTestId('nutrition-kcal')).toHaveTextContent(
+        formatWhole(nutrition.perRecipe.kcal, lang),
+      )
+      expect(within(costPanel).getByTestId('cost-range')).toHaveTextContent(
+        ws(
+          fill(dict.costRange, {
+            min: formatEuro(cost.perRecipe.min, lang),
+            max: formatEuro(cost.perRecipe.max, lang),
+          }),
+        ),
+      )
+      expect(within(costPanel).getByTestId('cost-scope')).toHaveTextContent(dict.perRecipe)
     },
   )
 
