@@ -83,6 +83,11 @@ lint+types: npm run lint && npm run typecheck
   `link` or `reset`; applies go through the Management-API applier with the operator's go (ADR-0003).
 - **Health content is informational, not medical advice.** Keep the disclaimer on every page that
   gives guidance, in both languages, and cite sources for health tips.
+- **Every page renders inside `Layout`** (`src/components/Layout.tsx`: SiteHeader + the page's own
+  `<main>` + the disclaimer footer). Add a new route in `src/routes/routes.tsx` AND in
+  `e2e/support/routes.ts` (with a representative bundled slug for a detail page), so the Lighthouse
+  and a11y matrices audit it. `NotFound` lives in `src/routes/NotFound.tsx` — pages import it from
+  there, never from `routes.tsx` (import cycle).
 - **Secrets:** env var NAMES only in tracked files. `.env` is gitignored; never stage it.
 
 <!-- KIT:PROJECT:END §11 -->

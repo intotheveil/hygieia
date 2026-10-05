@@ -69,11 +69,37 @@ const fakeLhr = (
 ): Lhr => ({ categories, audits }) as Lhr
 
 describe('e2e/support/routes.ts — the shared route list', () => {
-  it('lists the home and auth pages, every path under the Pages base', () => {
+  it('lists every public route of src/routes/routes.tsx (P3.5), every path under the Pages base', () => {
     expect(ROUTE_BASE).toBe('/hygieia')
     expect(BASE).toBe(ROUTE_BASE)
-    expect(ROUTES.map((r) => r.name)).toEqual(['home', 'auth'])
-    expect(ROUTES.map((r) => r.path)).toEqual(['/hygieia/', '/hygieia/auth'])
+    expect(ROUTES.map((r) => r.name)).toEqual([
+      'home',
+      'recipes',
+      'recipe',
+      'fridge',
+      'diets',
+      'diet',
+      'workouts',
+      'tips',
+      'auth',
+      'account',
+      'admin',
+      'not-found',
+    ])
+    expect(ROUTES.map((r) => r.path)).toEqual([
+      '/hygieia/',
+      '/hygieia/recipes',
+      '/hygieia/recipes/carnivore-bacon-and-eggs',
+      '/hygieia/fridge',
+      '/hygieia/diets',
+      '/hygieia/diets/keto',
+      '/hygieia/workouts',
+      '/hygieia/tips',
+      '/hygieia/auth',
+      '/hygieia/account',
+      '/hygieia/admin',
+      '/hygieia/no/such/page',
+    ])
     for (const r of ROUTES) expect(r.path.startsWith(`${ROUTE_BASE}/`)).toBe(true)
   })
 

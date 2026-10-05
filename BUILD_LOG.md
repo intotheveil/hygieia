@@ -43,6 +43,92 @@ Read in full: the 4 hand-written migrations, `scripts/{check-migrations,db-gate,
 **Not required (noted for the backlog):** align the seed floors to one exported constant per kind (Q5-e); tighten `db-types.ts` `profiles.Insert` to exclude `is_admin` (Q5-d); the gate verdict counts `227 checks` while 228 `PASS` lines print (QA’s cosmetic note — the fixture line is not counted); `favourites` `update (recipe_id)` grant is unnecessary.
 
 **Verdict: REVISE — the data spine and auth/tenancy work is good and I would keep it as-is; the phase cannot be claimed until the brain and the decision log describe it (fixes 1–3), after which this review flips to PASS without re-reading the code.**
+## 2026-10-06 — P3.5 navigation + Layout, then P3.7 + P4.12 e2e workflow specs — DONE (builder, worktree `wt/c`; uncommitted for the lead)
+
+**P3.5 delivered.**
+- `src/routes/NotFound.tsx` (lifted out of `routes.tsx`, re-exported from it so `RecipePage`/`DietPage` imports keep working — they
+  would otherwise form an import cycle once the route table imports them). Sized for the frame (`flex-1`, no `min-h-dvh`).
+- `src/routes/routes.tsx`: ONE layout route (`<Route element={<Layout />}>`) around `/`, `/recipes`, `/recipes/:slug`, `/fridge`,
+  `/diets`, `/diets/:slug`, `/workouts`, `/tips`, `/auth`, `/auth/callback`, `/account` (RequireAuth), `/admin` (RequireAdmin), `*`.
+- `src/components/SiteHeader.tsx`: brand link home · `<nav aria-label={t.nav.label}>` with `NavLink`s Recipes · Fridge · Diets · Workouts ·
+  Tips (`aria-current="page"` on the active one, prefix match so a detail page keeps its section current; no `<ul>` so `listitem`-scoped
+  tests are not polluted) · `AccountMenu` · `LangSwitch` (moved here from App.tsx). Mobile: the nav wraps onto its own row of chips
+  (`order-last w-full` below `lg`), nothing hidden.
+- `src/components/Layout.tsx`: header + `<Outlet />` + disclaimer footer. Does NOT render `<main>` — every page owns its own landmark
+  (a second one is a duplicate-main a11y failure); the pages' `min-h-dvh` is neutralised with `[&>main]:min-h-0 [&>main]:flex-1` so no
+  page needed editing.
+- `src/App.tsx` is now just the home `<main>`: six module cards as `<Link>`s (tips → /tips, diets → /diets, recipes → /recipes with a
+  secondary `fridgeLink` → /fridge, cost + calories → /recipes with `panelsNote` "Shown on every recipe page" — the P4.3 panels merged
+  from main mid-task — workouts → /workouts). The `roadmap` badge is gone (every module has a live route). Status box copy rewritten
+  honestly in both languages and branched on `appEnv.mode`: `statusBody` (local-only: all six live on draft content, sign-in/saving
+  switched off) vs `statusBodyConfigured` (sign in to save; unapproved rows marked draft).
+- `src/i18n/dictionary.ts`: `NAV_IDS`/`NavId`/`NavCopy`, `nav.*` (label + 5), `statusTitle` ("Where things stand" / "Πού βρισκόμαστε"),
+  `statusBody`, `statusBodyConfigured`, `fridgeLink`, `panelsNote` — same key order in both literals (the sweep checks it).
+- `e2e/support/routes.ts`: 12 audit routes (home, recipes, recipe `carnivore-bacon-and-eggs`, fridge, diets, diet `keto`, workouts, tips,
+  auth, account, admin, not-found). `scripts/check-lighthouse.test.ts` pinned the old 2-entry list and had to follow — **out of the
+  declared scope, one assertion, flagged for the lead** (it is the mirror of the file the task extends).
+- Tests: `src/App.test.tsx` rewritten (16 tests: cards → routes in both languages, fridge secondary link, no badge + 2 notes, status copy,
+  not-found inside the frame, 8 routes render inside Layout with one h1 + the nav; wrapped in `AuthProvider client={null}` because
+  `/account`/`/admin` need `useAuth`), `src/components/SiteHeader.test.tsx` (new, 18 tests: banner + brand link + five links/hrefs in both
+  languages, no heading in the header, `aria-current` on exactly the active item for 10 paths, language flip, AccountMenu silent).
+- `.claude/CLAUDE.project.md` §11: "every page renders inside `Layout`; add a route in `routes.tsx` AND `e2e/support/routes.ts`;
+  `NotFound` from `routes/NotFound`" (edited in place — NOT recomposed; the lead recomposes).
+
+**P3.7 + P4.12 delivered** (`e2e/local/`, every string a dictionary VALUE, every slug/title from the seed, console watchdog on, rendered
+state asserted — never `response.ok()`): `recipes.spec.ts` (5: list → keto chip → `resultsCount` → card → detail with steps + ribbon +
+nav current; deep load of a slug is a 404 DOCUMENT rendering the recipe + favourite button shows the local-only note; unknown slug →
+not-found inside the frame; no-match query → `noRecipesMatch`, clear restores; English re-renders with the URL filter intact),
+`fridge.spec.ts` (3: empty state → egg + cherry tomatoes + feta via the combobox → ranked results (progressbars descending) → Strapatsada
+card "3/4", 75 %, `missing: Ψωμί`, substitution "Ντομάτα → Ντοματίνια" → staples off = "3/6", 50 % → reload keeps chips → English;
+remove-all/clear-all back to empty and persisted; result card links to the recipe), `diets.spec.ts` (3: list → keto detail → 21
+`plan-slot`s, 7 day rowheaders, reshuffle changes `data-seed`, shopping list; deep load + English; unknown slug), `workouts.spec.ts`
+(2: gym/advanced/high → URL + session with warmup/main/cooldown blocks, cue disclosure, disclaimer; deep load of a selection URL +
+English), `tips.spec.ts` (3: sleep filter → 1 section, sourced link `rel="noopener noreferrer"` `target=_blank` + `sourcePending` card
+with no link; deep load + English; unknown topic = all), `recipe-panels.spec.ts` (2, per the lead's mid-task note: both panels, scope
+toggle flips `aria-pressed` and changes kcal + cost range, per-recipe kcal ≈ portions × per-portion, as-of date, whitespace normalised
+for the NBSP before €; headings/labels in both languages), `admin-local-only.spec.ts` (3: `/admin` and `/account` deep links render the
+sign-in-unavailable copy IN PLACE — see DECISIONS: no redirect in local-only mode, the redirect is the anonymous case proven in
+`guards.test.tsx`; header has no account entry). `smoke.spec.ts` gained the header nav (five links, `aria-current` moves on click, brand
+link home, nav on the not-found page) and the module-card links.
+
+**Mid-task merges (coordinator):** `main` merged twice (fast-forward both times, no dependency change): P4.3 nutrition + cost panels
+(`2ae6bce`) and the `vite.config.ts` workbox `clientsClaim`/`skipWaiting` fix (`3438339`) that `offline.spec.ts` needs.
+
+**Gates (2026-10-06, `D:/projects/hygieia-wt/c`, HEAD `3438339` + this work):** `npm run lint` 0 errors (21 pre-existing react-refresh
+warnings) · `npm run typecheck` clean · `npm test` **62 files / 3164 tests green** · `npm run build` green · `check:pwa OK — Hygieia ·
+Υγίεια, 3 icons, sw.js present` · `check:bundle: OK … 10 files (1687935 bytes)` · `dist/404.html` byte-equal `index.html` ·
+`npm run e2e` **31 passed (14.6s), 0 console/page errors** — specs: admin-local-only ×3, diets ×3, fridge ×3, offline ×1, recipe-panels ×2,
+recipes ×5, smoke ×9, tips ×3, workouts ×2. (First e2e run had 3 red in MY specs — a second `role="note"` (ribbon) in the session card,
+a non-exact `getByText('Your level')`, and the combobox Enter picking the HOVERED option after a remove click — fixed in the specs.)
+One pre-existing flake observed once: `WorkoutsPage.test.tsx` failed 2 tests under full-suite load, passed alone and on the final run.
+
+**`npm run check:lighthouse` (mobile, 12 routes) — FAILED on performance, everything else 100:**
+
+| route | perf | a11y | bp | seo | FCP | LCP | CLS |
+|---|---|---|---|---|---|---|---|
+| home | 82 | 100 | 100 | 100 | 3.5 s | 3.8 s | 0.016 |
+| recipes | 69 | 100 | 100 | 100 | 3.5 s | 3.5 s | 0.289 |
+| recipe | 77 | 100 | 100 | 100 | 3.5 s | 3.6 s | 0.152 |
+| fridge | 79 | 100 | 100 | 100 | 3.5 s | 3.6 s | 0.122 |
+| diets | 82 | 100 | 100 | 100 | 2.4 s | 3.6 s | 0.133 |
+| diet | 60 | 100 | 100 | 100 | 3.5 s | 3.5 s | 0.876 |
+| workouts | 81 | 100 | 100 | 100 | 3.5 s | 3.6 s | 0.087 |
+| tips | 65 | 100 | 100 | 100 | 3.5 s | 3.6 s | 0.363 |
+| auth | 83 | 100 | 100 | 100 | 3.5 s | 3.6 s | 0.002 |
+| account | 83 | 100 | 100 | 100 | 3.5 s | 3.6 s | 0.002 |
+| admin | 83 | 100 | 100 | 100 | 3.5 s | 3.6 s | 0.002 |
+| not-found | 83 | 100 | 100 | 100 | 3.5 s | 3.6 s | 0.008 |
+
+Diagnosis (not fixed here — the brief defers code-splitting to a later task; thresholds untouched): the entry chunk is now
+**1.26 MB** (`dist/assets/index-*.js`; it was ~500 kB when P5.3 recorded ≥ 90). Wiring the route table imports every page eagerly, and
+every content page imports `contentSource` → `content/bundled.ts` → ALL seed tables (ingredients alone is ~4 700 lines), so the whole
+catalogue ships on every route; FCP is a flat 3.5 s even on `/auth`. `React.lazy` per route in `routes.tsx` would help home/auth/
+account/admin/not-found, but a content page still needs the seeds, so the real fix is per-table lazy seed imports in `bundled.ts`
+(+ route-level lazy). Separately, CLS 0.29–0.88 on recipes/diet/tips is page-level (content pops in after the async load with no reserved
+space) and is those lanes' to fix; it is not caused by the header.
+
+**Not done / for the lead:** nothing committed; `BRAIN.md` not touched (the lead's §0 write); `scripts/check-lighthouse.test.ts` edit is
+out of declared scope (one pinned assertion). `check:lighthouse` is red on performance for every route until the code-splitting task.
 
 ### P1.QA + P2.QA — 2026-10-06 — VALIDATED (every local P1/P2 criterion PASS) — plus ONE out-of-gate FAIL for the lead: `e2e/local/offline.spec.ts` is deterministically red on `main` (P5.4 scope; CI runs it, so `main` is red in CI)
 
@@ -168,7 +254,7 @@ the unchanged `src/lib/useAsync`. Suggested fix for whoever owns `src/workouts`:
 **Next:** test-writer review of the two new tests, reviewer, then the lead commits `wt/f` → `main`. The workouts flake needs an
 owner (one-line timeout), separately.
 
-## 2026-10-06 — P4.3 Recipe page: nutrition + cost panels — DONE (builder, worktree `wt/f`; not committed — the lead merges)
+# 2026-10-06 — P4.3 Recipe page: nutrition + cost panels — DONE (builder, worktree `wt/f`; not committed — the lead merges)
 
 **Delivered.**
 

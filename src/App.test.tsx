@@ -1,28 +1,57 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import { AuthProvider } from './auth/AuthProvider'
 import { LangProvider } from './i18n/LangProvider'
-import { el, en } from './i18n/dictionary'
+import { MODULE_IDS, el, en, type Lang, type ModuleId } from './i18n/dictionary'
 import { AppRoutes, basenameFrom } from './routes/routes'
 
-function renderAt(path: string, initial: 'el' | 'en' = 'el') {
+/** The whole app as main.tsx mounts it, in local-only mode (`client={null}`: no account service). */
+function renderAt(path: string, initial: Lang = 'el') {
   return render(
     <LangProvider initial={initial}>
-      <MemoryRouter initialEntries={[path]}>
-        <AppRoutes />
-      </MemoryRouter>
+      <AuthProvider client={null}>
+        <MemoryRouter initialEntries={[path]}>
+          <AppRoutes />
+        </MemoryRouter>
+      </AuthProvider>
     </LangProvider>,
   )
 }
 
-describe('App', () => {
+/**
+ * Queries scoped to the modules section: the header nav repeats module names (`nav.workouts` ===
+ * `modules.workouts.title`), so an unscoped `getByText` would find two.
+ */
+const modules = () => within(screen.getByRole('region', { name: 'modules' }))
+const cards = () => modules().getAllByRole('listitem')
+const card = (title: string) => {
+  const li = modules().getByText(title).closest('li')
+  if (li === null) throw new Error(`no card titled "${title}"`)
+  return within(li)
+}
+
+const LANGS: ReadonlyArray<[Lang, typeof en]> = [
+  ['el', el],
+  ['en', en],
+]
+
+const EXPECTED_ROUTES: Record<ModuleId, string> = {
+  tips: '/tips',
+  diets: '/diets',
+  recipes: '/recipes',
+  cost: '/recipes',
+  calories: '/recipes',
+  workouts: '/workouts',
+}
+
+describe('App (home)', () => {
   beforeEach(() => window.localStorage.clear())
 
   it('renders the home page in Greek by default with all six modules', () => {
     renderAt('/')
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(el.heroTitle)
-    const cards = screen.getAllByRole('listitem')
-    expect(cards).toHaveLength(6)
-    expect(screen.getByText(el.modules.workouts.title)).toBeInTheDocument()
+    expect(cards()).toHaveLength(6)
+    expect(modules().getByText(el.modules.workouts.title)).toBeInTheDocument()
     expect(screen.getByText(el.notMedicalAdvice)).toBeInTheDocument()
   })
 
@@ -30,21 +59,82 @@ describe('App', () => {
     renderAt('/')
     fireEvent.click(screen.getByRole('button', { name: 'English' }))
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(en.heroTitle)
-    expect(screen.getByText(en.modules.recipes.title)).toBeInTheDocument()
+    expect(modules().getByText(en.modules.recipes.title)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Ελληνικά' }))
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(el.heroTitle)
   })
 
-  it('says plainly that no module has content yet', () => {
-    renderAt('/', 'en')
-    expect(screen.getByText(en.statusBody)).toBeInTheDocument()
-    expect(screen.getAllByText(en.roadmap)).toHaveLength(6)
+  it.each(LANGS)('routes every module card to its module (%s)', (lang, t) => {
+    renderAt('/', lang)
+    for (const id of MODULE_IDS) {
+      expect(
+        card(t.modules[id].title).getByRole('link', { name: t.modules[id].title }),
+        `card ${id}`,
+      ).toHaveAttribute('href', EXPECTED_ROUTES[id])
+    }
   })
 
-  it('renders a not-found page for an unknown path, in the current language', () => {
+  it.each(LANGS)('the recipes card carries a secondary link to the fridge (%s)', (lang, t) => {
+    renderAt('/', lang)
+    expect(
+      card(t.modules.recipes.title).getByRole('link', { name: new RegExp(t.fridgeLink) }),
+    ).toHaveAttribute('href', '/fridge')
+    // Only that card has it.
+    expect(modules().getAllByRole('link', { name: new RegExp(t.fridgeLink) })).toHaveLength(1)
+  })
+
+  it.each(LANGS)(
+    'shows no "coming" badge (every module has a route) and the panels note only on cost + calories (%s)',
+    (lang, t) => {
+      renderAt('/', lang)
+      expect(screen.queryByText(t.roadmap)).toBeNull()
+      expect(modules().getAllByText(t.panelsNote)).toHaveLength(2)
+      for (const id of ['cost', 'calories'] as const) {
+        expect(card(t.modules[id].title).getByText(t.panelsNote)).toBeInTheDocument()
+      }
+    },
+  )
+
+  it.each(LANGS)(
+    'states plainly what is live and that this copy has no account service (%s)',
+    (lang, t) => {
+      // The test build has no Supabase env → local-only → `statusBody` (not `statusBodyConfigured`).
+      renderAt('/', lang)
+      expect(screen.getByText(t.statusTitle)).toBeInTheDocument()
+      expect(screen.getByText(t.statusBody)).toBeInTheDocument()
+      expect(screen.queryByText(t.statusBodyConfigured)).toBeNull()
+    },
+  )
+
+  it('renders a not-found page for an unknown path, in the current language, inside the frame', () => {
     renderAt('/nothing-here', 'en')
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(en.notFoundTitle)
     expect(screen.getByRole('link', { name: en.backHome })).toHaveAttribute('href', '/')
+    // Layout: the header nav and the footer disclaimer are present on a not-found page too.
+    expect(screen.getByRole('navigation', { name: en.nav.label })).toBeInTheDocument()
+    expect(screen.getByText(en.notMedicalAdvice)).toBeInTheDocument()
+  })
+
+  it.each([
+    ['/recipes', en.recipesTitle],
+    ['/fridge', en.fridgeTitle],
+    ['/diets', en.dietsTitle],
+    ['/workouts', en.workoutsTitle],
+    ['/tips', en.tipsTitle],
+    ['/auth', en.signInUnavailableTitle],
+    ['/account', en.signInUnavailableTitle],
+    ['/admin', en.signInUnavailableTitle],
+  ])('%s renders its page inside Layout (header nav + footer), one banner, one h1', (path, h1) => {
+    renderAt(path, 'en')
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(h1)
+    // The site nav sits in Layout's top-level <header>. (Not `getAllByRole('banner')`: jsdom does
+    // not scope a page's own <header> inside <main> out of the banner role the way browsers do.)
+    const nav = screen.getByRole('navigation', { name: en.nav.label })
+    expect(nav.closest('header')?.parentElement?.tagName).not.toBe('MAIN')
+    expect(nav.closest('main')).toBeNull()
+    // The footer disclaimer, exactly once from Layout (pages that repeat it inside their card are
+    // allowed: the home page does not).
+    expect(screen.getAllByText(en.notMedicalAdvice).length).toBeGreaterThanOrEqual(1)
   })
 })
 
