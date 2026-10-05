@@ -1,60 +1,96 @@
-// ACCOUNT PAGE — placeholder (P2.5). Reached only through RequireAuth. Three tabs that LIST what
-// the user has saved through the UserDataSource (P2.4); P4.6 adds editing, removal and the
-// plan/list detail views. If the source is disabled anyway (it cannot be, under RequireAuth, but
-// the type allows it) the bilingual note explains why.
+// ACCOUNT PAGE (P2.5 placeholder → P4.6). Reached only through RequireAuth. Three tabs over the
+// UserDataSource (P2.4): saved plans (diet, week start, open → `/diets/:slug`), saved fridge lists
+// (name, ingredient count) and favourites (recipe links), each with Remove. Diet and recipe names
+// come from the ContentSource by id — the per-user tables store ids, never copies. `source` and
+// `content` are injectable for tests; the app passes nothing. If the user source is disabled anyway
+// (it cannot be, under RequireAuth, but the type allows it) the bilingual note explains why.
 
-import { useEffect, useState } from 'react'
-import { useLang } from '../i18n/LangProvider'
+import { useCallback, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { SignedOutNote } from '../components/SignedOutNote'
-import type { Favourite, FridgeList, SavedPlan, UserDataSource } from '../user/source'
+import { contentSource, type ContentSource, type Diet, type Recipe } from '../content/index.ts'
+import { useLang } from '../i18n/LangProvider'
+import type { Lang } from '../i18n/dictionary'
+import { useAsync } from '../lib/useAsync'
+import type {
+  Favourite,
+  FridgeList,
+  Result,
+  SavedPlan,
+  UserDataError,
+  UserDataSource,
+} from '../user/source'
 import { useUserData } from '../user/useUserData'
 
 type Tab = 'savedPlans' | 'savedFridgeLists' | 'favourites'
 const TABS: readonly Tab[] = ['savedPlans', 'savedFridgeLists', 'favourites']
 
 interface Loaded {
-  source: UserDataSource
-  plans: SavedPlan[]
-  lists: FridgeList[]
-  favourites: Favourite[]
+  plans: Result<SavedPlan[]>
+  lists: Result<FridgeList[]>
+  favourites: Result<Favourite[]>
+  dietsById: ReadonlyMap<string, Diet>
+  recipesById: ReadonlyMap<string, Recipe>
 }
 
-export function AccountPage() {
-  const { t } = useLang()
-  const source = useUserData()
+async function loadAll(source: UserDataSource, content: ContentSource): Promise<Loaded> {
+  const [plans, lists, favourites, diets, recipes] = await Promise.all([
+    source.savedPlans.list(),
+    source.fridgeLists.list(),
+    source.favourites.list(),
+    content.listDiets(),
+    content.listRecipes(),
+  ])
+  return {
+    plans,
+    lists,
+    favourites,
+    dietsById: new Map(diets.ok ? diets.data.map((d) => [d.id, d]) : []),
+    recipesById: new Map(recipes.ok ? recipes.data.map((r) => [r.id, r]) : []),
+  }
+}
+
+function formatDate(iso: string, lang: Lang): string {
+  return new Date(`${iso}T00:00:00Z`).toLocaleDateString(lang === 'el' ? 'el-GR' : 'en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  })
+}
+
+export function AccountPage({
+  source,
+  content = contentSource,
+}: {
+  source?: UserDataSource
+  content?: ContentSource
+}) {
+  const { t, lang } = useLang()
+  const fromHook = useUserData()
+  const userData = source ?? fromHook
   const [tab, setTab] = useState<Tab>('savedPlans')
-  // Only the async outcome is state, keyed by the source instance; "loading" is derived.
-  const [loaded, setLoaded] = useState<Loaded | null>(null)
+  const [removeError, setRemoveError] = useState<UserDataError | null>(null)
 
-  useEffect(() => {
-    if (source.kind !== 'supabase') return
-    let active = true
-    void Promise.all([
-      source.savedPlans.list(),
-      source.fridgeLists.list(),
-      source.favourites.list(),
-    ]).then(([plans, lists, favourites]) => {
-      if (!active) return
-      setLoaded({
-        source,
-        plans: plans.ok ? plans.data : [],
-        lists: lists.ok ? lists.data : [],
-        favourites: favourites.ok ? favourites.data : [],
-      })
-    })
-    return () => {
-      active = false
-    }
-  }, [source])
+  const load = useCallback(() => loadAll(userData, content), [userData, content])
+  const { state, reload } = useAsync(load)
 
-  const data = loaded?.source === source ? loaded : null
+  const remove = useCallback(
+    async (action: () => Promise<Result<void>>) => {
+      setRemoveError(null)
+      const result = await action()
+      if (result.ok) reload()
+      else setRemoveError(result.error)
+    },
+    [reload],
+  )
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-3xl flex-col gap-6 px-4 py-10 sm:px-6">
       <h1 className="font-display text-3xl font-semibold text-olive-950">{t.account}</h1>
 
-      {source.kind === 'disabled' ? (
-        <SignedOutNote reason={source.reason ?? 'signed-out'} />
+      {userData.kind === 'disabled' ? (
+        <SignedOutNote reason={userData.reason ?? 'signed-out'} />
       ) : (
         <>
           <div role="tablist" aria-label={t.account} className="flex flex-wrap gap-2">
@@ -66,7 +102,11 @@ export function AccountPage() {
                 id={`tab-${id}`}
                 aria-selected={tab === id}
                 aria-controls={`panel-${id}`}
-                onClick={() => setTab(id)}
+                tabIndex={tab === id ? 0 : -1}
+                onClick={() => {
+                  setTab(id)
+                  setRemoveError(null)
+                }}
                 className={`rounded-full px-4 py-1.5 text-sm font-medium ${
                   tab === id
                     ? 'bg-olive-900 text-paper-50'
@@ -82,14 +122,26 @@ export function AccountPage() {
             role="tabpanel"
             id={`panel-${tab}`}
             aria-labelledby={`tab-${tab}`}
-            className="rounded-2xl border border-olive-900/10 bg-paper-50/80 p-6"
+            className="flex flex-col gap-3 rounded-2xl border border-olive-900/10 bg-paper-50/80 p-6"
           >
-            {data === null ? (
+            {removeError !== null ? (
+              <p role="alert" className="text-sm text-clay-500">
+                {t.removeFailed}
+              </p>
+            ) : null}
+            {state.status === 'loading' ? (
               <p role="status" className="text-olive-700">
                 {t.loading}
               </p>
             ) : (
-              <Panel tab={tab} data={data} empty={t.nothingSavedYet} />
+              <Panel
+                tab={tab}
+                data={state.value}
+                source={userData}
+                lang={lang}
+                onRemove={remove}
+                onRetry={reload}
+              />
             )}
           </section>
         </>
@@ -98,25 +150,112 @@ export function AccountPage() {
   )
 }
 
-function Panel({ tab, data, empty }: { tab: Tab; data: Loaded; empty: string }) {
-  const items: Array<{ key: string; label: string }> =
-    tab === 'savedPlans'
-      ? data.plans.map((p) => ({ key: p.id, label: `${p.week_start} · ${p.diet_id}` }))
-      : tab === 'savedFridgeLists'
-        ? data.lists.map((l) => ({
-            key: l.id,
-            label: `${l.name} (${l.ingredient_slugs.length})`,
-          }))
-        : data.favourites.map((f) => ({ key: f.recipe_id, label: f.recipe_id }))
+interface Item {
+  key: string
+  label: string
+  detail?: string
+  /** Where "Open" goes; absent when the referenced content is not visible. */
+  to?: string
+  remove: () => Promise<Result<void>>
+}
 
-  if (items.length === 0) return <p className="text-olive-700">{empty}</p>
+function Panel({
+  tab,
+  data,
+  source,
+  lang,
+  onRemove,
+  onRetry,
+}: {
+  tab: Tab
+  data: Loaded
+  source: UserDataSource
+  lang: Lang
+  onRemove: (action: () => Promise<Result<void>>) => Promise<void>
+  onRetry: () => void
+}) {
+  const { t } = useLang()
+  const result: Result<Item[]> =
+    tab === 'savedPlans'
+      ? mapResult(data.plans, (plan) => {
+          const diet = data.dietsById.get(plan.diet_id)
+          return {
+            key: plan.id,
+            label: diet ? (lang === 'el' ? diet.name_el : diet.name_en) : plan.diet_id,
+            detail: `${t.weekOf} ${formatDate(plan.week_start, lang)}`,
+            to: diet ? `/diets/${diet.slug}` : undefined,
+            remove: () => source.savedPlans.remove(plan.id),
+          }
+        })
+      : tab === 'savedFridgeLists'
+        ? mapResult(data.lists, (list) => ({
+            key: list.id,
+            label: list.name,
+            detail: `${list.ingredient_slugs.length} ${t.itemCount}`,
+            to: '/fridge',
+            remove: () => source.fridgeLists.remove(list.id),
+          }))
+        : mapResult(data.favourites, (fav) => {
+            const recipe = data.recipesById.get(fav.recipe_id)
+            return {
+              key: fav.recipe_id,
+              label: recipe ? (lang === 'el' ? recipe.title_el : recipe.title_en) : fav.recipe_id,
+              to: recipe ? `/recipes/${recipe.slug}` : undefined,
+              remove: () => source.favourites.remove(fav.recipe_id),
+            }
+          })
+
+  if (!result.ok) {
+    return (
+      <div role="alert" className="flex flex-col items-start gap-3 text-olive-900">
+        <p>{t.loadFailed}</p>
+        <button
+          type="button"
+          onClick={onRetry}
+          className="rounded-full bg-olive-900 px-4 py-1.5 text-sm font-medium text-paper-50 hover:bg-olive-700"
+        >
+          {t.retry}
+        </button>
+      </div>
+    )
+  }
+  if (result.data.length === 0) return <p className="text-olive-700">{t.nothingSavedYet}</p>
   return (
     <ul className="flex flex-col gap-2 text-olive-900">
-      {items.map((item) => (
-        <li key={item.key} className="rounded-xl bg-paper-200/60 px-4 py-2 text-sm">
-          {item.label}
+      {result.data.map((item) => (
+        <li
+          key={item.key}
+          className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-paper-200/60 px-4 py-2 text-sm"
+        >
+          <div className="flex flex-col">
+            <span className="font-medium">{item.label}</span>
+            {item.detail ? <span className="text-xs text-olive-700">{item.detail}</span> : null}
+          </div>
+          <div className="flex items-center gap-2">
+            {item.to ? (
+              <Link
+                to={item.to}
+                aria-label={`${t.open}: ${item.label}`}
+                className="rounded-full border border-olive-900/20 px-3 py-1 text-xs font-medium hover:bg-paper-50"
+              >
+                {t.open}
+              </Link>
+            ) : null}
+            <button
+              type="button"
+              aria-label={`${t.remove}: ${item.label}`}
+              onClick={() => void onRemove(item.remove)}
+              className="rounded-full border border-clay-500/40 px-3 py-1 text-xs font-medium text-clay-500 hover:bg-clay-500/10"
+            >
+              {t.remove}
+            </button>
+          </div>
         </li>
       ))}
     </ul>
   )
+}
+
+function mapResult<T, U>(result: Result<T[]>, map: (row: T) => U): Result<U[]> {
+  return result.ok ? { ok: true, data: result.data.map(map) } : result
 }
