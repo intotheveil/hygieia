@@ -12,7 +12,8 @@
 //   service-only  nothing for any API role (the migration ledger).
 // The gate derives the table list from pg_class and FAILS on a table without an entry (and on an
 // entry without a table), so a new table cannot be silently skipped. Adding a table = adding its
-// entry here, its fixture rows to seedFixture, and (P1.12) its seed count.
+// entry here, its fixture rows to seedFixture, and its reference seed count to SEED_COUNTS /
+// SEED_CHILD_COUNTS (P1.12: asserted over the generator's rows, `fx-` fixture rows excluded).
 //
 // Fixture (committed as the superuser; every check runs in a transaction that is ROLLED BACK):
 //   users UA, UB (profiles, is_admin = false), ADMIN (is_admin = true), NEW (signed up, no profile).
@@ -62,6 +63,31 @@ export const sid = (table, slug) => {
   const h = createHash('md5').update(`hygieia:${table}:${slug}`).digest('hex')
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`
 }
+
+/**
+ * Reference seed counts (PLAN P1.12): what `npm run seed:gen` ships per content table, asserted by
+ * the gate over the rows the GENERATOR wrote — the fixture's `fx-` rows (inserted after the archive)
+ * are excluded, so the check reads the seed, not the gate's own rows. `min` is a floor; `exact` is
+ * asserted equal. `pendingTask` marks a kind whose seed module does not exist yet: ZERO seeded rows
+ * PASS with a note until the module lands, after which the count binds.
+ * @typedef {{ min: number, exact?: undefined, pendingTask?: string } | { exact: number, min?: undefined, pendingTask?: string }} SeedCount
+ */
+/** @type {Readonly<Record<string, SeedCount>>} */
+export const SEED_COUNTS = Object.freeze({
+  ingredients: { min: 160 },
+  diets: { min: 8 },
+  recipes: { min: 40 },
+  exercises: { min: 60 },
+  health_tips: { min: 30 },
+  workout_templates: { exact: 63, pendingTask: 'P4.8 (src/content/seed/workouts.ts)' },
+})
+/** Child tables: seeded rows under NON-fixture parents (parent slug not `fx-`). */
+/** @type {Readonly<Record<string, { min: number, pendingTask?: string }>>} */
+export const SEED_CHILD_COUNTS = Object.freeze({
+  recipe_ingredients: { min: 1 },
+  recipe_diets: { min: 1 },
+  workout_template_exercises: { min: 1, pendingTask: 'P4.8 (src/content/seed/workouts.ts)' },
+})
 
 /** Fixture slugs per content table; the first `approved` and `pending` slug is the one the checks mutate. */
 export const FX = Object.freeze({
@@ -721,6 +747,22 @@ export function checksFor(e, h) {
         return [bad === 0 && total > 0, `${total} rows checked, ${bad} off-formula`]
       }),
     )
+    const ref = SEED_COUNTS[e.table]
+    if (ref) {
+      const want = ref.exact !== undefined ? `= ${ref.exact}` : `>= ${ref.min}`
+      add(`seeded rows (slug not like 'fx-%') ${want} (P1.12 reference count)`, () =>
+        actAs(SUPERUSER, async (s) => {
+          const n = await s.count(e.table, `slug not like 'fx-%'`)
+          if (n === 0 && ref.pendingTask)
+            return [
+              true,
+              `0 seeded rows — not seeded yet, pending ${ref.pendingTask}; binds once seeded`,
+            ]
+          const ok = ref.exact !== undefined ? n === ref.exact : n >= ref.min
+          return [ok, `${n} seeded rows`]
+        }),
+      )
+    }
     return out
   }
 
@@ -798,6 +840,23 @@ export function checksFor(e, h) {
         ]
       }),
     )
+    const ref = SEED_CHILD_COUNTS[e.table]
+    if (ref) {
+      const underSeeded = `exists (select 1 from ${P} p where p.id = ${e.parentKey} and p.slug not like 'fx-%')`
+      add(
+        `seeded child rows (under non-fixture parents) >= ${ref.min} (P1.12 reference count)`,
+        () =>
+          actAs(SUPERUSER, async (s) => {
+            const n = await s.count(e.table, underSeeded)
+            if (n === 0 && ref.pendingTask)
+              return [
+                true,
+                `0 seeded rows — not seeded yet, pending ${ref.pendingTask}; binds once seeded`,
+              ]
+            return [n >= ref.min, `${n} seeded rows`]
+          }),
+      )
+    }
     return out
   }
 
