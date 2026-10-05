@@ -1,3 +1,9 @@
+import {
+  containsPlaceholderMarkers,
+  hasGreek,
+  leaves,
+  looksUntranslated,
+} from '../../test/bilingual'
 import { LEVELS, SLUG_RE, WORKOUT_TYPES } from '../enums'
 import { EXERCISES, MUSCLE_GROUPS } from './exercises'
 
@@ -123,6 +129,73 @@ describe('EXERCISES seed (PLAN.md P4.7)', () => {
         slugs.some((s) => COOLDOWN_HINTS.test(s)),
         `${type} cool-down`,
       ).toBe(true)
+    }
+  })
+})
+
+/**
+ * Equipment Greeks name as-is in the gym or pool (loanwords, PLAN.md §0), so `equipment_el` may
+ * stay Latin-script and equal `equipment_en`. The same words appear untranslated in those rows'
+ * Greek names and cues (`Αιωρήσεις με kettlebell`, `Ελεύθερο με pull buoy`).
+ */
+const LATIN_EQUIPMENT_EL_ALLOWLIST: ReadonlySet<string> = new Set([
+  'kettlebell-swing',
+  'pull-buoy-freestyle',
+])
+
+describe('EXERCISES seed — bilingual completeness sweep (PLAN.md P5.5)', () => {
+  it('name_en, cue_en and equipment_en carry no Greek script', () => {
+    for (const e of EXERCISES) {
+      expect(hasGreek(e.name_en), `${e.slug} name_en`).toBe(false)
+      expect(hasGreek(e.cue_en), `${e.slug} cue_en`).toBe(false)
+      if (e.equipment_en !== null)
+        expect(hasGreek(e.equipment_en), `${e.slug} equipment_en`).toBe(false)
+    }
+  })
+
+  it('equipment_el is Greek script unless the slug is on the loanword equipment allow-list', () => {
+    for (const e of EXERCISES) {
+      if (e.equipment_el === null || LATIN_EQUIPMENT_EL_ALLOWLIST.has(e.slug)) continue
+      expect(hasGreek(e.equipment_el), `${e.slug} equipment_el="${e.equipment_el}"`).toBe(true)
+    }
+  })
+
+  it('the equipment allow-list only names slugs that exist and still need the exception', () => {
+    const bySlug = new Map(EXERCISES.map((e) => [e.slug, e]))
+    for (const slug of LATIN_EQUIPMENT_EL_ALLOWLIST) {
+      const e = bySlug.get(slug)
+      expect(e, `${slug} not in EXERCISES`).toBeDefined()
+      expect(e?.equipment_el, `${slug} has no equipment`).not.toBeNull()
+      expect(hasGreek(e?.equipment_el ?? ''), `${slug} equipment_el is Greek now`).toBe(false)
+    }
+  })
+
+  it('the Greek column never repeats the English one, except allow-listed loanwords', () => {
+    for (const e of EXERCISES) {
+      const nameAllow = LATIN_NAME_EL_ALLOWLIST.has(e.slug) ? [e.name_en] : []
+      expect(looksUntranslated(e.name_el, e.name_en, nameAllow), `${e.slug} name`).toBe(false)
+      expect(looksUntranslated(e.cue_el, e.cue_en), `${e.slug} cue`).toBe(false)
+      if (e.equipment_el !== null && e.equipment_en !== null) {
+        const equipmentAllow = LATIN_EQUIPMENT_EL_ALLOWLIST.has(e.slug) ? [e.equipment_en] : []
+        expect(
+          looksUntranslated(e.equipment_el, e.equipment_en, equipmentAllow),
+          `${e.slug} equipment`,
+        ).toBe(false)
+      }
+    }
+  })
+
+  it('no leaf carries a placeholder marker', () => {
+    for (const e of EXERCISES) {
+      for (const [path, value] of leaves(e)) {
+        expect(containsPlaceholderMarkers(value), `${e.slug} ${path} "${value}"`).toBe(false)
+      }
+    }
+  })
+
+  it('muscle_groups has no blank entries', () => {
+    for (const e of EXERCISES) {
+      for (const g of e.muscle_groups) expect(blank(g), `${e.slug} blank muscle group`).toBe(false)
     }
   })
 })

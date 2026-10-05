@@ -1,3 +1,9 @@
+import {
+  containsPlaceholderMarkers,
+  hasGreek,
+  leaves,
+  looksUntranslated,
+} from '../../test/bilingual'
 import { PRICE_PER, SLUG_RE, UNITS } from '../enums'
 import type { IngredientSeed } from '../types'
 import { INGREDIENTS } from './ingredients'
@@ -257,5 +263,36 @@ describe('INGREDIENTS seed — substitutes, categories, staples', () => {
     const first: IngredientSeed | undefined = INGREDIENTS[0]
     expect(first).toBeDefined()
     expectTypeOf(INGREDIENTS).toEqualTypeOf<readonly IngredientSeed[]>()
+  })
+})
+
+describe('INGREDIENTS seed — bilingual completeness sweep (PLAN.md P5.5)', () => {
+  it('name_en carries no Greek script', () => {
+    for (const row of INGREDIENTS) {
+      expect(hasGreek(row.name_en), `${row.slug} name_en "${row.name_en}"`).toBe(false)
+    }
+  })
+
+  it('name_el never repeats name_en, except allow-listed Latin loanwords', () => {
+    for (const row of INGREDIENTS) {
+      const allow = LATIN_NAME_EL_ALLOWLIST.includes(row.slug) ? [row.name_en] : []
+      expect(looksUntranslated(row.name_el, row.name_en, allow), `${row.slug} name`).toBe(false)
+    }
+  })
+
+  it('no leaf carries a placeholder marker (names, notes, slugs, dates)', () => {
+    for (const row of INGREDIENTS) {
+      for (const [path, value] of leaves(row)) {
+        expect(containsPlaceholderMarkers(value), `${row.slug} ${path} "${value}"`).toBe(false)
+      }
+    }
+  })
+
+  it('substitute_slugs has no blank entries', () => {
+    for (const row of INGREDIENTS) {
+      for (const s of row.substitute_slugs) {
+        expect(s.trim(), `${row.slug} blank substitute slug`).not.toBe('')
+      }
+    }
   })
 })

@@ -1,3 +1,9 @@
+import {
+  containsPlaceholderMarkers,
+  hasGreek,
+  leaves,
+  looksUntranslated,
+} from '../../test/bilingual'
 import { MEAL_TYPES, SLUG_RE, UNITS } from '../enums'
 import type { IngredientSeed, RecipeSeed } from '../types'
 import { computeNutrition } from '../../nutrition/compute'
@@ -431,5 +437,45 @@ describe('RECIPES seed — nutrition sample', () => {
       `RECIPES kcal/portion:\n${rows.map((row) => `${String(row.kcal).padStart(5)}  ${row.slug}`).join('\n')}`,
     )
     expect(rows.length).toBe(RECIPES.length)
+  })
+})
+
+describe('RECIPES seed — bilingual completeness sweep (PLAN.md P5.5)', () => {
+  describe.each(RECIPES.map((r) => [r.slug, r] as const))('recipe %s', (_slug, recipe) => {
+    it('title_en and every steps_en entry carry no Greek script', () => {
+      expect(hasGreek(recipe.title_en), 'title_en').toBe(false)
+      recipe.steps_en.forEach((step, i) => {
+        expect(hasGreek(step), `steps_en[${i}] "${step}"`).toBe(false)
+      })
+    })
+
+    it('the Greek column never repeats the English one (title, each step), except allow-listed titles', () => {
+      const titleAllow = LATIN_TITLE_EL_ALLOWLIST.includes(recipe.slug) ? [recipe.title_en] : []
+      expect(looksUntranslated(recipe.title_el, recipe.title_en, titleAllow), 'title').toBe(false)
+      recipe.steps_el.forEach((step, i) => {
+        expect(looksUntranslated(step, recipe.steps_en[i] ?? ''), `steps[${i}]`).toBe(false)
+      })
+    })
+
+    it('ingredient line notes are Greek in note_el, Latin in note_en, and never identical', () => {
+      for (const line of recipe.ingredients) {
+        if (line.note_el === undefined || line.note_en === undefined) continue
+        expect(hasGreek(line.note_el), `${line.ingredient_slug} note_el "${line.note_el}"`).toBe(
+          true,
+        )
+        expect(hasGreek(line.note_en), `${line.ingredient_slug} note_en "${line.note_en}"`).toBe(
+          false,
+        )
+        expect(looksUntranslated(line.note_el, line.note_en), `${line.ingredient_slug} note`).toBe(
+          false,
+        )
+      }
+    })
+
+    it('no leaf carries a placeholder marker', () => {
+      for (const [path, value] of leaves(recipe)) {
+        expect(containsPlaceholderMarkers(value), `${path} "${value}"`).toBe(false)
+      }
+    })
   })
 })

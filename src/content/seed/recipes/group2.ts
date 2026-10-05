@@ -356,7 +356,7 @@ export const RECIPES_GROUP2: readonly RecipeSeed[] = [
         ingredient_slug: 'spinach',
         quantity: 50,
         unit: 'g',
-        note_el: 'baby',
+        note_el: 'τρυφερά φύλλα',
         note_en: 'baby leaves',
       },
       { ingredient_slug: 'olive-oil', quantity: 1, unit: 'tbsp' },
@@ -1269,7 +1269,7 @@ export const RECIPES_GROUP2: readonly RecipeSeed[] = [
     ingredients: [
       { ingredient_slug: 'pork-chop', quantity: 400, unit: 'g' },
       { ingredient_slug: 'heavy-cream', quantity: 100, unit: 'ml' },
-      { ingredient_slug: 'mustard', quantity: 2, unit: 'tsp', note_el: 'Dijon', note_en: 'Dijon' },
+      { ingredient_slug: 'mustard', quantity: 2, unit: 'tsp', note_el: 'Ντιζόν', note_en: 'Dijon' },
       { ingredient_slug: 'butter', quantity: 1, unit: 'tbsp' },
       { ingredient_slug: 'garlic', quantity: 1, unit: 'clove' },
       { ingredient_slug: 'thyme', quantity: 1, unit: 'tsp' },

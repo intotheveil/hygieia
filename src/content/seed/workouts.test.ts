@@ -1,3 +1,9 @@
+import {
+  containsPlaceholderMarkers,
+  hasGreek,
+  leaves,
+  looksUntranslated,
+} from '../../test/bilingual.ts'
 import { BLOCKS, INTENSITIES, LEVELS, SLUG_RE, WORKOUT_TYPES } from '../enums.ts'
 import type { Intensity, Level, WorkoutType } from '../enums.ts'
 import type { ExerciseSeed, WorkoutTemplateSeed } from '../types.ts'
@@ -174,6 +180,29 @@ describe('WORKOUT_TEMPLATES seed (PLAN.md P4.8)', () => {
       expect(sentences(t.notes_en), `${t.slug} notes_en`).toBeGreaterThanOrEqual(2)
       expect(t.notes_en, t.slug).toMatch(/Stop if you feel/)
       expect(t.notes_el, t.slug).toMatch(/Σταμάτα αν/)
+    }
+  })
+})
+
+describe('WORKOUT_TEMPLATES seed — bilingual completeness sweep (PLAN.md P5.5)', () => {
+  it('notes_en carries no Greek script (title_en is covered above)', () => {
+    for (const t of WORKOUT_TEMPLATES) {
+      expect(hasGreek(t.notes_en), `${t.slug} notes_en`).toBe(false)
+    }
+  })
+
+  it('the Greek column never repeats the English one (title, notes)', () => {
+    for (const t of WORKOUT_TEMPLATES) {
+      expect(looksUntranslated(t.title_el, t.title_en), `${t.slug} title`).toBe(false)
+      expect(looksUntranslated(t.notes_el, t.notes_en), `${t.slug} notes`).toBe(false)
+    }
+  })
+
+  it('no leaf carries a placeholder marker', () => {
+    for (const t of WORKOUT_TEMPLATES) {
+      for (const [path, value] of leaves(t)) {
+        expect(containsPlaceholderMarkers(value), `${t.slug} ${path} "${value}"`).toBe(false)
+      }
     }
   })
 })
