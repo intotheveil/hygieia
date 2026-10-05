@@ -355,6 +355,67 @@ here is proven against the fake only.
 **For the lead to route (outside this lane's file scope):** BRAIN.md §3/§6/§7 for P2.4/P2.5 (per CLAUDE.md
 §0; `BRAIN.md` was not in the task's file list); DECISIONS.md has the `user_id` rule (appended by this task).
 
+### P2.6 `npm run db:live-check` — read-only live probe, skips without env — DONE (builder, `wt/e`; not yet committed)
+
+- `scripts/db-live-check.mjs` — exports `runLiveCheck({ env, fetch, archiveDir, log, error })` → exit code (the CLI
+  sets `process.exitCode`; no `process.exit()`). READ-ONLY: the only Management-API statements it sends are the
+  applier's two `select`s (`readApplied` from `db-apply.mjs`: `to_regclass` first, then the ledger rows); the
+  only PostgREST calls are two anon `GET`s. Required env (names only, never read from a file): `SUPABASE_ACCESS_TOKEN`,
+  `HYGIEIA_SUPABASE_PROJECT_REF`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`. ANY unset/blank →
+  `LIVE-CHECK SKIPPED — missing: <names>. Needs every one of: <all four>. Skipped is NOT passed; … Nothing was sent.`
+  and exit 0 with zero requests (the Themis `e2e:live` pattern). Three probes, each printed as one `PASS`/`FAIL`
+  line, all three run even when an earlier one fails (they are independent reads):
+  1. `ledger` — `compareLedger(local, applied)` (pure, reused helpers `loadMigrations`/`readApplied`/`LEDGER`):
+     ledger table absent → `ledger absent — nothing applied yet (hygieia.schema_migrations does not exist …)`;
+     then per archive file `MISSING:` / `CHECKSUM MISMATCH: <file> was applied with sha256 A but the file now hashes
+     to B`; then `EXTRA: live ledger holds version X (name) which has no file in this archive`. First problem is
+     THE mismatch; the rest are listed indented under it.
+  2. `GET /rest/v1/recipes?select=id&status=eq.pending` and 3. `GET /rest/v1/profiles?select=user_id`, headers
+     `apikey` + `Authorization: Bearer <anon>` + `Accept-Profile: hygieia` → must be HTTP 200 and `[]`. Rows →
+     `anon can see pending recipe row(s) live …` / `anon can see profile row(s) live …` (`N row(s) returned`).
+     404/406 with PostgREST `code PGRST106` or a message about the schema (not "schema cache") →
+     `schema hygieia is not exposed in the Data API (ADR-0003 rule 5 / BRAIN O1) — HTTP 406: …`. A `PGRST205` 404
+     (schema exposed, TABLE missing) is reported as "its migration is not applied (or the schema cache is stale)".
+     Anything else → `HTTP <status>: <message>`; a thrown fetch → `network error calling PostgREST: …`.
+  - Ends `LIVE-CHECK PASSED — 3 read-only probe(s) against project <ref>` (exit 0) or, on stderr,
+    `LIVE-CHECK FAILED — <first mismatch> (+N more)` (exit 1). Exit 2 = malformed ref/URL, nothing sent.
+  - Every line goes through `redact(s, [token, anonKey])` from `lib/mgmt-api.mjs` — the anon key is public by
+    design but there is no reason to print it either. `REST_PROBES`, `restProbe`, `classifyRestAnswer`,
+    `parseRestBody` are exported for P6.3's `smoke:live` to reuse.
+- `scripts/db-live-check.test.ts` (`@vitest-environment node`, 22 tests, one fake fetch playing both endpoints
+  by URL): the four names pinned; no env → SKIPPED, all four names, exit 0, zero calls; partial env → only the
+  missing ones listed as missing; blank = missing; happy path against the REAL archive's checksums →
+  3 PASS lines + `LIVE-CHECK PASSED`; every mgmt query is `^select ` and never insert/update/delete/create/alter/
+  drop/begin/commit/truncate, every REST call is GET with `Accept-Profile: hygieia` + the anon key, exact URLs in
+  order; trailing-slash URL tolerated; mismatches: changed checksum (edited copy of the real file vs the original
+  ledger row), extra version, missing version (2-file fixture), absent ledger (only `to_regclass` sent),
+  `compareLedger` purity/ordering, Management API 500 (ledger FAIL, anon probes still run); pending rows visible,
+  profiles visible, 406 PGRST106 on both probes → the ADR-0003 rule 5 message, 404 "Invalid schema" vs PGRST205 vs
+  401/502/200-non-array classification, network error on a probe; redaction: token echoed by the API → `[REDACTED]`,
+  anon key echoed by PostgREST → `[REDACTED]`, bad ref / bad URL → exit 2 with no request. `runIt` asserts on
+  EVERY run that neither the token nor the anon key appears in any captured stdout/stderr line.
+- `package.json` — one line: `"db:live-check": "node scripts/db-live-check.mjs"` (the phase's second
+  package.json edit, as PLAN P2.6 reserves).
+
+**Gates (worktree `D:/projects/hygieia-wt/e`, 2026-10-05):** `npm run lint` 0 errors (the 6 pre-existing
+react-refresh warnings in `AuthProvider.tsx`/`LangProvider.tsx`/`routes.tsx`; `.mjs` is outside eslint's `files`) ·
+`npm run typecheck` clean (`tsconfig.scripts.json` covers the new test; the `.mjs` JSDoc types check through it) ·
+`npm test` **20 files / 347 tests green** (325 → 347) · `npm run build` green (24 precache entries) ·
+`check:pwa OK — Hygieia · Υγίεια, 3 icons, sw.js present` · `npm run db:live-check` with no env →
+`LIVE-CHECK SKIPPED — missing: SUPABASE_ACCESS_TOKEN, HYGIEIA_SUPABASE_PROJECT_REF, VITE_SUPABASE_URL,
+VITE_SUPABASE_ANON_KEY. …`, exit 0 · Prettier clean on the three touched files. No live request was made by
+anything in this task.
+
+**Not exercised live (P2.QA item 5, operator machine):** `LIVE-CHECK PASSED` against the real project. Note for
+QA: until the P1 content/profile migrations are applied live, probes 2–3 will legitimately FAIL with the
+`PGRST205` "table … not in the live Data API" line (or the PGRST106 line until `hygieia` is added to the exposed
+schemas — BRAIN O1); that is the check doing its job, not a bug. `HYGIEIA_SUPABASE_PROJECT_REF` must be the
+20-char ref (`createMgmtClient` refuses anything else, exit 2).
+
+**For the lead to route (outside this lane's file scope):** BRAIN.md §3/§6 for P2.6; DECISIONS.md one-liner
+candidate: "db:live-check redacts the anon key too, runs all three probes independently, and classifies
+PGRST106 (schema not exposed) separately from PGRST205 (table missing)".
+
 ## 2026-10-05 — P1 Data spine (in progress; PLAN.md §P1)
 
 ### P1.9 Seed content: ingredients — DONE (builder, worktree `wt/b`; not yet committed)
