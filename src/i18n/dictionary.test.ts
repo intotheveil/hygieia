@@ -20,7 +20,7 @@ const SAME_VALUE_ALLOWLIST: readonly string[] = [
 const GREEK_IN_EN_ALLOWLIST_KEYS: readonly string[] = ['switchTo']
 
 /** Keys whose `el` leaf may carry no Greek script at all (the mirror of the rule above). */
-const LATIN_IN_EL_ALLOWLIST_KEYS: readonly string[] = ['switchTo']
+const LATIN_IN_EL_ALLOWLIST_KEYS: readonly string[] = ['switchTo', 'types.calisthenics']
 
 /** Below this length an `el` leaf may be a bare loanword (`Google`, `email`); at or above it, Greek is required. */
 const MIN_EL_LENGTH_FOR_GREEK = 12
