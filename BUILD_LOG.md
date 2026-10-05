@@ -3,6 +3,28 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+### Records follow-up for P1/P2 REVIEW items 2–3 — 2026-10-06 — DONE (builder, worktree `wt/a`; records only, no code)
+
+- **`DECISIONS.md` (+5 entries, appended):** four dated 2026-10-05 entries for the hand-offs the reviewer listed under
+  item 2 — **P1.9** (`kcal_100g` capped at 900 for lard/tallow vs USDA 902; bunch/head/cube/sheet-sold rows use
+  `price_per = 'piece'` with the basis in `price_note`; extending `PRICE_PER` migrates those ~8 rows), **P1.10** (16 diets
+  by operator instruction "as many as you can"; test asserts ≥ 8 + the eight named slugs), **P2.1–P2.3** (`?next=` parked in
+  `sessionStorage` `hygieia.auth.next`, `safeNextPath` admits in-app paths only; callback failure is timeout-based, 15 s
+  injectable, because supabase-js has no "exchange failed" event; `profileClientFor` adapter), **P2.6** (`db:live-check`
+  redacts the anon key too, runs its three probes independently, classifies PGRST106 "schema not exposed" apart from
+  PGRST205 "table missing") — and **ADR-0005 "Build cadence actually run for P1–P6"** for item 3: operator instruction,
+  the mechanism (PLAN.md lanes → worktrees `hygieia-wt/a..g`, G0 per lane, lead merges, `merge=union` records), the
+  deviation from §4/§7/§9 (no gate between phases, P3–P6 on `main` before P1/P2 were gated, checkpoints waived), what
+  still binds (every phase's QA + Review before it is CLAIMED; P1/P2 QA VALIDATED, REVIEW REVISE-on-records; P3–P6 gates
+  owed) and the risk accepted. Also added the one blank line prettier wanted before the pre-existing
+  `## 2026-10-06 — P6.4` heading.
+- **`.claude/CLAUDE.project.md` §2** "Deviations from the house stack" now also names ADR-0005. Block markers intact
+  (`grep -c 'KIT:PROJECT'` → 9). The constitution was NOT recomposed in this lane — the lead runs `kit.mjs compose` on `main`.
+- **Item 1 (BRAIN.md rewrite for P1/P2) is the lead's and is pending**; `BRAIN.md` untouched here (not `merge=union`).
+- **Checks:** `npx prettier --check DECISIONS.md` is clean on the LF content (git stores LF; the Windows checkout is CRLF via
+  `core.autocrlf=true`, which prettier's default `endOfLine: lf` flags on its own — pre-existing, not introduced here);
+  `.claude/` is in `.prettierignore`, so `CLAUDE.project.md` is outside prettier by design. No code, test or gate touched.
+
 ### P1.REVIEW + P2.REVIEW — 2026-10-06 — REVISE (one rubric line short: BRAIN.md/DECISIONS.md are not current for P1/P2; code, tests, isolation and migrations PASS)
 
 **Independent reviewer (agent `reviewer`, not a builder, not QA).** Judged on `D:/projects/hygieia` at `f6f8f92` (clean tree) against CLAUDE.md §6,

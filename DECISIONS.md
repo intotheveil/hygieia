@@ -346,6 +346,7 @@ effect`) and asserts A's rows unchanged — instead of adding new checks — bec
 - **A recipe with no priced line shows no range.** `€0.00–€0.00` would read as "free"; the `unpriced` list already explains the gap.
 - **`costRange` copy is "About {min}–{max}" / "Περίπου {min}–{max}"**, not a bare `{min}–{max}` template: the bilingual sweep rejects an
   `el` leaf identical to its `en` twin, and "about" is honest copy for a range anyway.
+
 ## 2026-10-06 — P6.4: two CI builds (local-only for the browser gates, configured for the Pages artifact), variables not secrets
 
 - **CI builds twice from the same commit; the uploaded artifact is the second build.** e2e and Lighthouse drive a real browser
@@ -373,3 +374,106 @@ effect`) and asserts A's rows unchanged — instead of adding new checks — bec
   so the two `exhaustive-deps` disables that the "new identity forces a re-read" trick needed are gone too. The one behaviour change is
   deliberate: a REJECTED read renders `adminLoadFailed` instead of hanging on the loading line (asserted by one new test per page, each
   through a source that bypasses the adapter, because `adminSource`'s `run` catches every throw and a real client can never reject).
+
+## 2026-10-05 — P1.9 ingredients: `kcal_100g` capped at 900; bunch/head/cube/sheet-sold items priced as `piece`
+
+**Decision.** Lard and tallow carry `kcal_100g = 900`, not USDA's 902: the column's CHECK caps it at 900
+(`ingredients.test.ts` pins the same `0..900` range) and those two rows are the only ones above it; everything
+else is the unrounded typical value. Items sold by the bunch, head, cube, sheet or sachet — eight rows today,
+seven bunch-sold and one sheet-sold — use `price_per: 'piece'` with the real basis named in `price_note`
+("… per bunch"), because `PRICE_PER` is `kg | l | piece` and nothing else. **Why.** Widening the CHECK for two
+rows was not worth a schema change inside the seed task, and a per-basis enum would have had eight rows as its
+only users. The cost engine (P4.2) agrees with "per piece" only because `grams_per_unit` on those rows IS the
+bunch / sheet weight, so both readings compute the same figure. **Consequence.** Extending `PRICE_PER` later is
+a migration that moves those ~8 rows to the new literal plus a `seed:gen` regeneration, not a type-only edit;
+and nutrition is for the state named in `name_en` (dry legumes/grains, raw meat/fish, drained canned goods),
+so recipes scale from those, never from cooked weights. Recorded 2026-10-06 from the builder hand-off
+(BUILD_LOG P1.9; P1/P2 REVIEW item 2b).
+
+## 2026-10-05 — P1.10 diets: 16 ship, not the plan's "exactly 8" (operator: "as many as you can")
+
+**Decision.** `src/content/seed/diets.ts` ships 16 diets — the eight PLAN P1.10 names (mediterranean, atkins,
+paleo, low-carb, keto, carnivore, vegetarian, vegan) plus dash, flexitarian, pescatarian, intermittent-fasting,
+whole30, gluten-free, high-protein and low-fodmap — and `diets.test.ts` asserts `>= 8` AND the presence of the
+eight named slugs, not `=== 8`. **Why.** The operator's standing instruction for content during this build was
+"as many as you can"; the planner's "exactly 8" predates it. Nordic and Zone were considered and left out so
+every shipped diet is described accurately and even-handedly; 6 of the 16 carry `source_url = null` rather than
+an invented page (PLAN §0 drafting rule). **Consequence.** Everything the plan wrote as "8" reads 16 downstream
+— the gate's `diets >= 8` is a floor so it holds unchanged (P1.12), `listDiets` tests use ≥ 8, `/diets` renders
+16 cards (P4.4). The same instruction governed ingredients (322 vs floor 160), recipes (152 vs 40), exercises
+(136 vs 60) and tips (75 vs 30); the gate uses floors for every kind except `workout_templates = 63` (see the
+P1.12 entry). Recorded 2026-10-06 from the builder hand-off (BUILD_LOG P1.10; P1/P2 REVIEW item 2a).
+
+## 2026-10-05 — P2.1–P2.3 auth: `?next=` parked in `sessionStorage`, in-app paths only; callback failure is a timeout
+
+**Decision.** (a) The post-sign-in return path (`/auth?next=/fridge`) is stored in `sessionStorage` under
+`hygieia.auth.next` (`NEXT_STORAGE_KEY`, `src/auth/session.ts`) before the browser leaves for the magic link or
+Google, and `/auth/callback` consumes it once (`takeNext`, default `/`). `safeNextPath` accepts only a string
+starting with a single `/` — `//evil.example`, `/\evil` and `https://…` are dropped — the open-redirect guard.
+(b) `CallbackPage` never reads or rewrites the URL: supabase-js exchanges `?code=` itself (`detectSessionInUrl`,
+PKCE). Failure is declared when the URL carries `error` / `error_description`, when there is no client, or when
+no session arrives within `timeoutMs` (default 15 s; a prop, so tests use 20 ms). (c) `profileClientFor` is a
+thin typed adapter over the real client instead of a structural client type or a cast — a direct assignment
+hits TS2589 on Supabase's query-builder generics; the compiler still checks the adapter against the real client.
+**Why.** The callback is one fixed address on the project's shared redirect allow-list (ADR-0003 rule 6), so the
+return path is kept on the client side rather than threaded through the provider round trip; `sessionStorage`
+is per-tab and dies with it, which is what a one-shot return target wants. In-app-only is the classic
+open-redirect defence (`?next=https://evil` after a trusted sign-in). The timeout exists because supabase-js
+exposes no "exchange failed" event — on a bad code `onAuthStateChange` simply never fires `SIGNED_IN`.
+**Consequence.** A genuine failure never hangs the page; a very slow exchange shows `callbackFailed` with a link
+to `/auth` after 15 s even if the session then lands (harmless — the next visit is signed in). P1.13 adopted the
+adapter pattern for `contentClientFor`. Recorded 2026-10-06 from the builder hand-off (BUILD_LOG P2.1–P2.3;
+P1/P2 REVIEW item 2c).
+
+## 2026-10-05 — P2.6 `db:live-check`: redacts the anon key too; three independent probes; PGRST106 ≠ PGRST205
+
+**Decision.** `scripts/db-live-check.mjs` passes every output line through `redact(s, [token, anonKey])` — the
+Management-API token AND the public anon key. Its three probes (ledger vs archive; anon
+`GET /rest/v1/recipes?select=id&status=eq.pending`; anon `GET /rest/v1/profiles?select=user_id`) each print one
+`PASS` / `FAIL` line and ALL run even after an earlier one fails. A PostgREST refusal is classified: `PGRST106`
+(or a 404/406 whose message names the schema and is not "schema cache") → "schema `hygieia` is not exposed in
+the Data API (ADR-0003 rule 5 / BRAIN O1)", an operator dashboard step; a `PGRST205` 404 → "table … not in the
+live Data API — its migration is not applied (or the schema cache is stale)", a `db:apply` matter. **Why.** The
+anon key is public by design, but nothing is gained by printing it into CI logs, and one redaction list is
+cheaper than a judgement per line (the test asserts on every run that neither value appears in any captured
+line). The probes are independent reads, so stopping at the first FAIL would hide the other two answers the
+operator needs from the same run. The two codes point at two different next actions by two different people,
+and saying which is the tool's one job. **Consequence.** Until OPERATOR-P1 (apply) and OP2 (expose the schema)
+are done, probes 2–3 legitimately FAIL with exactly those lines — the check working, not a bug. `smoke:live`
+(P6.3) reuses `REST_PROBES` / `classifyRestAnswer` and inherits the classification. Recorded 2026-10-06 from the
+builder hand-off (BUILD_LOG P2.6; P1/P2 REVIEW item 2d).
+
+## ADR-0005 — 2026-10-06 — Build cadence actually run for P1–P6: parallel worktree lanes, phase gates after merge
+
+**Decision.** P1–P6 were NOT built on the CLAUDE.md §4 / §7 / §9 cadence (build one phase → `qa` → `reviewer` →
+human CHECKPOINT → next phase). They were built on the cadence below, on the operator's instruction ("proceed
+till the end phase"; for content, "as many as you can"), and this ADR records it so the departure is a declared
+exception and not a skipped gate — §9: _"Deviating from §4, §7 or §9 requires an ADR — and the deviation then
+binds … an undocumented departure is indistinguishable from a crew that skipped the gate."_
+
+**Mechanism.** `PLAN.md` (planner, 2026-10-05) fixed the task list, the acceptance criteria and the `∥` parallel
+groups (§0, §3). The lead dispatched builders into file-disjoint git worktree lanes `D:/projects/hygieia-wt/a..g`
+(branches `wt/a..g`), one writer per checkout (§4). Every lane ran `G0` (`lint && typecheck && test && build &&
+check:pwa`; `G1` where the lane held the `db:*` scripts) before the lead merged it into `main`, and later lanes
+re-ran `G0` on top of the merged `main`. `BUILD_LOG.md` and `DECISIONS.md` are `merge=union` (`.gitattributes`)
+so lanes append without conflicts; `BRAIN.md` and shared code files (the four `useAsync` variants, the feature
+dictionary barrel) were reconciled by the lead at merge (2026-10-06 "Reconciliation" entry).
+
+**The deviation.** (1) No phase gate ran between phases: P3, P4, P5 and P6 build tasks landed on `main` before
+P1/P2 had been QA'd or reviewed. (2) The human CHECKPOINT after each phase (§7) was waived by the operator for
+the duration of this build. (3) QA + Review therefore run on the merged tree, after the fact, phase by phase.
+
+**What still binds.** Every phase's QA task and Review task still run, by agents that built nothing in that
+phase, and a phase is CLAIMED only when `qa = VALIDATED` and `reviewer = PASS` — §9's rule is untouched; only its
+timing moved. Status at the time of writing: P1 + P2 QA **VALIDATED** 2026-10-06 (fresh clone, `db:gate` 227
+PASS, prove-red 25/25, `npm test` 3123 green); P1 + P2 REVIEW **REVISE** on records only (BRAIN/DECISIONS
+currency — this entry is part of that fix); P3, P4, P5 and P6 each still owe their own QA + Review gate before
+they are claimed. The OPERATOR-P1/P2 steps (live `db:apply`, exposing schema `hygieia`, OAuth redirect
+allow-list) are owed and are not crew work.
+
+**Risk accepted.** A late gate finding costs more than an early one: a P1/P2 defect found now may already have
+P3–P6 code built on top of it, and a later lane's regression can reach `main` ungated (P1/P2 QA surfaced exactly
+one — `e2e/local/offline.spec.ts` red on `main`, P5.4 scope — out of gate). Mitigation was the file-disjoint
+lanes and `G0` per lane; the P1/P2 reviewer's finding is that the cadence did not hurt P1/P2 quality. This ADR
+binds for the current build only: the next feature cycle returns to the §9 default unless a new ADR says
+otherwise. Named in `.claude/CLAUDE.project.md` §2 "Deviations".
