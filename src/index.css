@@ -22,6 +22,9 @@
   --color-sage-600: #628a52;
   --color-sage-700: #4b6e3f;
   --color-clay-500: #c9774a;
+  /* Clay as TEXT: clay-500 is 3.0:1 on paper-100 (fails WCAG AA 4.5:1 for body/small text; fine as
+     a border, a tint or a bar). clay-700 is 5.0:1 on paper-100 and 5.3:1 on a paper-50/80 card. */
+  --color-clay-700: #9c5530;
 }
 
 html {
@@ -30,10 +33,23 @@ html {
 
 body {
   @apply bg-paper-100 font-sans text-olive-900 antialiased;
+}
+
+/* The two radial washes behind the page. They live on a fixed, non-interactive pseudo-element, NOT
+   on `body`'s `background-image` (P5.2, 2026-10-06): visually the same fixed wash, but a text node's
+   resolved background is then the plain `paper-100` colour, which axe-core can measure. With a
+   gradient on an ancestor, axe files EVERY text node under "incomplete: background could not be
+   determined" (1686 nodes on /recipes) and the a11y gate is blind to contrast. A pseudo-element is
+   not returned by `elementsFromPoint`, so it never enters the background computation. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
   background-image:
     radial-gradient(48rem 28rem at 12% -10%, rgb(127 163 107 / 0.18), transparent 60%),
     radial-gradient(36rem 22rem at 100% 30%, rgb(201 119 74 / 0.08), transparent 60%);
-  background-attachment: fixed;
 }
 
 ::selection {
