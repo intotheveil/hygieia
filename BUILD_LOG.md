@@ -3,6 +3,106 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+### P3.QA + P4.QA — 2026-10-06 — VALIDATED (every local P3/P4 criterion PASS; P4.QA.5 live admin is NOT RUN — operator)
+
+**Independent QA (agent `qa`, not a builder).** Fresh clone `git clone https://github.com/intotheveil/hygieia` → scratchpad `hygieia-qa34` at **`c67aafc`**
+(= remote `main` = `D:/projects/hygieia` HEAD, clean tree); `npm ci` exit 0 (node v24.11.1 / npm 11.6.2); `npx playwright install chromium` exit 0. Nothing under
+`D:/projects/hygieia` was touched except this entry. Every line below was produced by me in the clone; nothing is taken from a builder's claim. The shell had no
+`VITE_SUPABASE_*` / `SUPABASE_ACCESS_TOKEN` / `HYGIEIA_SUPABASE_PROJECT_REF` set (an unrelated un-prefixed `SUPABASE_URL`/`SUPABASE_ANON_KEY` pair for another project IS
+exported in this shell — not names the app or scripts read, `grep` over `src scripts` for them → nothing — so the build is local-only mode, as the e2e specs confirm).
+Clone tree `git status --short` → 0 changed files at the end (the `@vitest/coverage-v8 --no-save` install for P3.QA.4 left `package-lock.json` untouched).
+
+**P3.QA.1 / P4.QA.1 — G3 + prove-red on the fresh clone (verdict lines verbatim):**
+- `npm run lint` → `✖ 21 problems (0 errors, 21 warnings)` (all `react-refresh/only-export-components`), exit 0 — PASS
+- `npm run typecheck` → `tsc -b` silent, exit 0 — PASS
+- `npm test` → `Test Files  62 passed (62)` · `Tests  3166 passed (3166)` · `Duration 31.28s` — PASS
+- `npm run build` → `✓ built in 299ms` · `dist/assets/index-jxU1pgre.js 1,264.29 kB │ gzip: 319.09 kB` · `precache 42 entries (2088.75 KiB)` — PASS
+- `npm run check:pwa` → `check:pwa OK — Hygieia · Υγίεια, 3 icons, sw.js present` — PASS
+- `npm run check:bundle` → `check:bundle: OK, no secret-looking value or server-only name in 10 files (1322326 bytes) in dist` — PASS
+- `npm run db:check` → `PASS  migration guard: 10 migration(s) stay inside schema hygieia` — PASS
+- `npm run db:gate` → `GATE PASSED — 227 checks green: migrations apply (twice) on a fresh copy of the shared project; the structural sweep, catalogue coverage, orphan scan and isolation + role matrix hold; Alyssos is untouched.` (228 `PASS` lines, 0 `FAIL`, exit 0) — PASS
+- `npm run seed:check` → `seed:check: OK — 6 seed migration(s) identical to the generator's output` — PASS
+- `PROVE_RED_JOBS=4 npm run db:gate:prove-red` → `GREEN control — the untouched archive copy: exit 0, GATE PASSED, 228 PASS (3.4s)` · 25 × `RED ok` · `PROVE-RED PASSED — 25/25 sabotages went RED on the expected FAIL line; control GREEN. Wall 20.5s (4 jobs).` — PASS
+- `E2E_PREBUILT=1 npm run e2e` (`--reporter=list`) → **`31 passed (6.5s)`**, 0 failed, 0 flaky, exit 0 — PASS. The console watchdog is on for every spec: `e2e/support/fixtures.ts:37`
+  `expect(errors, 'console errors / uncaught page errors during the test').toEqual([])` (records `console` errors and `pageerror`, lines 26–33) — so 31 green = 0 console/page errors.
+- **Delta re-check:** `main` advanced from `c67aafc` to **`89e4d42`** (`merge: wt/b a11y matrix`, P5.2 scope: `e2e/local/a11y-matrix.spec.ts`, `e2e/support/routes.ts`, `src/index.css` contrast, `src/tips/TipsPage.tsx` eyebrow, +1 dependency) while this QA ran.
+  Re-run in the clone at `89e4d42` after `npm ci`: `npm test` → `Test Files 62 passed (62)` · `Tests 3166 passed (3166)`; `npm run build` → `✓ built in 318ms` (`index-BzK-yAvS.js 1,264.29 kB`); `E2E_PREBUILT=1 npm run e2e` → **`55 passed (13.6s)`**
+  = the same 31 P3/P4 specs (recipes 5 · fridge 3 · recipe-panels 2 · diets 3 · workouts 2 · tips 3 · admin-local-only 3 · smoke 9 · offline 1) + 24 a11y-matrix (P5, not graded here), 0 failed. The P3/P4 verdict therefore holds for `89e4d42` as well; the remaining evidence below is from `c67aafc`.
+
+**P3.QA.2 + P4.QA.1 — the e2e report (every spec, verbatim titles, all `✓`, 31/31):**
+- `recipes.spec.ts` ×5 — `list → filter keto → open a card → steps and the draft ribbon` (happy path) · `a hard load of /recipes/<slug> is a 404 DOCUMENT that renders the recipe` (deep link) ·
+  `an unknown slug renders the in-app not-found inside the frame` (edge) · `a search with no match shows the empty copy, clearing restores the list` (edge) · `switching to English re-renders the list headings, chips and cards` (language)
+- `fridge.spec.ts` ×3 — `empty fridge → three ingredients → ranked results, missing list, substitution, staples, reload, English` (empty edge at `:60–61`, happy path, staples toggle at `:91–92` moves the `aria-valuenow` 75 figure, reload, English) ·
+  `removing every chip returns to the empty state; "clear all" does too` (edge) · `a result card links to the recipe page`
+- `recipe-panels.spec.ts` ×2 — `both panels render; the scope toggle changes kcal and the cost range; as-of date present` · `the panel headings and toggle labels follow the language`
+- `diets.spec.ts` ×3 — `list → keto detail → 21 plan slots → reshuffle → shopping list` · `a hard load of /diets/<slug> is a 404 DOCUMENT that renders the diet; English re-renders it` · `an unknown diet slug renders the in-app not-found`
+- `workouts.spec.ts` ×2 — `select type, level and intensity → a session with three blocks; the URL carries the choice` · `a hard load of a selection URL restores it (404 document); English re-renders labels`
+- `tips.spec.ts` ×3 — `all topics → the sleep filter → a sourced link with rel and a source-pending label` · `a hard load of ?topic= restores the filter (404 document); English re-renders the headings` · `an unknown topic value means "all"`
+- `admin-local-only.spec.ts` ×3 — `/admin deep link renders the sign-in-unavailable copy inside the frame, no redirect` · `/account deep link renders the same copy, stays on /account …` · `the header shows no account entry in local-only mode (AccountMenu is silent)`
+- `smoke.spec.ts` ×9 (Greek shell, header nav on every route, module cards, language toggle survives reload, English browser default, unknown deep link 404 document, `/auth` local-only, manifest + SW registration, Pages semantics `404.html = index.html`) ·
+  `offline.spec.ts` ×1 (`the app installs a service worker, then works offline` — the out-of-gate FAIL from the P1/P2 QA entry is green on `main` now)
+- Deep links: 7 specs hard-load a 404 DOCUMENT (recipes, diets, workouts, tips, smoke ×2, admin-local-only ×2). Both languages: every workflow spec has an `en` re-render step. — PASS
+
+**P3.QA.3 — draft ribbon on the BUILT artifact, served over HTTP (not read from disk):** `npm run build`, then `node e2e/support/pages-server.mjs --port 4190 --root dist --base /hygieia`
+(Git Bash gotcha: without `MSYS_NO_PATHCONV=1` the `--base /hygieia` arrives as `C:/Program Files/Git/hygieia` and every URL is a 404). `curl /hygieia/` → `200`; `curl /hygieia/recipes/x` → `404` with a body
+byte-identical to the index (`cmp`); entry chunk `assets/index-jxU1pgre.js` (1 264 296 bytes, fetched from the server) → `grep -c 'Draft — awaiting review'` = **1** · `grep -c 'Πρόχειρο — εκκρεμεί έλεγχος'` = **1**
+(each string exactly once in the bundle — one source). Server killed → `curl` connection refused, no listener on 4190. The dictionary IS the source: `git grep -n "awaiting review" src/` →
+`src/i18n/dictionary.ts:183: draftRibbon: 'Draft — awaiting review'` (the other hits are `:99` home status copy, the `DraftRibbon.tsx` header comment and its test); `src/i18n/dictionary.ts:287: draftRibbon: 'Πρόχειρο — εκκρεμεί έλεγχος'`;
+the only consumer is `src/components/DraftRibbon.tsx:30 {t.draftRibbon}`. Visual half (ribbon visible on content pages, both languages) is asserted by the green specs: `recipes.spec.ts:29,53,70` (`el.draftRibbon`) and `:111`
+(`en.draftRibbon`), `diets.spec.ts:25` (el) and `:70` (en), `tips.spec.ts:28`, `workouts.spec.ts:36`. — PASS
+
+**P3.QA.4 — unit + coverage:** `npx vitest run src/fridge src/recipes` → `Test Files 9 passed (9)` · `Tests 150 passed (150)`. Coverage (`@vitest/coverage-v8` installed `--no-save` in the clone; vitest 5.0.3's `text`
+reporter dropped the `filter.ts` row, so the figures are from `--coverage.reporter=json-summary` of the same run):
+- `src/fridge/match.ts | statements 100% (46/46) | branches 93.1% | funcs 100% | lines 100%`
+- `src/recipes/filter.ts | statements 100% (45/45) | branches 100% | funcs 100% | lines 100%` — both ≥ 90 % — PASS
+
+**P3.QA.5 —** `check:pwa OK — Hygieia · Υγίεια, 3 icons, sw.js present`; `cmp dist/404.html dist/index.html` → identical, exit 0 — PASS
+
+**P4.QA.2 — isolation re-check, `db:gate` lines (verbatim, trimmed):**
+- seed counts: `hygieia.exercises: seeded rows (slug not like 'fx-%') >= 60 (P1.12 reference count) — 136 seeded rows` · `hygieia.workout_templates: seeded rows (slug not like 'fx-%') = 63 (P1.12 reference count) — 63 seeded rows` ·
+  `hygieia.health_tips: seeded rows (slug not like 'fx-%') >= 30 (P1.12 reference count) — 75 seeded rows` (unchanged: ingredients 322 · diets 16 · recipes 152)
+- children of pending parents, every child table, anon AND signed-in non-admin: `hygieia.recipe_ingredients: anon reads only children of approved parents — 2/1177 (approved parents: 2)` + `UA (signed in, not admin) reads only children of approved parents — 2/1177` ·
+  `hygieia.recipe_diets: anon … — 1/743 (approved parents: 1)` + `UA … — 1/743` · `hygieia.workout_template_exercises: anon … — 12/579 (approved parents: 12)` + `UA … — 12/579` — all PASS
+- P1.QA.2 lines unchanged: `RLS is enabled on every hygieia table (14)` · `orphan scan: zero dangling references over every hygieia foreign key — 18 FKs clean` · fridge_lists / saved_plans / favourites `UB reads ZERO rows of A — 0 rows` ·
+  profiles `UB reads ZERO rows of A (UA's profile) — 0 rows` and `UA's update of is_admin is refused (no column grant)` · every content table ×6: `anon reads exactly N approved rows and 0 pending`, `UA's status update has no effect`,
+  `ADMIN's status update takes effect and is stamped (reviewed_by = ADMIN, reviewed_at > fixture)` · `zero objects in public/auth/supabase_migrations changed` · `no trigger on auth.users` — PASS
+
+**P4.QA.3 — content rule audit** (scratch script `qa-scripts/content-audit.ts` in the scratchpad, bundled with esbuild, imports the clone's `src/content/seed/{tips,diets,ingredients}.ts`):
+`tips total 75 · with url 58 · null url 17 · null&needs_source=true 17 · flag mismatches 0 []` · `diets total 16 · with url 10 · null url 6` · `source_urls total 68 · fake-pattern 0 · non-http(s) 0` ·
+`ingredients 322 · source_note NOT naming USDA FoodData Central typical values: 0` · `distinct source_note(s): ["Typical values, USDA FoodData Central reference ranges"]` ·
+hosts: `nutritionsource.hsph.harvard.edu, www.efsa.europa.eu, www.mayoclinic.org, www.monashfodmap.com, www.nhlbi.nih.gov, www.nhs.uk, www.sleepfoundation.org, www.who.int`.
+5 RANDOM (`shuf -n 5`) curled `-s -o /dev/null -w '%{http_code}' -L -A Mozilla…`: `200 tip/hydration-coffee-and-tea-count efsa.europa.eu/en/topics/topic/caffeine` · `200 diet/paleo nutritionsource.hsph.harvard.edu/…/paleo-diet/` ·
+`200 tip/nutrition-salt-under-five-grams who.int/news-room/fact-sheets/detail/salt-reduction` · `200 tip/habits-brush-twice-with-fluoride nhs.uk/live-well/healthy-teeth-and-gums/how-to-keep-your-teeth-clean/` ·
+**`403` `tip/movement-start-small-progress-slowly` mayoclinic.org/healthy-lifestyle/fitness/in-depth/fitness/art-20048269** — a bot-blocker on curl's client fingerprint, NOT a dead link: the same URL via node `fetch` with a browser
+UA → `status 200`, `<title>Fitness program: 5 steps to get started - Mayo Clinic</title>` (on-topic for the tip). The repo has no source-host allow-list to cite (only the Greek-script name allow-lists in `diets.test.ts` /
+`exercises.test.ts`); mayoclinic.org is a reference-grade host and the page resolved, so this is not counted as a failure. All 5 on-topic (slug ↔ page). — PASS
+
+**P4.QA.4 — nutrition sanity** (scratch `qa-scripts/nutrition-sanity.ts` over `recipes.ts` + `ingredients.ts` through `src/nutrition/compute.ts` `computeNutrition`; seeded LCG picked recipe indexes 40, 100, 22, 133, 140):
+- `PASS  spaghetti-tomato-garlic-basil            portions=2 per-portion kcal=464 (P 14.8 g · C 72.7 g · F 15.1 g) macro-kcal=486 dev=4.8% unknown=0 warnings=0`
+- `PASS  paleo-beef-liver-and-onions              portions=2 per-portion kcal=426 (P 41.9 g · C 15.8 g · F 20.9 g) macro-kcal=419 dev=1.6% unknown=0 warnings=0`
+- `PASS  briam-baked-summer-vegetables            portions=4 per-portion kcal=372 (P 6.7 g · C 43.0 g · F 21.2 g) macro-kcal=389 dev=4.8% unknown=0 warnings=0`
+- `PASS  chicken-avocado-orange-salad             portions=4 per-portion kcal=395 (P 26.6 g · C 19.1 g · F 25.0 g) macro-kcal=408 dev=3.3% unknown=0 warnings=0`
+- `PASS  sheet-pan-chicken-sweet-potato-broccoli  portions=4 per-portion kcal=660 (P 40.0 g · C 33.9 g · F 41.4 g) macro-kcal=669 dev=1.3% unknown=0 warnings=0`
+- informational sweep of the whole catalogue: `per-portion kcal outside 150–1200: 0/152 · macro-sum off by >15%: 0/152` — PASS
+
+**P4.QA.5 — live admin (approve 1 recipe + 1 tip on the shared project, `db:live-check` extended assertion, configured-mode build shows them without ribbon, non-admin 403 with timestamps):** **NOT RUN — operator (OPERATOR-P1/P2/P4; needs OP2.b admin flag)**.
+Recorded as not run, never as passed. The local halves ARE proven: gate `ADMIN's status update takes effect and is stamped` ×6 and `UA's status update has no effect` ×6; `admin-local-only.spec.ts` ×3 green; `src/auth/guards.test.tsx` and the fake-client admin suites are inside the 3166.
+
+**P4.QA.6 — regression:** `npm test` → **3166** (required ≥ 3166 = P3 count 3164 + the new suites; the P1/P2 QA entry saw 3123) — PASS. `grep -rn` over `src e2e scripts` for `.skip(`, `test.fixme`, `it.only`, `describe.only` → no match (exit 1) — PASS.
+
+**RED-verify, done independently of the builders:** `src/fridge/match.ts:70` `b.coverage - a.coverage` → `a.coverage - b.coverage` (ranking inverted) → `npx vitest run src/fridge` →
+`× ranks the fully covered recipe first` · `× is deterministic: repeated calls and shuffled input give the same order` · `× adding tomato, cucumber and feta ranks recipes; the first card has youHave and a missing list` ·
+`Test Files 2 failed | 2 passed (4)` · `Tests 3 failed | 75 passed (78)`, exit 1 → `git checkout -- .` → tree clean, line 70 restored — PASS (the fridge suite sees a real ranking bug; `fridge.spec.ts`'s progressbars-descending assertion would catch it on the built artifact as well).
+
+**Verdict: P3.QA VALIDATED · P4.QA VALIDATED on every local criterion; P4.QA.5 awaits the operator and is recorded as NOT RUN.**
+
+**Not a P3/P4 criterion — `npm run check:lighthouse` (mobile, 12 routes), for the lead's parallel bundle-size work:** `check:lighthouse FAILED — 12 route/category pair(s) below threshold`, exit 1 — performance ONLY; a11y / best-practices / SEO are 100 on all 12 routes.
+perf: home 82 · recipes 88 · recipe 78 · fridge 79 · diets 74 · diet 60 · workouts 73 · tips 66 · auth 84 · account 83 · admin 83 · not-found 84 (FCP 3.5 s flat; entry chunk 1,264 kB / 319 kB gzip). Known RED, being fixed in parallel; not counted here.
+
+Gotchas for BRAIN §5 (lead to lift): (1) Git Bash mangles `--base /hygieia` into a `C:/Program Files/Git/…` path for `pages-server.mjs` — prefix `MSYS_NO_PATHCONV=1`; (2) vitest 5.0.3's v8 `text` coverage reporter silently
+omits a fully-covered pure-TS file when two `--coverage.include` flags are given (`filter.ts` vanished from the table) — read the figures from `--coverage.reporter=json-summary`; (3) `@vitest/coverage-v8` is not a devDependency —
+the P3.QA.4 command needs `npm i -D @vitest/coverage-v8 --no-save` first; (4) the seed files use extensionless relative imports, so a scratch audit script cannot be run by plain node type-stripping — bundle it with `npx esbuild … --bundle --platform=node --format=esm` first.
+
 ## 2026-10-06 — P5.2 a11y matrix: axe on every route × both languages, contrast made decidable, tips eyebrow fixed — DONE (builder, worktree `wt/b`; not committed — the lead merges)
 
 **Delivered.** `e2e/local/a11y-matrix.spec.ts` — 12 routes (`e2e/support/routes.ts`) × `['el','en']` = **24 cells** on the PRODUCTION
