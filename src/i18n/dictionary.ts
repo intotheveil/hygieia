@@ -30,6 +30,20 @@ export interface Dictionary {
   notFoundTitle: string
   notFoundBody: string
   backHome: string
+  // auth (P2)
+  signIn: string
+  signInIntro: string
+  signInEmailLabel: string
+  signInSendLink: string
+  signInLinkSent: string
+  signInGoogle: string
+  signInUnavailableTitle: string
+  signInUnavailableBody: string
+  signInFailed: string
+  signOut: string
+  callbackWorking: string
+  callbackFailed: string
+  backToSignIn: string
 }
 
 export const en: Dictionary = {
@@ -79,6 +93,22 @@ export const en: Dictionary = {
   notFoundTitle: 'Page not found',
   notFoundBody: 'There is nothing at this address.',
   backHome: 'Back to the start',
+  // auth (P2)
+  signIn: 'Sign in',
+  signInIntro:
+    'Sign in to save plans, keep your fridge list and mark favourites. We will email you a link; no password needed.',
+  signInEmailLabel: 'Email address',
+  signInSendLink: 'Send me a sign-in link',
+  signInLinkSent: 'Check your inbox: the sign-in link is on its way. You can close this page.',
+  signInGoogle: 'Continue with Google',
+  signInUnavailableTitle: 'Sign-in unavailable',
+  signInUnavailableBody:
+    'This copy of Hygieia runs without an account service, so there is nothing to sign in to. Everything else works.',
+  signInFailed: 'Sign-in did not go through. Check the address and try again.',
+  signOut: 'Sign out',
+  callbackWorking: 'Signing you in…',
+  callbackFailed: 'The sign-in link did not work. It may have expired or already been used.',
+  backToSignIn: 'Back to sign-in',
 }
 
 export const el: Dictionary = {
@@ -88,8 +118,7 @@ export const el: Dictionary = {
   heroTitle: 'Υγεία, διατροφή και άσκηση — απλά και κατανοητά.',
   heroLead:
     'Η Υγίεια συγκεντρώνει συμβουλές υγείας, κάθε γνωστή δίαιτα, συνταγές ανά δίαιτα, τι μπορείς να μαγειρέψεις με ό,τι έχεις ήδη στο ψυγείο, πόσο κοστίζει και τι περιέχει ένα γεύμα, και προπονήσεις για σπίτι, γυμναστήριο ή calisthenics σε τρία επίπεδα.',
-  heroImageAlt:
-    'Πιάτο με ψητό σολομό, ψητά λαχανικά και σαλάτα κινόα πάνω σε λινό τραπεζομάντιλο.',
+  heroImageAlt: 'Πιάτο με ψητό σολομό, ψητά λαχανικά και σαλάτα κινόα πάνω σε λινό τραπεζομάντιλο.',
   statusTitle: 'Πρώιμη έκδοση',
   statusBody:
     'Αυτή είναι η βάση του προϊόντος. Οι ενότητες παρακάτω περιγράφουν τι έρχεται· καμία δεν έχει ακόμη περιεχόμενο.',
@@ -129,6 +158,24 @@ export const el: Dictionary = {
   notFoundTitle: 'Η σελίδα δεν βρέθηκε',
   notFoundBody: 'Δεν υπάρχει τίποτα σε αυτή τη διεύθυνση.',
   backHome: 'Πίσω στην αρχή',
+  // auth (P2)
+  signIn: 'Σύνδεση',
+  signInIntro:
+    'Συνδέσου για να αποθηκεύεις πλάνα, να κρατάς τη λίστα του ψυγείου σου και να σημειώνεις αγαπημένα. Θα σου στείλουμε έναν σύνδεσμο με email· δεν χρειάζεται κωδικός.',
+  signInEmailLabel: 'Διεύθυνση email',
+  signInSendLink: 'Στείλε μου σύνδεσμο σύνδεσης',
+  signInLinkSent:
+    'Έλεγξε τα εισερχόμενά σου: ο σύνδεσμος σύνδεσης είναι καθ’ οδόν. Μπορείς να κλείσεις αυτή τη σελίδα.',
+  signInGoogle: 'Συνέχεια με Google',
+  signInUnavailableTitle: 'Η σύνδεση δεν είναι διαθέσιμη',
+  signInUnavailableBody:
+    'Αυτό το αντίγραφο της Υγίειας λειτουργεί χωρίς υπηρεσία λογαριασμών, οπότε δεν υπάρχει πού να συνδεθείς. Όλα τα υπόλοιπα λειτουργούν.',
+  signInFailed: 'Η σύνδεση δεν ολοκληρώθηκε. Έλεγξε τη διεύθυνση και δοκίμασε ξανά.',
+  signOut: 'Αποσύνδεση',
+  callbackWorking: 'Γίνεται σύνδεση…',
+  callbackFailed:
+    'Ο σύνδεσμος σύνδεσης δεν λειτούργησε. Ίσως έχει λήξει ή έχει ήδη χρησιμοποιηθεί.',
+  backToSignIn: 'Πίσω στη σύνδεση',
 }
 
 export const dictionaries: Record<Lang, Dictionary> = { el, en }
