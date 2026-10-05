@@ -71,7 +71,8 @@ const SABOTAGES = [
     sql: `drop policy if exists recipes_select_anon on hygieia.recipes;
 create policy recipes_select_anon on hygieia.recipes for select to anon using (true);`,
     expect: [
-      /^FAIL {2}hygieia\.recipes: anon reads exactly N approved rows and 0 pending — N = 1 approved of 2; read 2, pending 1$/,
+      // Totals follow the seed corpus (P1.12); the sabotage's signature is read = total, pending > 0.
+      /^FAIL {2}hygieia\.recipes: anon reads exactly N approved rows and 0 pending — N = 1 approved of (\d+); read \1, pending [1-9]\d*$/,
     ],
   },
   {
@@ -107,7 +108,8 @@ create policy favourites_delete_own on hygieia.favourites for delete to authenti
 create policy recipe_ingredients_select_anon on hygieia.recipe_ingredients
   for select to anon using (true);`,
     expect: [
-      /^FAIL {2}hygieia\.recipe_ingredients: anon reads only children of approved parents — 4\/4 \(approved parents: 2\)$/,
+      // Totals follow the seed corpus (P1.12); the signature is read = total with 2 approved parents.
+      /^FAIL {2}hygieia\.recipe_ingredients: anon reads only children of approved parents — (\d+)\/\1 \(approved parents: 2\)$/,
     ],
   },
   {
@@ -138,7 +140,7 @@ returns boolean language sql stable security definer set search_path = ''
 as $fn$ select true $fn$;`,
     expect: [
       /^FAIL {2}hygieia\.profiles: hygieia\.is_admin\(\) is true for ADMIN, false for UA, false without a profile \(NEW\) — \[true,true,true\]$/,
-      /^FAIL {2}hygieia\.recipes: UA \(signed in, not admin\) reads exactly N approved rows and 0 pending — .*pending 1$/,
+      /^FAIL {2}hygieia\.recipes: UA \(signed in, not admin\) reads exactly N approved rows and 0 pending — .*pending [1-9]\d*$/,
       /^FAIL {2}hygieia\.recipes: UA's status update has no effect — /,
     ],
   },
@@ -296,7 +298,8 @@ alter table hygieia.exercises add constraint exercises_level_check
 values (gen_random_uuid(), 'zz-random-id', 'sleep', 'zz el', 'zz en', 'zz body el', 'zz body en', null, true)
 on conflict (slug) do nothing;`,
     expect: [
-      /^FAIL {2}hygieia\.health_tips: every row id = md5\('hygieia:health_tips:' \|\| slug\)::uuid \(seed-id rule\) — 3 rows checked, 1 off-formula$/,
+      // The total follows the seed corpus (P1.12); the signature is exactly ONE off-formula row.
+      /^FAIL {2}hygieia\.health_tips: every row id = md5\('hygieia:health_tips:' \|\| slug\)::uuid \(seed-id rule\) — \d+ rows checked, 1 off-formula$/,
     ],
   },
 

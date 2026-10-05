@@ -3,6 +3,68 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+## 2026-10-05 — P1.12 Seed generator + generated seed migrations + `seed:check` — DONE (builder, worktree `wt/a`; not yet committed)
+
+**What:** `scripts/gen-seed-sql.mjs` replaces the P1.1 stub. It imports the TS seed modules by `.ts` path (node 24 type
+stripping) and renders ONE seed migration per kind — all six kinds now (P4.8/P4.9's generator notes are pre-implemented):
+`ingredients` → `20261006000500_hygieia_seed_ingredients.sql`, `diets` → `…000600_…_diets.sql`, `recipes` (+ `recipe_ingredients`,
+`recipe_diets`) → `…000700_…_recipes.sql`, `exercises` → `…000800_…_exercises.sql`, `workouts` (+ `workout_template_exercises`) →
+`…000900_…_workouts.sql`, `tips` → `…001000_…_tips.sql`. `workouts.ts` does not exist yet, so that kind is **skipped** with a printed
+`skipped: workouts.ts not present yet` line and `seed:check` ignores its missing file (a PRESENT file for an absent module is `stale`).
+`npm run seed:gen` writes; `npm run seed:check` regenerates to memory and exits 1 naming any file that `differs` / is `missing` /
+`extra` (LF-normalised byte compare), 0 when identical. `--only kind,kind` restricts both. Exit code via `process.exitCode`, never
+`process.exit()`. In-process API: `generate`, `compare`, `renderKind`, `main(argv, io)`.
+
+**Contract honoured:** `id = md5('hygieia:<table>:<slug>')::uuid` from `crypto.createHash('md5')` formatted 8-4-4-4-12 (test proves it
+equals PGlite's `md5(...)::uuid` and the catalogue's `sid`); children resolve `recipe_id` / `ingredient_id` / `diet_id` / `template_id` /
+`exercise_id` by the same formula, and an unresolvable slug THROWS at generation (never a runtime FK violation); `status` omitted →
+`pending`; rows sorted by slug (code-unit), children by parent slug then position (recipe diet tags by diet slug); integers as-is,
+decimals `toFixed(6)` stripped; `array['a','b']::text[]` / `'{}'::text[]`; `null`; `'YYYY-MM-DD'::date`; `'` doubled; batches ≤ 200 rows;
+`on conflict (<pk>) do nothing` on every statement (idempotent-safe — the gate applies the archive twice); header names generator,
+source module and row counts, no timestamp.
+
+**Generated (this run):** ingredients **322** · diets **16** · recipes **91** (+ recipe_ingredients **728**, recipe_diets **513**;
+`recipes/group2.ts` is still the empty stub — regenerate when that lane lands) · exercises **136** · health_tips **75** · workouts
+skipped. 5 files, 613 KB, all pass `npm run db:check` (9 migrations).
+
+**Gate (`scripts/db-gate/catalogue.mjs`):** new `SEED_COUNTS` (ingredients ≥ 160, diets ≥ 8, recipes ≥ 40, exercises ≥ 60,
+health_tips ≥ 30, workout_templates **= 63**) and `SEED_CHILD_COUNTS` (recipe_ingredients, recipe_diets, workout_template_exercises
+≥ 1), asserted per table as `seeded rows (slug not like 'fx-%') >= N` / `seeded child rows (under non-fixture parents) >= 1` — the
+`fx-` fixture rows (inserted AFTER the archive) are excluded. The two workout tables carry `pendingTask: 'P4.8'`: ZERO seeded rows
+PASS with an explicit "not seeded yet … binds once seeded" note; any non-zero count is asserted (= 63 / ≥ 1). The existing md5-id
+check (one `count(*) where id <> md5(...)::uuid` query per table, no loop) now bites on every seeded row.
+
+**Tests:** `scripts/gen-seed-sql.test.ts` (**35 tests**, `// @vitest-environment node`): `O'Brien` → `O''Brien`; number / int / array /
+date / bool literals incl. `'{}'::text[]`; batching (450 rows → 3 statements); id formula vs known vector (`md5('hygieia:recipes:x')` =
+`a64ec8c3-d20e-c1a2-eeb8-7acf55785a09`), vs `sid`, vs PGlite for 5 slugs; child FK literal = parent id / referenced id; diet tags sorted;
+unresolvable slug / half note pair / duplicate slug / malformed slug / dose-less workout slot all throw; input-order independence;
+two full `generate()` runs byte-equal; every generated file passes `checkMigrationSql`; committed archive identical to a fresh
+generation; `main(['--check'])` → 0; `--check` → 1 naming `…seed_tips.sql` after a one-character change in a TEMP copy of `tips.ts`;
+missing / extra / stale file cases; a kind whose `needs` module is absent is an error, not a skip.
+
+**Observables (worktree, 2026-10-05):** `npm run seed:gen` → 5 files written, `git status --short supabase/migrations` shows the 5 new
+`??` files · `npm run seed:check` → `OK — 5 seed migration(s) identical`, exit 0 · one-word edit to `tips.ts` → `differs
+20261006001000_hygieia_seed_tips.sql`, `FAIL — 1 file(s) out of step`, exit 1; `git checkout` restore → exit 0 · `npm run db:check` →
+`PASS migration guard: 9 migration(s)`, exit 0 · **`npm run db:gate` → GATE PASSED — 226 checks green, 3 s wall** (was 217 before the
+floors; seeds applied twice), with `… 325 rows checked, 0 off-formula` / 18 / 93 / 138 / 77 and every `(P1.12 reference count)` line PASS
+· **`npm run db:gate:prove-red` → PROVE-RED PASSED 25/25, control GREEN 227 PASS, wall 23.9 s** (`seed-random-id` still RED on its
+expected line) · lint 0 errors (6 pre-existing react-refresh warnings in `src/auth`, `src/i18n`, `src/routes` — not this task) ·
+typecheck clean · `npm test` **27 files / 1386 tests green** (9 s) · build green · `check:pwa OK`.
+
+**Deviation (out of declared scope, flagged for the lead):** `scripts/db-gate-prove-red.mjs` — four `expect` regexes pinned
+fixture-only row totals (`of 2; read 2, pending 1`, `4/4`, `pending 1`, `3 rows checked`) that are false once the seeds are in the
+archive; without the change the lead's own acceptance ("prove-red still PASSED") is unreachable. Each regex now keeps the
+sabotage's SIGNATURE exact and lets only the seed-dependent total float: `of (\d+); read \1, pending [1-9]\d*`, `(\d+)\/\1 (approved
+parents: 2)`, `pending [1-9]\d*`, `\d+ rows checked, 1 off-formula`. Nothing else in that file changed. Revert = 4 lines.
+
+**Landmine for P4.8 (not fixed here):** the gate fixture inserts `fx-home-beginner-low` (home/beginner/low) and
+`fx-gym-intermediate-moderate` (gym/intermediate/moderate) into `workout_templates`, which has `unique (workout_type, level,
+intensity)`. When `workouts.ts` ships all 63 cells, the fixture insert will collide and `fixture seeded` goes red. P4.8 must move the
+fixture rows off real cells (e.g. a fixture-only combination is impossible — all 63 are real) or make the fixture skip/upsert them.
+
+**Next:** lead merges `wt/a` (do not commit here). When `recipes/group2.ts` or `workouts.ts` lands: `npm run seed:gen && npm run
+seed:check` — the generated files change and must be re-committed with the content. P1.13 (`ContentSource`) and P1.14 are independent.
+
 ## 2026-10-05 — P6.2 Bundle secret scan `npm run check:bundle` — DONE (builder, worktree `wt/e`; not yet committed)
 
 **Pulled forward** by the lead (independent of P5). Lifted from Themis `scripts/check-bundle-secrets.mjs`, reshaped to the
@@ -43,14 +105,15 @@ green (545 before + 60) · `npm run build` green (`precache 24 entries (830.17 K
 `assets/leak-chunk.js:2:10 (offset 46)  [service-jwt]  eyJhbG… (73 chars)` ·
 `assets/leak-chunk.js:3:10 (offset 131)  [forbidden-name]  SUPABASE_ACCESS_TOKEN (21 chars)` ·
 `check:bundle: FAIL: 3 finding(s) in the public bundle, 11 files (557115 bytes) in …/leak.` → **exit 1**; empty dir →
-`… has no text file to scan (empty build?). Run \`npm run build\` first.` → **exit 2**; missing dir → `… does not exist. Run \`npm run
+`… has no text file to scan (empty build?). Run \`npm run build\` first.`→ **exit 2**; missing dir →`… does not exist. Run \`npm run
 build\` first.` → **exit 2**. The planted value never appeared unmasked in any output line.
 
 **Decisions / notes (for the lead → DECISIONS.md / BRAIN §5; both files out of this task's scope):**
+
 - `sb_secret_` (Supabase secret API key) is in the prefix list though the lead's list omitted it: it is the server twin of
   `sb_publishable_`, exactly the key the anon-key allow-list must not let through. `rk_live_/rk_test_` (Stripe restricted) dropped —
   Hygieia has no Stripe.
-- **supabase-js ships the bare literal `` startsWith(`sb_secret_`) `` in the real bundle** (`dist/assets/index-*.js`). Only the
+- **supabase-js ships the bare literal ``startsWith(`sb_secret_`)`` in the real bundle** (`dist/assets/index-*.js`). Only the
   "prefix + ≥ 1 key character" rule keeps the real build green; a naive `grep sb_secret_` would be a permanent false positive.
   Asserted by a test on that exact snippet.
 - **Gotcha:** the crew's `secret-scan.sh` PostToolUse hook blocks any COMPLETE `-----BEGIN … PRIVATE KEY-----` literal in a
@@ -115,6 +178,7 @@ deep link and `/hygieia/auth` (`element(s) not found` — the app never booted o
 
 **Next:** lead merges `wt/f`, runs `kit.mjs apply hygieia` (recompose), records gotchas 1–3 in BRAIN §5; CI shows the e2e step on the first
 push; P3.7 adds `recipes.spec.ts`/`fridge.spec.ts` on this harness; `G3 = G1 && npm run e2e` is now live.
+
 ## 2026-10-05 — P1.11 group 1 recipes seed (Mediterranean & plant-forward) — DONE (builder, worktree `wt/c`; not yet committed)
 
 **Scope:** one of three parallel P1.11 builders. Group 1 = diets `mediterranean`, `dash`, `flexitarian`,
@@ -164,6 +228,7 @@ fasolakia-ladera 352 (P7/C38/F21) · oat-porridge-banana-walnuts 518 (P15/C80/F1
 
 **Not done / next:** aggregate `src/content/seed/recipes.ts` (spread of the three groups) and
 `recipes.test.ts` (index builder); P1.12 generator consumes the aggregate. No commit (lead merges `wt/c`).
+
 ## 2026-10-05 — P1.14 `npm run db:gate:prove-red` — the gate proven RED — DONE (builder, worktree `wt/a`; not yet committed)
 
 **Delivered:** `scripts/db-gate-prove-red.mjs` (replaces the P1.1 stub; harness lifted from Themis:
@@ -242,6 +307,7 @@ timeout bump. (2) The gap is recorded in BRAIN §5; the rule for future catalogu
 probe must include a blind (no-WHERE) statement, or a correct SELECT policy will mask an open write policy.
 (3) `RED ok` requires exit code exactly 1 (not merely ≠ 0): a crash code (e.g. Windows 0xC0000409) is
 reported as `CRASH`, so a gate that dies before its verdict can never count as proof.
+
 ## 2026-10-05 — P1.11 recipes seed, GROUP 3 (special patterns) + aggregate + test — DONE (builder, worktree `wt/g`; not yet committed)
 
 **Scope (one of three parallel builders):** diets `intermittent-fasting`, `whole30`, `gluten-free`, `low-fodmap`,
@@ -249,6 +315,7 @@ plus ownership of the aggregate module and the P1.11 acceptance test. Groups 1 (
 and 2 (meat/egg low-carb, keto) are written in other worktrees.
 
 **Delivered:**
+
 - `src/content/seed/recipes/group3.ts` — `RECIPES_GROUP3`, **40 recipes** (target 30+): GF baking (buckwheat
   pancakes, almond-buckwheat banana bread, buckwheat-chia seeded bread, socca), polenta ×2, risottos ×2, quinoa /
   rice / rice-noodle bowls, low-FODMAP soup and bowls, Whole30 sheet-pan dinners, egg bake, breakfast patties,
@@ -273,6 +340,7 @@ vegetarian 27, mediterranean 16, high-protein 15, vegan 15, dash 11, paleo 10, l
 0 (groups 2's). kcal/portion range **158–740** (energy balls … chicken coconut curry).
 
 **Content decisions (recorded here; P1.11 has no DECISIONS.md entry of its own):**
+
 - `oats` is plain rolled oats (not certified GF) → never tagged `gluten-free`, allowed in `low-fodmap` (Monash and
   the P1.10 row both allow oats). `tortilla` is a WHEAT tortilla → no corn-tortilla tacos; fish tacos became rice
   "fish taco bowls". No garlic-infused oil ingredient exists → low-FODMAP recipes use plain olive oil and spring
@@ -492,6 +560,7 @@ counts (the `fx-*` rows are added AFTER the archive, so seed counts are archive-
 
 **Next:** P1.9–P1.11 seeds, P1.12 generator (catalogue reference counts), P1.14 prove-red (the three
 sabotages above are ready-made entries).
+
 ## 2026-10-05 — P4.7 Seed content: exercises — DONE (builder, worktree `wt/d`; not yet committed)
 
 **Pulled forward from P4** by the lead: depends only on the P1.4 types. Delivers the bilingual
@@ -794,7 +863,7 @@ here is proven against the fake only.
   1. `ledger` — `compareLedger(local, applied)` (pure, reused helpers `loadMigrations`/`readApplied`/`LEDGER`):
      ledger table absent → `ledger absent — nothing applied yet (hygieia.schema_migrations does not exist …)`;
      then per archive file `MISSING:` / `CHECKSUM MISMATCH: <file> was applied with sha256 A but the file now hashes
-     to B`; then `EXTRA: live ledger holds version X (name) which has no file in this archive`. First problem is
+to B`; then `EXTRA: live ledger holds version X (name) which has no file in this archive`. First problem is
      THE mismatch; the rest are listed indented under it.
   2. `GET /rest/v1/recipes?select=id&status=eq.pending` and 3. `GET /rest/v1/profiles?select=user_id`, headers
      `apikey` + `Authorization: Bearer <anon>` + `Accept-Profile: hygieia` → must be HTTP 200 and `[]`. Rows →

@@ -144,3 +144,22 @@ function for anon/PUBLIC EXECUTE and a pinned `search_path`; the sweep is RED-ve
 effect`) and asserts A's rows unchanged — instead of adding new checks — because `db-isolation.test.ts`
   pins the name set and is outside P1.14's scope. Net: the twin stays green and gets the stronger probe.
 - **`RED ok` means exit code exactly 1**, not merely ≠ 0: a crash (Windows 0xC0000409) is `CRASH`, never proof.
+
+## 2026-10-05 — P1.12: bundled = seed snapshot; DB = living truth
+
+- **One source of truth at seed time, one at run time.** The TS seed modules (`src/content/seed/*.ts`) are the ONLY authored
+  form of seed content; `scripts/gen-seed-sql.mjs` derives the seed migrations from them deterministically and `npm run seed:check`
+  (in `G1`) fails on any byte of drift, so the bundled fallback and the DB seed are the same rows on the day they ship. After a
+  seed migration is live, content changes happen IN THE DATABASE through the admin page (P4.10): the migration is forward-only and
+  `on conflict do nothing`, so a later `seed:gen` never overwrites an edited row. The bundled snapshot is therefore the no-backend
+  fallback **at seed-time quality**, not a mirror of the live catalogue; the app keys content by `slug`, so bundled mode never
+  needs ids (PLAN §1.6).
+- **Stable ids by formula, not by sequence.** `id = md5('hygieia:<table>:<slug>')::uuid`, computed in node and asserted by the gate
+  over every row in a single SQL query per table. Children carry the same formula for their FKs, so a child migration never has to
+  look a parent up, and a regenerated file is byte-identical whatever the authoring order.
+- **Gate floors, not exact counts** (except `workout_templates = 63`, which is a product invariant: 7 × 3 × 3). Content grows by
+  lane; an exact count would make every content commit also a gate commit. Floors exclude the `fx-` fixture rows so they read the
+  seed, not the gate. A kind whose module does not exist yet (`workouts.ts`, P4.8) passes with zero rows and an explicit
+  "not seeded yet" note — the assertion binds the moment the module lands.
+- **The generator is forward-compatible on purpose.** All six kinds are implemented now, though P4.8/P4.9 nominally "add" them,
+  so those tasks only author content and run `seed:gen`; they do not touch the generator.
