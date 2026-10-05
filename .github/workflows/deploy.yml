@@ -27,6 +27,10 @@ jobs:
       # No Supabase env in CI: the build runs in local-only mode (src/lib/env.ts), so the
       # artifact below carries no backend configuration and no secret.
       - run: npm run build
+      # Bundle secret scan (PLAN P6.2, CLAUDE.md §3 #1): every text file in dist/ is public. Fails on a
+      # secret-looking value (sk-ant-, sbp_, a service_role JWT, a PEM private key, …), the literal
+      # `service_role` or a server-only env NAME. The anon key is public by design and not a finding.
+      - run: npm run check:bundle
       # Installability gate: manifest fields, every icon the manifest names, the service worker.
       - run: npm run check:pwa
       # e2e (PLAN P3.6): Playwright against the dist/ just built and PWA-checked, served with GitHub
