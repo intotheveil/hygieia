@@ -254,6 +254,46 @@ counts (the `fx-*` rows are added AFTER the archive, so seed counts are archive-
 
 **Next:** P1.9–P1.11 seeds, P1.12 generator (catalogue reference counts), P1.14 prove-red (the three
 sabotages above are ready-made entries).
+## 2026-10-05 — P4.7 Seed content: exercises — DONE (builder, worktree `wt/d`; not yet committed)
+
+**Pulled forward from P4** by the lead: depends only on the P1.4 types. Delivers the bilingual
+exercise library P4.8 draws its 63 workout templates from.
+
+- `src/content/seed/exercises.ts` — `export const EXERCISES: readonly ExerciseSeed[]` (**136 rows**,
+  target was 120+, floor 60) plus `export const MUSCLE_GROUPS` (15-term fixed vocabulary: quads,
+  hamstrings, glutes, calves, chest, back, shoulders, biceps, triceps, forearms, core, hip-flexors,
+  adductors, full-body, cardio) and the `MuscleGroup` type. Rows are built by a small typed `ex(...)`
+  helper (bodyweight = both `equipment_*` null; otherwise a shared `[en, el]` pair constant, e.g.
+  `DUMBBELLS = ['Dumbbells', 'Αλτήρες']`). Erasable syntax only (type imports + plain functions) so
+  `scripts/gen-seed-sql.mjs` can import it under node type stripping — verified with
+  `node --experimental-strip-types`.
+- Type × level matrix (beginner / intermediate / advanced = total):
+  home 7/7/6 = 20 · gym 7/7/7 = 21 · calisthenics 7/7/7 = 21 · running 6/6/6 = 18 ·
+  swimming 6/6/6 = 18 · cycling 6/6/6 = 18 · mobility 7/7/6 = 20. Every cell ≥ 6 (requirement ≥ 3).
+  67 bodyweight rows, 69 with equipment.
+- Each type has warm-up-suitable (`arm-circles`, `treadmill-walk-5min`, `wrist-circles`,
+  `brisk-walk-5min`/`leg-swings`, `easy-swim-100m`, `easy-spin`, `cat-cow`…) and cool-down/stretch
+  movements (`*-stretch`, `stationary-bike-cooldown`, `spin-down-5min`, `easy-swim-cooldown-200m`,
+  `foam-roll-*`, `legs-up-the-wall`…) so P4.8 can compose warmup/main/cooldown blocks at every level.
+  Endurance types are drills/intervals/efforts (`strides-100m`, `tempo-run-20min`, `intervals-400m`,
+  `pull-buoy-freestyle`, `drill-kick-board`, `cadence-drill-100rpm`, `vo2-intervals-3min`…).
+- Content rule: mainstream exercises only; cues are 1–2 sentences on form + breathing in both
+  languages; Greek names use everyday gym vocabulary (Καθίσματα, Κάμψεις, Σανίδα, Έλξεις, Προβολές,
+  Άρσεις θανάτου); established loanwords stay Latin (burpees, jumping jacks, goblet squat, hollow
+  hold, L-sit, fartlek, tempo/threshold, VO2, pull buoy, kettlebell, streamline).
+- `src/content/seed/exercises.test.ts` (10 tests): count ≥ 60 (logs actual) · unique slugs ·
+  `SLUG_RE` · types/levels ∈ enums · every type × level cell ≥ 3 · name/cue pairs non-blank ·
+  Greek script in `name_el` except a 22-slug loanword allow-list (allow-list itself checked for
+  stale entries) and ALWAYS Greek in `cue_el` · `muscle_groups` non-empty, unique, ⊆ `MUSCLE_GROUPS`
+  · `equipment_*` both null or both non-blank · each type has a warm-up- and a cool-down-named slug.
+
+**Gates (G0, in `wt/d`):** lint 0 errors (4 pre-existing react-refresh warnings, none in
+`src/content`) · typecheck clean · `vitest run` 9 files / 86 tests green (76 → 86) · build green
+(PWA precache 24 entries) · `check:pwa OK — Hygieia · Υγίεια, 3 icons, sw.js present` · Prettier clean.
+G3 (`npm run e2e`) is not yet wired in this worktree (P3.6), so the task's acceptance ran at G0.
+
+**Next:** P4.8 consumes these slugs for the 63 templates and adds the `exercises` kind to
+`gen-seed-sql.mjs` + migration `…000800_hygieia_seed_exercises.sql`.
 
 ## 2026-10-05 — P3.3 / P4.1 / P4.2 pure-domain engines — DONE (builder, worktree `wt/d`; not yet committed)
 
