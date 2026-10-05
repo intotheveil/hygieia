@@ -6,6 +6,8 @@
 // add ONE import + ONE spread here. `.gitattributes` marks this file `merge=union`: concurrent
 // appends merge cleanly. Keep every entry on its own line for that reason.
 
+// Lanes extend this: `export interface FeatureDictionary extends RecipesDictionary, FridgeDictionary {}`.
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- empty until the first feature lands
 export interface FeatureDictionary {}
 
 export const featuresEn: FeatureDictionary = {}
