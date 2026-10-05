@@ -3,6 +3,59 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+## 2026-10-06 — P1.15 CI + docs: data-spine gate steps in the workflow, commands in the constitution/README, the operator migration runbook — DONE (builder, worktree `wt/a`; not yet committed)
+
+**Scope:** no code, no migration, no test change. Four files edited/added so CI runs the data spine on every push and the operator has
+a runbook that quotes the scripts' REAL verdict lines.
+
+**`.github/workflows/deploy.yml`** — four steps inserted after `npm test`, before `npm run build`: `npm run db:check` · `Migration gate
+(npm run db:gate)` with `timeout-minutes: 5` · `Prove the gate red (npm run db:gate:prove-red)` with `env: PROVE_RED_JOBS: '4'` and
+`timeout-minutes: 10` (comment: a gate nobody has seen fail is not a gate) · `npm run seed:check`. Everything else untouched (the job's
+20-minute ceiling still holds: prove-red is ~20 s locally with 4 jobs). Parsed with js-yaml (from Pluto's `node_modules`; Hygieia has
+no YAML lib): 19 steps in the `verify` job, in order `checkout, setup-node, npm ci, lint, typecheck, test, db:check, db:gate (5), prove-red
+(10, {"PROVE_RED_JOBS":"4"}), seed:check, build, check:bundle, check:pwa, playwright version, cache, install chromium, e2e (5), upload
+failure artefacts, upload-pages-artifact` → `YAML PARSED OK`. None of the new steps reaches the live project or needs a credential.
+
+**`README.md`** — Commands block now lists every script (`e2e`, `check:bundle`, `check:pwa`, `smoke:live`, `db:check`, `db:gate`,
+`db:gate:prove-red`, `seed:gen`, `seed:check`, `db:apply`, `db:live-check`) with one-line meanings and the CI order; new **Database**
+section: shared project, schema `hygieia` only, ledger `hygieia.schema_migrations`, the flow in three commands (`db:gate` → `db:apply`
+dry-run → `db:apply -- --apply`), the rule **never `supabase db push` / `link` / `db reset`** with the reason (Alyssos owns the CLI
+ledger), link to `docs/ops/migrations.md`. The stale Stack sentence ("no project yet, ADR-0001") replaced with the ADR-0003/ADR-0004 state.
+
+**`docs/ops/migrations.md` (new, operator runbook)** — env NAMES (`SUPABASE_ACCESS_TOKEN`, `HYGIEIA_SUPABASE_PROJECT_REF`; plus
+`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` for `db:live-check`), values from the Zeus Vault, never a `.env`, never a tracked file;
+the archive today = **10 files (4 schema + 6 seed)** with a per-file table; seeds land `pending` and are approved on the admin page.
+The sequence with the scripts' exact lines: `db:check` → `PASS  migration guard: 10 migration(s) stay inside schema hygieia` · `db:gate`
+→ `GATE PASSED — 227 checks green` · `db:apply` → `DRY-RUN PASSED — 10 pending file(s) apply cleanly; everything was rolled back …` ·
+`db:apply -- --apply` → `APPLY PASSED — 10 file(s) committed and recorded in hygieia.schema_migrations.` · Dashboard → Data API →
+Exposed schemas add `hygieia` · `db:live-check` → `PASS  ledger …`, `PASS  anon GET … (Accept-Profile: hygieia) → 200 []` ×2,
+`LIVE-CHECK PASSED — 3 read-only probe(s) …` · the OP1.c curl (`200 []` IS the pass) · paste the verdicts into BUILD_LOG under
+OPERATOR-P1 and close BRAIN §4 O1. "What if" table: CHECKSUM CHANGED, OUT OF ORDER, applied version with no file, TRANSACTION CONTROL,
+guard red, DRY-RUN FAILED, `PGRST106` (schema not exposed → dashboard step), `PGRST205` (table absent / schema cache stale), ledger
+absent, anon leak (stop and report), exit 2 (env unset). Every quoted line was checked against `scripts/db-apply.mjs`,
+`scripts/db-live-check.mjs`, `scripts/check-migrations.mjs` and this run's gate output — not paraphrased. PLAN OP1.a's "7 pending
+file(s)" is stale (written before the six seed files existed); the runbook says 10 and N.
+
+**`.claude/CLAUDE.project.md` §8** — `migrate: npm run db:check && npm run db:gate (rehearse) → npm run db:apply (dry-run) → npm run
+db:apply -- --apply (operator's go) — never supabase db push` (+ pointer line: runbook, prove-red, live-check); new `seed: npm run
+seed:gen → npm run seed:check`. §2's Migrations line already described the flow accurately — unchanged. **The composed
+`.claude/CLAUDE.md` was NOT regenerated here** (`kit.mjs compose` resolves the main checkout, not this worktree): the lead recomposes
+after merge — `node D:/projects/zeus/.zeus/kit/kit.mjs compose hygieia --fleet-root D:/projects` then
+`bash D:/projects/zeus/.zeus/kit/verify-kit.sh D:/projects`. Until then the composed §8 still says "not defined yet".
+
+**Acceptance (worktree `wt/a` at `5d72b84`, one chained run, exit 0):** `lint` 0 errors / 7 warnings (all `react-refresh/only-export-components`,
+pre-existing; the 7th is `DraftRibbon.tsx` from the P3 lane) · `typecheck` clean · `npm test` **42 files / 2843 tests** green · `db:check`
+`PASS  migration guard: 10 migration(s) stay inside schema hygieia` · `db:gate` **`GATE PASSED — 227 checks green`** · `seed:check`
+`OK — 6 seed migration(s) identical` · `build` `✓ built`, `precache 24 entries` · `check:pwa OK — Hygieia · Υγίεια, 3 icons, sw.js present`.
+`grep -rn "supabase db push\|supabase link\|supabase db reset" scripts/ .github/` → only `scripts/db-apply.mjs:7` (the comment that
+FORBIDS them). `prettier --check` on the touched files: `deploy.yml` was already flagged at HEAD (pre-existing, not introduced; eslint is
+the lint gate). The runbook's live steps (3–7) were NOT exercised: they need the operator's credentials and are an operator task by
+PLAN §0 — their expected lines are quoted from the scripts, and OP1 records the real observables.
+
+**Files:** `.github/workflows/deploy.yml`, `README.md`, `docs/ops/migrations.md` (new), `.claude/CLAUDE.project.md`, `BUILD_LOG.md`.
+No DECISIONS.md entry (no architectural choice; step order and limits come from PLAN P1.15 / the Themis BRAIN). Not committed.
+**Next:** test-writer (nothing testable beyond the YAML parse — recorded above) → reviewer → P1.QA; lead recomposes the kit after merge.
+
 ## 2026-10-05 — P5.5 bilingual completeness sweep (dictionary + seed tests; pulled forward) — DONE (builder, worktree `wt/b`; not yet committed)
 
 **Scope:** the test-hardening half of P5.5 only (PLAN.md §0 bilingual rule, ADR-0002). UI copy review and the P5.2 a11y-matrix H1
@@ -16,6 +69,7 @@ unless en is an allow-listed brand/loanword; two blanks do NOT count — blankne
 incl. Cyrillic/Latin look-alikes, lone `?`/Greek `;` not flagged).
 
 **Rules added (every existing `it` kept verbatim; nothing loosened):**
+
 - `src/i18n/dictionary.test.ts` (+6): (a) no `el` leaf repeats its `en` twin except `SAME_VALUE_ALLOWLIST` (Hygieia, Atkins, Whole30, DASH,
   calisthenics, keto, paleo); (b) no leaf carries a placeholder marker; (c) every `el` leaf ≥ 12 chars has Greek script unless key-allow-listed
   (`switchTo`); (d) no `en` leaf has Greek script unless key-allow-listed (`switchTo` = Ελληνικά); allow-list hygiene (keys exist and still need
@@ -44,6 +98,7 @@ allow-listed (`Whole30`, the exercise names list, the two equipment rows).
 
 **Not done / next:** nothing committed (the lead merges `wt/b`). `BRAIN.md` §3/§6 not touched by this lane (lead's merge step). The
 H1-per-route language assertions of P5.5 remain with P5.2's a11y matrix; the UI copy review half of P5.5 waits for the pages.
+
 ## 2026-10-05 — P1.12 follow-up: seeds regenerated (152 recipes, 63 workouts) + gate fixture off the saturated unique cell — DONE (builder, worktree `wt/a`; not yet committed)
 
 **Why:** `recipes/group2.ts` (61 recipes → 152) and `src/content/seed/workouts.ts` (63 templates) reached main after P1.12 generated
@@ -151,6 +206,7 @@ unversioned branch — no shipped data exists yet, so leniency buys nothing and 
 
 **Not done / next:** nothing committed (the lead merges `wt/b`). UI halves — `RecipesPage.tsx`, `RecipeCard.tsx`, `FridgePage.tsx`,
 `IngredientPicker.tsx`, their page tests and the P3.1/P3.4 dictionary keys — are still open and consume these modules.
+
 ## 2026-10-05 — P5.4 Offline / PWA behaviour e2e — DONE (builder, worktree `wt/d`; not yet committed)
 
 **Pulled forward** by the lead (depends only on the P3.6 Playwright harness, on main). Delivered ONLY
@@ -262,6 +318,7 @@ disposer (no-op when off) so tests restore handlers; `main.tsx` ignores it. (3) 
 
 **Not done / next:** nothing committed (the lead merges `wt/e`). P6.QA.4 uses DevTools `throw new Error('fleet-smoke')` on the deployed
 site once OP6.a + P6.4 land; the first ledger row goes to BRAIN §8 then.
+
 ## 2026-10-05 — P6.3 Live smoke `npm run smoke:live` — DONE (builder, worktree `wt/d`; not yet committed)
 
 **Pulled forward** by the lead (independent). HTTP only, no browser: `scripts/smoke-live.mjs` exercises the DEPLOYED
@@ -322,6 +379,7 @@ PASS  GET brand/og-hygieia.jpg → 200 image/jpeg
 SKIPPED (backend) — set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
 SMOKE PASSED — 14 probes against https://intotheveil.github.io/hygieia/ (2308 ms)
 ```
+
 exit 0. This is the current deployed P0/PWA artifact (bundle `index-BCspQXd6.js`); the backend probes have not yet been run
 live — they need the anon env (OP2.c) and are P6.4's / P6.QA step 2's observable.
 
@@ -333,6 +391,7 @@ live — they need the anon env (OP2.c) and are P6.4's / P6.QA step 2's observab
 Pages build; after it, `smoke:live` with the anon env is the proof that the deploy is in configured mode (approved rows ≥ 1,
 pending `[]`, profiles `[]`). `DECISIONS.md`/`BRAIN.md` were out of this task's declared scope — the three small decisions above
 are for the lead to lift if judged durable.
+
 ## 2026-10-05 — P1.12 Seed generator + generated seed migrations + `seed:check` — DONE (builder, worktree `wt/a`; not yet committed)
 
 **What:** `scripts/gen-seed-sql.mjs` replaces the P1.1 stub. It imports the TS seed modules by `.ts` path (node 24 type
@@ -394,6 +453,7 @@ fixture rows off real cells (e.g. a fixture-only combination is impossible — a
 
 **Next:** lead merges `wt/a` (do not commit here). When `recipes/group2.ts` or `workouts.ts` lands: `npm run seed:gen && npm run
 seed:check` — the generated files change and must be re-committed with the content. P1.13 (`ContentSource`) and P1.14 are independent.
+
 ## 2026-10-05 — P1.13 `ContentSource` layer: bundled + supabase, schema-pinned client, draft ribbon — DONE (builder, worktree `wt/c`; not yet committed)
 
 **Delivered** (PLAN §1 item 5, task P1.13):
@@ -505,6 +565,7 @@ build\` first.` → **exit 2**. The planted value never appeared unmasked in any
 
 **Not done / next:** nothing committed (the lead merges `wt/e`). P6.3 imports `scanText` from `./check-bundle-secrets.mjs`
 (signature `scanText(text, { file })` → `Finding[]`, pure). `G6` = `G3 && npm run check:bundle` is now runnable.
+
 ## 2026-10-05 — P4.8 (data + domain half) workout templates seed + session resolver — DONE (builder, worktree `wt/d`; not yet committed)
 
 The DATA + DOMAIN half of P4.8: the 63 templates and the resolver with their tests. The `/workouts`
@@ -814,6 +875,7 @@ in `src/auth/AuthProvider.tsx`, `src/i18n/LangProvider.tsx`, `src/routes/routes.
 
 **Not done / next:** nothing committed (the lead merges `wt/g` and replaces the two stubs with the real group
 files, then flips the two constants and re-runs the test). P1.12 (seed generator) consumes `RECIPES`.
+
 ## 2026-10-05 — P1.11 group 2 recipes seed (low-carb & protein-centric) — DONE (builder, worktree `wt/b`; not yet committed)
 
 **Scope:** one of three parallel builders for P1.11. Delivered ONLY
@@ -827,14 +889,14 @@ Greek in plural imperative; loanwords (keto, paleo, Atkins, Cobb, Meatza) Latin-
 
 **Coverage matrix (diet × meal type; requirement ≥ 5 total and ≥ 2 each for breakfast/lunch/dinner):**
 
-| diet | total | breakfast | lunch | dinner | snack |
-|---|---|---|---|---|---|
-| paleo | 27 | 7 | 20 | 20 | 4 |
-| low-carb | 59 | 18 | 39 | 37 | 12 |
-| keto | 48 | 14 | 32 | 31 | 8 |
-| atkins | 44 | 12 | 31 | 30 | 6 |
-| carnivore | 10 | 3 | 6 | 7 | 1 |
-| high-protein | 39 | 6 | 32 | 33 | 4 |
+| diet         | total | breakfast | lunch | dinner | snack |
+| ------------ | ----- | --------- | ----- | ------ | ----- |
+| paleo        | 27    | 7         | 20    | 20     | 4     |
+| low-carb     | 59    | 18        | 39    | 37     | 12    |
+| keto         | 48    | 14        | 32    | 31     | 8     |
+| atkins       | 44    | 12        | 31    | 30     | 6     |
+| carnivore    | 10    | 3         | 6     | 7      | 1     |
+| high-protein | 39    | 6         | 32    | 33     | 4     |
 
 **Compliance rules applied (checked by a throwaway script against every tag, 0 violations):** `carnivore` =
 meat/poultry/fish categories + egg, butter, ghee, hard cheese, tallow, lard, bone broth/marrow, salt, water

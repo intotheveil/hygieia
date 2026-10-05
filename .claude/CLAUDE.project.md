@@ -57,7 +57,9 @@ dev:        npm run dev
 build:      npm run build
 test:       npm test
 e2e:        npm run e2e        (builds dist/ first unless E2E_PREBUILT=1; chromium via npx playwright install chromium)
-migrate:    not defined yet — P1 adds db:gate + db:apply (ADR-0003); never supabase db push
+migrate:    npm run db:check && npm run db:gate (rehearse) → npm run db:apply (dry-run) → npm run db:apply -- --apply (operator's go) — never supabase db push
+            (runbook: docs/ops/migrations.md; red-proof: npm run db:gate:prove-red; live read-only check: npm run db:live-check)
+seed:       npm run seed:gen → npm run seed:check
 lint+types: npm run lint && npm run typecheck
 ```
 
