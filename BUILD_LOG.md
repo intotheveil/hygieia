@@ -44,6 +44,64 @@ allow-listed (`Whole30`, the exercise names list, the two equipment rows).
 
 **Not done / next:** nothing committed (the lead merges `wt/b`). `BRAIN.md` §3/§6 not touched by this lane (lead's merge step). The
 H1-per-route language assertions of P5.5 remain with P5.2's a11y matrix; the UI copy review half of P5.5 waits for the pages.
+## 2026-10-05 — P1.12 follow-up: seeds regenerated (152 recipes, 63 workouts) + gate fixture off the saturated unique cell — DONE (builder, worktree `wt/a`; not yet committed)
+
+**Why:** `recipes/group2.ts` (61 recipes → 152) and `src/content/seed/workouts.ts` (63 templates) reached main after P1.12 generated
+the seed files, so `…000700_hygieia_seed_recipes.sql` was stale and `…000900_hygieia_seed_workouts.sql` did not exist. And the P1.12
+"Landmine for P4.8" went off: with all 63 (type, level, intensity) cells seeded, the gate fixture's `fx-home-beginner-low` /
+`fx-gym-intermediate-moderate` INSERTs collided — observed BEFORE the fix: `FAIL  fixture seeded (…) — duplicate key value violates
+unique constraint "workout_templates_cell_key"` → `GATE FAILED — 1 check(s) red`.
+
+**Seeds:** `npm run seed:gen` → `…000700_…_recipes.sql` — recipes **152**, recipe_ingredients **1173**, recipe_diets **740** (was 91 / 728 /
+513); NEW `…000900_…_workouts.sql` — workout_templates **63**, workout_template_exercises **579**. Other four files byte-identical.
+`npm run seed:check` → `OK — 6 seed migration(s) identical`. `npm run db:check` → `PASS migration guard: 10 migration(s)`.
+
+**Fixture (`scripts/db-gate/catalogue.mjs`) — adopt, don't insert:** there is NO free unique cell, so the fixture no longer inserts
+templates or their children. New `ADOPTED_TEMPLATE_SLUGS` = the two lowest slugs of `WORKOUT_TEMPLATES` (imported from
+`src/content/seed/workouts.ts`, code-unit sort): `calisthenics-advanced-high` (flipped to `approved`, `reviewed_at = OLD`,
+`reviewed_by = ADMIN`, `updated_at = OLD`) and `calisthenics-advanced-low` (stays `pending`, stamps nulled, `updated_at = OLD`).
+`FX.workout_templates` and `ID.tplApproved` / `ID.tplPending` (renamed from `homeTemplate` / `gymTemplate`) derive from them. The two
+UPDATEs run in their own transaction under `set local session_replication_role = replica` — without it `touch_updated_at` sets `now()` and
+`stamp_review` sets `reviewed_by = auth.uid()` (null as superuser), which would break "ADMIN's content edit … without re-stamping" and
+make the `touched`/`later` proofs trivial. Each UPDATE must affect exactly 1 row or the fixture THROWS (an archive without the workouts
+seed → `fixture seeded` red with "is the P4.8 seed in the archive?"). The `workout_template_exercises` child `insert` probe now targets
+`ID.tplApproved` at position **99** (seeded max is 12; was 9, which a seeded template could occupy). `SEED_COUNTS.workout_templates` and
+`SEED_CHILD_COUNTS.workout_template_exercises` lost their `pendingTask` — the counts now BIND (0 rows is red, no longer a "not seeded
+yet" pass). No check was weakened or removed; all expected counts are read from the DB (approved 1 / pending 62 / total 63 / children 12
+under approved, 567 under pending). Header comment documents the exception.
+
+**Gate (worktree, 2026-10-05):** `npm run db:gate` → **GATE PASSED — 227 checks green** (fixture seeded PASS); `workout_templates: fixture
+holds >= 1 approved and >= 1 pending row — approved 1, pending 62` · `anon reads exactly N approved rows and 0 pending — N = 1 approved of
+63; read 1, pending 0` · `ADMIN reads all rows — 63/63` · `ADMIN's status update takes effect and is stamped — later:true, touched:true` ·
+`ADMIN's content edit … without re-stamping — kept:true` · `every row id = md5(…) — 63 rows checked, 0 off-formula` · **`seeded rows (slug
+not like 'fx-%') = 63 — 63 seeded rows`** · `workout_template_exercises: fixture holds children … — under approved 12, under pending 567` ·
+`anon reads only children of approved parents — 12/579 (approved parents: 12)` · `ADMIN's INSERT, UPDATE and DELETE take effect — made 1,
+left 0` · **`seeded child rows … >= 1 — 579 seeded rows`**. Recipes: `154` total rows checked, 0 off-formula; `152` seeded.
+
+**prove-red:** `npm run db:gate:prove-red` → **PROVE-RED PASSED — 25/25 sabotages RED on the expected line; control GREEN (228 PASS)**, wall
+19.5 s. **Zero regex changes** — the four P1.12 floating-total regexes already absorb the new totals (`recipes-select-true-anon` now sees
+`of 154; read 154, pending 153`, `recipe-ingredients-select-true` `1177/1177 (approved parents: 2)`, `seed-random-id` `77 rows checked, 1
+off-formula`); `table-dropped-stale-entry` still red on `fixture seeded ` (favourites gone).
+
+**RED evidence for the adopted fixture path** (temp copies of the archive + one appended sabotage file, gate pointed at them via
+`DB_GATE_MIGRATIONS`; copies deleted): (1) `workout_templates_select_anon … using (true)` → `FAIL  hygieia.workout_templates: anon reads
+exactly N approved rows and 0 pending — N = 1 approved of 63; read 63, pending 62` / `GATE FAILED — 1 check(s) red, 227 green`, exit 1.
+(2) `workout_template_exercises_select_anon … using (true)` → `FAIL  hygieia.workout_template_exercises: anon reads only children of approved
+parents — 579/579 (approved parents: 12)` / `GATE FAILED — 1 check(s) red, 227 green`, exit 1. Both red on exactly ONE line (the leak), so
+the adopted-row fixture discriminates.
+
+**Acceptance chain (one run, exit 0):** `seed:check` OK (6 identical) · `db:check` PASS 10 migrations · `db:gate` GATE PASSED 227 ·
+`db:gate:prove-red` PASSED 25/25 · `lint` `0 errors, 6 warnings` (pre-existing `react-refresh/only-export-components` in `AuthProvider.tsx`,
+`LangProvider.tsx`, `routes.tsx`) · `typecheck` clean · `npm test` **37 files / 2063 tests green** · `build` `✓ built`, `precache 24 entries`,
+`dist/sw.js` · `check:pwa OK — Hygieia · Υγίεια, 3 icons, sw.js present`. `npx vitest run scripts/` alone: 8 files / 388 tests.
+`db-isolation.test.ts` needed NO change (it runs only `user` + `profiles` kinds; the fixture still seeds). Prettier clean on `catalogue.mjs`.
+
+**Files:** `supabase/migrations/20261006000700_hygieia_seed_recipes.sql` (regenerated), `supabase/migrations/20261006000900_hygieia_seed_workouts.sql`
+(new), `scripts/db-gate/catalogue.mjs`, `BUILD_LOG.md`, `BRAIN.md` (§5 gotcha). Not committed (the lead merges `wt/a`).
+
+**Decision (for DECISIONS.md if the lead keeps it):** the gate fixture ADOPTS seeded rows for any content table whose unique key real data
+saturates, flipping status under `session_replication_role = replica`; it never inserts into such a table. Adopted rows are chosen by the
+seed module's lowest slugs so the choice is deterministic and travels with the content.
 
 ## 2026-10-05 — P3.1 `filterRecipes` + P3.4 `fridge/storage.ts` (PURE halves, pulled forward) — DONE (builder, worktree `wt/b`; not yet committed)
 

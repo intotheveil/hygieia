@@ -20,6 +20,13 @@
 //   Per content table >= 1 approved and >= 1 pending row (slugs prefixed `fx-`, ids by the seed-id
 //   formula), children under both an approved and a pending parent, per user table rows of A and B.
 //   Seeds (P1.12) land `pending`; the fixture rows are the gate's own and never ship.
+//   EXCEPTION — workout_templates: `unique (workout_type, level, intensity)` and the P4.8 seed fills
+//   all 63 cells, so there is NO free cell for an `fx-` row (a fixture must not fight a unique
+//   constraint that real data saturates). The fixture instead ADOPTS two seeded rows — the two
+//   lowest slugs of src/content/seed/workouts.ts — and flips the first to `approved` with the fixture
+//   review stamp (triggers bypassed via session_replication_role, so reviewed_by/updated_at are the
+//   fixture's, not now()/null); the second stays `pending` and is the row ADMIN's review flips. Both
+//   keep their seeded slugs, so they still count as seeded rows (= 63) in the P1.12 count check.
 //
 // Harness: `createHarness(db).actAs(who, s => …)` runs `fn` in a transaction that is always rolled
 // back, as a signed-in user (uuid, `request.jwt.claim.sub`), ANON, SERVICE (BYPASSRLS) or SUPERUSER.
@@ -43,6 +50,7 @@ import {
   USER_TABLES,
   WORKOUT_TYPES,
 } from '../../src/content/enums.ts'
+import { WORKOUT_TEMPLATES } from '../../src/content/seed/workouts.ts'
 
 // --- identities ----------------------------------------------------------------------------------
 export const U = Object.freeze({
@@ -79,25 +87,43 @@ export const SEED_COUNTS = Object.freeze({
   recipes: { min: 40 },
   exercises: { min: 60 },
   health_tips: { min: 30 },
-  workout_templates: { exact: 63, pendingTask: 'P4.8 (src/content/seed/workouts.ts)' },
+  // P4.8 landed: the module exists, so the count BINDS (no pendingTask — zero rows is red).
+  workout_templates: { exact: 63 },
 })
 /** Child tables: seeded rows under NON-fixture parents (parent slug not `fx-`). */
 /** @type {Readonly<Record<string, { min: number, pendingTask?: string }>>} */
 export const SEED_CHILD_COUNTS = Object.freeze({
   recipe_ingredients: { min: 1 },
   recipe_diets: { min: 1 },
-  workout_template_exercises: { min: 1, pendingTask: 'P4.8 (src/content/seed/workouts.ts)' },
+  workout_template_exercises: { min: 1 },
 })
 
-/** Fixture slugs per content table; the first `approved` and `pending` slug is the one the checks mutate. */
+/**
+ * The two seeded workout templates the fixture adopts (see the header): the two lowest slugs of the
+ * P4.8 seed, code-unit order — deterministic, and the same rows the generator wrote to the archive.
+ * [0] is flipped to `approved` by the fixture; [1] stays `pending`.
+ */
+export const ADOPTED_TEMPLATE_SLUGS = Object.freeze(
+  WORKOUT_TEMPLATES.map((t) => t.slug)
+    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+    .slice(0, 2),
+)
+if (ADOPTED_TEMPLATE_SLUGS.length !== 2)
+  throw new Error('catalogue: src/content/seed/workouts.ts must ship at least two templates')
+
+/**
+ * Fixture slugs per content table; the first `approved` and `pending` slug is the one the checks
+ * mutate. Every slug is `fx-` (the gate's own rows) EXCEPT workout_templates, whose two slugs are
+ * ADOPTED seeded rows (no free unique cell — header).
+ */
 export const FX = Object.freeze({
   ingredients: { approved: ['fx-tomato', 'fx-olive-oil'], pending: ['fx-feta'] },
   diets: { approved: ['fx-mediterranean'], pending: ['fx-keto'] },
   recipes: { approved: ['fx-greek-salad'], pending: ['fx-feta-omelette'] },
   exercises: { approved: ['fx-squat'], pending: ['fx-pushup'] },
   workout_templates: {
-    approved: ['fx-home-beginner-low'],
-    pending: ['fx-gym-intermediate-moderate'],
+    approved: [ADOPTED_TEMPLATE_SLUGS[0]],
+    pending: [ADOPTED_TEMPLATE_SLUGS[1]],
   },
   health_tips: { approved: ['fx-drink-water'], pending: ['fx-sleep-early'] },
 })
@@ -111,8 +137,9 @@ export const ID = Object.freeze({
   omelette: sid('recipes', 'fx-feta-omelette'),
   squat: sid('exercises', 'fx-squat'),
   pushup: sid('exercises', 'fx-pushup'),
-  homeTemplate: sid('workout_templates', 'fx-home-beginner-low'),
-  gymTemplate: sid('workout_templates', 'fx-gym-intermediate-moderate'),
+  // Adopted SEEDED templates (ids by the same formula the generator used, so they resolve in the DB).
+  tplApproved: sid('workout_templates', ADOPTED_TEMPLATE_SLUGS[0]),
+  tplPending: sid('workout_templates', ADOPTED_TEMPLATE_SLUGS[1]),
   fridgeA: '20000000-0000-4000-8000-00000000000a',
   fridgeB: '20000000-0000-4000-8000-00000000000b',
   planA: '30000000-0000-4000-8000-00000000000a',
@@ -205,18 +232,6 @@ export async function seedFixture(db) {
        '{legs,glutes}', null, null, ${A}, '${OLD}'),
       ('${ID.pushup}', 'fx-pushup', 'fx pushup el', 'fx pushup en', 'fx cue el', 'fx cue en', 'calisthenics',
        'beginner', '{chest}', 'fx mat el', 'fx mat en', ${P}, '${OLD}');
-    insert into hygieia.workout_templates (id, slug, workout_type, level, intensity, title_el, title_en,
-      duration_min, notes_el, notes_en, status, reviewed_at, reviewed_by, updated_at) values
-      ('${ID.homeTemplate}', 'fx-home-beginner-low', 'home', 'beginner', 'low', 'fx home el', 'fx home en',
-       20, 'fx notes el', 'fx notes en', ${A}, '${OLD}'),
-      ('${ID.gymTemplate}', 'fx-gym-intermediate-moderate', 'gym', 'intermediate', 'moderate',
-       'fx gym el', 'fx gym en', 45, 'fx notes el', 'fx notes en', ${P}, '${OLD}');
-    insert into hygieia.workout_template_exercises (template_id, exercise_id, position, block, sets,
-      reps, seconds, rest_seconds, updated_at) values
-      ('${ID.homeTemplate}', '${ID.squat}', 0, 'warmup', 1, null, 60, 0, '${OLD}'),
-      ('${ID.homeTemplate}', '${ID.squat}', 1, 'main', 3, 12, null, 60, '${OLD}'),
-      ('${ID.gymTemplate}', '${ID.pushup}', 0, 'main', 3, 10, null, 60, '${OLD}');
-
     insert into hygieia.health_tips (id, slug, topic, title_el, title_en, body_el, body_en, source_url,
       needs_source, status, reviewed_at, reviewed_by, updated_at) values
       ('${sid('health_tips', 'fx-drink-water')}', 'fx-drink-water', 'hydration', 'fx water el', 'fx water en',
@@ -234,6 +249,41 @@ export async function seedFixture(db) {
       ('${U.UA}', '${ID.greekSalad}', '${OLD}'),
       ('${U.UB}', '${ID.greekSalad}', '${OLD}');
   `)
+
+  // workout_templates: no free unique cell (header), so ADOPT two seeded rows instead of inserting.
+  // Both are stamped exactly like an inserted fixture row (approved: reviewed_at = OLD, reviewed_by =
+  // ADMIN; pending: no stamp; updated_at = OLD on both) so the stamp/touch checks stay meaningful.
+  // Triggers are bypassed for THIS transaction only: touch_updated_at would set now() and
+  // stamp_review would set reviewed_by = auth.uid() (null as the superuser). Each UPDATE must hit
+  // exactly one row — a missing seeded row (an archive without the workouts seed) is a fixture error,
+  // reported on the gate's `fixture seeded` line, never a silent pass.
+  await db.exec(`begin; set local session_replication_role = replica;`)
+  try {
+    const flip = await db.query(
+      `update hygieia.workout_templates
+          set status = 'approved', reviewed_at = $2, reviewed_by = $3, updated_at = $2
+        where slug = $1 and status = 'pending'`,
+      [ADOPTED_TEMPLATE_SLUGS[0], OLD, U.ADMIN],
+    )
+    const keep = await db.query(
+      `update hygieia.workout_templates
+          set reviewed_at = null, reviewed_by = null, updated_at = $2
+        where slug = $1 and status = 'pending'`,
+      [ADOPTED_TEMPLATE_SLUGS[1], OLD],
+    )
+    for (const [slug, r] of /** @type {[string, { affectedRows?: number }][]} */ ([
+      [ADOPTED_TEMPLATE_SLUGS[0], flip],
+      [ADOPTED_TEMPLATE_SLUGS[1], keep],
+    ]))
+      if ((r.affectedRows ?? 0) !== 1)
+        throw new Error(
+          `fixture: adopted seeded workout_templates row "${slug}" not found pending (affected ${r.affectedRows ?? 0}) — is the P4.8 seed in the archive?`,
+        )
+    await db.exec('commit')
+  } catch (e) {
+    await db.exec('rollback')
+    throw e
+  }
 }
 
 // --- enum contract -------------------------------------------------------------------------------
@@ -530,10 +580,11 @@ export const CATALOGUE = Object.freeze([
     parent: 'workout_templates',
     parentKey: 'template_id',
     probe: `sets = 2`,
+    // Under the ADOPTED approved seeded template; position 99 is above any seeded slot (max 12).
     insert: `insert into hygieia.workout_template_exercises
                (template_id, exercise_id, position, block, sets, reps, seconds, rest_seconds)
-             values ('${ID.homeTemplate}', '${ID.pushup}', 9, 'cooldown', 1, null, 30, 0)`,
-    inserted: `template_id = '${ID.homeTemplate}' and position = 9`,
+             values ('${ID.tplApproved}', '${ID.pushup}', 99, 'cooldown', 1, null, 30, 0)`,
+    inserted: `template_id = '${ID.tplApproved}' and position = 99`,
   },
   {
     table: 'health_tips',
