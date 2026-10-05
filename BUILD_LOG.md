@@ -3,6 +3,56 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+## 2026-10-05 — P1.11 group 1 recipes seed (Mediterranean & plant-forward) — DONE (builder, worktree `wt/c`; not yet committed)
+
+**Scope:** one of three parallel P1.11 builders. Group 1 = diets `mediterranean`, `dash`, `flexitarian`,
+`pescatarian`, `vegetarian`, `vegan`. Delivered ONLY `src/content/seed/recipes/group1.ts`
+(`export const RECIPES_GROUP1: readonly RecipeSeed[]`). The aggregate `recipes.ts` + `recipes.test.ts`
+come from the index builder; groups 2 (carnivore/keto/paleo/atkins/high-protein) and 3 (gluten-free /
+low-FODMAP / Whole30 / fasting) are the other builders' files — no meat-centric mains or GF/FODMAP specials here.
+
+**Delivered:** 53 recipes, 318 ingredient lines, all `image_path: null`. Families: breakfasts (14),
+legume classics (7: fasolada, fakes, revithada, gigantes plaki, fava, hummus, pumpkin red-lentil soup),
+ladera & stuffed vegetables (8: gemista, briam, spanakorizo, lahanorizo, imam bayildi, arakas, fasolakia,
+bamies), salads/mezze/vegetarian plates (11: horiatiki, dakos, tzatziki, chickpea & lentil salads, quinoa
+tabbouleh, kolokithokeftedes, spanakopita, halloumi salad, roasted cauliflower tahini, tofu souvlaki),
+pasta (2), fish & seafood (9: grilled sardines, sea bream, psari plaki, shrimp saganaki, octopus xydato,
+mydopilafo, salmon bowl, tuna-bean salad, mackerel with horta), snacks (2). Steps 3–5 each, EL plural
+imperative, EQUAL EL/EN counts. Legumes/grains/pasta quantified DRY (P1.9 raw-state nutrition rule).
+
+**Diet tagging rules applied (so every tag complies with the P1.10 allowed/avoided lists):** `vegan` =
+no animal product and no honey (petimezi used instead); `dash` = no added salt, no feta/olives/capers/
+tinned or smoked fish/halloumi/full-fat yoghurt, modest olive oil; `pescatarian` and `flexitarian` on
+every vegetarian + fish dish; `mediterranean` on all 53 (no red meat, no added sugar).
+
+**Coverage matrix (diet × meal type; requirement ≥ 5 total and ≥ 2 each for breakfast/lunch/dinner):**
+
+| diet          | total | breakfast | lunch | dinner | snack |
+| ------------- | ----: | --------: | ----: | -----: | ----: |
+| mediterranean |    53 |        14 |    38 |     34 |    15 |
+| dash          |    39 |         9 |    29 |     28 |     9 |
+| flexitarian   |    53 |        14 |    38 |     34 |    15 |
+| pescatarian   |    53 |        14 |    38 |     34 |    15 |
+| vegetarian    |    43 |        13 |    29 |     26 |    14 |
+| vegan         |    31 |         7 |    23 |     21 |     8 |
+
+**Self-check (scratchpad script, not in repo):** every `ingredient_slug` resolves to a P1.9 slug and every
+`diet_slug` to a P1.10 slug; 53 unique `SLUG_RE` slugs; equal step counts; line units are the ingredient's
+own unit or g/ml (zero `unitMismatch` warnings from `computeNutrition`); notes come in EL/EN pairs; per-portion
+kcal for ALL 53 within 150–900 (min 163 date-oat energy balls, max 753 baked sea bream with potatoes).
+Random-5 sample via `src/nutrition/compute.ts`: pumpkin-red-lentil-soup 351 kcal (P17/C55/F8) ·
+fasolakia-ladera 352 (P7/C38/F21) · oat-porridge-banana-walnuts 518 (P15/C80/F17) · roasted-chickpeas
+222 (P10/C32/F7) · fakes-lentil-soup 539 (P26/C71/F18).
+
+**Gates (worktree `wt/c`):** `npm run lint` 0 errors · `npm run typecheck` clean · `npm run build` green
+(PWA precache 24 entries) · `npm test` 20 files / 408 tests green. Environment note: this worktree's
+`node_modules` lacked `@electric-sql/pglite` (in the lockfile, not installed), which made `tsc -b` and
+`scripts/db-apply.test.ts` fail BEFORE this task; fixed with `npm ci` (gitignored, no tracked change). The
+`tsconfig.app.json` project containing this file was clean throughout. `git status`: only the new file.
+
+**Not done / next:** aggregate `src/content/seed/recipes.ts` (spread of the three groups) and
+`recipes.test.ts` (index builder); P1.12 generator consumes the aggregate. No commit (lead merges `wt/c`).
+
 ## 2026-10-05 — P4.9 (content half) health tips seed — DONE (builder, worktree `wt/f`; not yet committed)
 
 **Pulled forward** by the lead: the seed depends only on the P1.4 types (`HealthTipSeed`,
@@ -50,6 +100,7 @@ sw.js present` · Prettier clean on both files.
 `topics.*`, `sourcePending`, `readSource`), `gen-seed-sql.mjs` kind `health_tips` +
 `20261006001000_hygieia_seed_tips.sql`, `catalogue.mjs`, `db:gate` `health_tips ≥ 30`,
 `e2e/local/tips.spec.ts`. An admin reviewing the 17 `needs_source` rows can attach a URL in P4.10.
+
 ## 2026-10-05 — P4.5 Weekly meal-plan generator (pure domain) — DONE (builder, worktree `wt/b`; not yet committed)
 
 **Pulled forward from P4** by the lead: the generator depends only on the P1.4 types, P4.1's
@@ -262,8 +313,8 @@ free — this lane never touched that file.
 ### P2.4 `UserDataSource`: fridge lists, saved plans, favourites — DONE (builder, `wt/e`; not yet committed)
 
 - `src/user/source.ts` — the contract: `UserDataSource { kind: 'supabase' | 'disabled'; reason?;
-  userId?; fridgeLists { list, save, remove }; favourites { list, add, remove }; savedPlans { list, save,
-  remove } }`, `Result<T> = { ok: true; data } | { ok: false; error: 'disabled' | 'network' | 'unknown' }`
+userId?; fridgeLists { list, save, remove }; favourites { list, add, remove }; savedPlans { list, save,
+remove } }`, `Result<T> = { ok: true; data } | { ok: false; error: 'disabled' | 'network' | 'unknown' }`
   (nothing throws), row types (`FridgeList`, `SavedPlan`, `Favourite`) and WRITE payload types
   (`FridgeListInput { id?, name, ingredient_slugs }`, `SavedPlanInput { diet_id, week_start, plan }`,
   `FavouriteInput { recipe_id }`) — none has a `user_id` member, so sending it is a type error.
@@ -291,9 +342,9 @@ free — this lane never touched that file.
 - `src/auth/fake-client.ts` — EXTENDED (not a second fake): `from(table)` keeps the `profiles` behaviour
   and gives every other table a thenable builder (`select/order/single/maybeSingle/eq/insert/upsert/delete`)
   that RECORDS `{ table, op, payload, filters }` into `fake.calls`; options `userTables: { rows, error,
-  reject }`. A written row comes back WITH `user_id` (simulating the DB default).
+reject }`. A written row comes back WITH `user_id` (simulating the DB default).
 - Dictionary: 5 keys under `// user data (P2.4)`: `userDataUnavailableLocal, userDataSignInToSave, saved,
-  save, remove` (both languages; parity test green).
+save, remove` (both languages; parity test green).
 - Tests `src/user/source.test.ts` (14): disabled impl for both reasons (7 writes refused, 3 lists empty);
   supabase impl targets exactly `{fridge_lists, saved_plans, favourites}` and never `profiles`; sweep over
   10+ recorded calls: no `user_id` in any payload, no `user_id` filter, uid absent from the serialised calls,
@@ -323,12 +374,12 @@ free — this lane never touched that file.
   (no synchronous setState in the effect). A disabled source renders `SignedOutNote`. A failed list shows as
   empty — P4.6 owns the error state and editing (no key was added for it).
 - `src/admin/AdminPage.tsx` — placeholder: `adminTitle` + `adminPlaceholder` ("review tools arrive in P4")
-  + home link. P4.10 replaces the file.
+  - home link. P4.10 replaces the file.
 - `src/App.tsx` — header right side is now `<div class="flex items-center gap-2"><AccountMenu/><LangSwitch/></div>`;
   nothing else changed. `src/routes/routes.tsx` — `/account` → `<RequireAuth><AccountPage/></RequireAuth>`,
   `/admin` → `<RequireAdmin><AdminPage/></RequireAdmin>`, appended before `*`.
 - Dictionary: 10 keys under `// guards (P2.5)`: `account, notAllowedTitle, notAllowedBody, adminTitle,
-  adminPlaceholder, savedPlans, savedFridgeLists, favourites, nothingSavedYet, loading`. `adminTitle` is ONE
+adminPlaceholder, savedPlans, savedFridgeLists, favourites, nothingSavedYet, loading`. `adminTitle` is ONE
   key beyond the lead's list — the admin page needed an `h1` and the bilingual rule forbids a literal.
 - Tests `src/auth/guards.test.tsx` (29, through the real `AppRoutes` + a `LocationProbe`): anonymous at
   `/account` → location `/auth?next=%2Faccount` and the sign-in page renders; query string preserved
@@ -413,6 +464,7 @@ sw.js present` · Prettier check clean on `src/content/seed/`.
 
 **Next:** P1.10 diets (∥ B), P1.11 recipes use these slugs; P1.12 generates
 `20261006000500_hygieia_seed_ingredients.sql` from this module (gate asserts ≥ 160 → will see 322).
+
 ### P1.10 Seed content: diets (16, EL+EN) — DONE (builder, worktree `wt/c`; not yet committed)
 
 **Landed:** `src/content/seed/diets.ts` exporting `DIETS: readonly DietSeed[]` (plus the shared
