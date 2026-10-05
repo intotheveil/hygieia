@@ -3,6 +3,63 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+## 2026-10-05 — P4.5 Weekly meal-plan generator (pure domain) — DONE (builder, worktree `wt/b`; not yet committed)
+
+**Pulled forward from P4** by the lead: the generator depends only on the P1.4 types, P4.1's
+`computeNutrition` and P3.3's `indexBySlug` — not on the recipes seed (P1.11 still pending), so it
+was built now with small typed recipe fixtures. P4.6 (plan UI + save) consumes it. No React, no I/O,
+no rounding.
+
+### Files
+
+- `src/plans/generate.ts` — `generateWeekPlan(dietSlug, recipes, ingredients, { seed, days?, weekStart? })`
+  → `WeekPlan { dietSlug, weekStart, days, shoppingList, warnings, seed }`; also exports
+  `shoppingListFor(plan, ingredientsBySlug)`, `poolFor`, `mulberry32`, `nextMonday`, `PLAN_MEALS`,
+  `REPEAT_WINDOW_DAYS` (3), `MIN_POOL_FOR_NO_REPEAT` (4) and the types (`DayPlan`, `DaySlots`,
+  `ShoppingLine`, `PlanWarning`, `PlanMeal`, `GenerateOptions`).
+- `src/plans/generate.test.ts` — 18 tests.
+
+### Behaviour (what P4.6 can rely on)
+
+- Pool per meal = recipes tagged with `dietSlug` whose `meal_types` include the meal, **sorted by
+  slug** before sampling; `snack` is never scheduled. `ingredients` may be an array or a
+  `ReadonlyMap` (same output).
+- One mulberry32 stream seeded from `opts.seed`, consumed day-major (day 0 breakfast, lunch,
+  dinner, day 1 …). Same inputs + seed ⇒ deep-equal plan **regardless of recipe input order**.
+- **Repeat rule:** a recipe picked for a meal is excluded from that meal for the next
+  `min(3, pool − 1)` days. Pool ≥ 4 ⇒ full 3-day window, never a repeat within 3 days (asserted
+  for 25 seeds × 14 days on pools of 4 and 6). Smaller pools rotate as far as they can (3 → gap 2,
+  2 → alternate, 1 → daily) and emit **one** `{ day: null, meal, reason: 'pool-too-small' }` per
+  meal. "Within 3 days" was read as the strict form (gap ≥ 4), because that is exactly what the
+  stated threshold `pool ≥ 4` guarantees.
+- **Empty pool:** `null` slot every day plus one `{ day: <index>, meal, reason: 'no-recipe-for-meal' }`
+  **per day** (so the UI can mark each empty cell); `pool-too-small` is week-level (`day: null`).
+  Never a throw; no recipes at all ⇒ 21 nulls, 21 warnings, zero totals, empty list.
+- `totals` per day = Σ `computeNutrition(recipe).perPortion` over filled slots (one portion each).
+- Shopping list: `line.quantity / safePortions(recipe.portions)` summed per `ingredient_slug` +
+  `unit` (same slug in two units = two lines); `name_el/name_en` from the catalogue, unknown slug
+  keeps the slug as its name; sorted by slug then unit.
+- `weekStart` is carried through verbatim (default `null`); `nextMonday(date)` (UTC) is provided
+  for P4.6's `saved_plans.week_start`. `days` defaults to 7; `NaN` → 7, negative → 0.
+
+### Gates (2026-10-05, in `wt/b`)
+
+`npm run lint` → 0 errors, 5 pre-existing react-refresh warnings (AuthProvider/LangProvider/routes) ·
+`npm run typecheck` → clean · `npm test` → 16 files, 268 tests passed · `npm run build` → built, PWA
+precache 24 entries · `npm run check:pwa` → `check:pwa OK — Hygieia · Υγίεια, 3 icons, sw.js present`.
+Exercised directly under node type-stripping against the real 322-row ingredients seed with four
+fixture recipes (pools 2/1/2): breakfasts alternate, lunch repeats daily, three `pool-too-small`
+warnings, shopping list `chicken-breast 2000 g · egg 6 piece · feta 150 g · olive-oil 10 tbsp ·
+salmon 1200 g`, day totals ≈ 983/994 kcal.
+
+**Environment note:** the worktree's `node_modules` lacked `@electric-sql/pglite` (typecheck failed
+in `scripts/db-apply.test.ts`, untouched since P1.1); `npm ci` fixed it — no lockfile change.
+
+**Not done / next:** nothing committed (the lead merges `wt/b`). Cross-meal de-duplication (the same
+recipe at lunch AND dinner on one day) is deliberately not enforced — the contract is per meal;
+revisit in P4.6 if the UI wants it. The recipes seed (P1.11) must give every diet ≥ 1 recipe per
+breakfast/lunch/dinner for the "every slot filled" acceptance to hold on real content.
+
 ## 2026-10-05 — P3.3 / P4.1 / P4.2 pure-domain engines — DONE (builder, worktree `wt/d`; not yet committed)
 
 **Pulled forward from P3/P4** by the lead: the three modules depend only on the P1.4 types
@@ -65,6 +122,7 @@ helpers. `ingredientsBySlug` is a `ReadonlyMap` (build it with `indexBySlug`); P
 whether a shared index lives in `src/content/`.
 
 **Next:** P3.4 Fridge UI and P4.3 panels consume these once P1.9–P1.11 seeds exist.
+
 ## 2026-10-05 — P2 Auth & tenancy (in progress; PLAN.md §P2) — lane E, pulled forward ∥ P1
 
 ### P2.1 Auth provider + session helpers — DONE (builder, worktree `wt/e`; not yet committed)
@@ -95,8 +153,8 @@ whether a shared index lives in `src/content/`.
 ### P2.2 Sign-in page + PKCE callback route — DONE (builder, `wt/e`; not yet committed)
 
 - `src/auth/SignInPage.tsx` (`/auth`): email magic link via `signInWithOtp({ email, options:
-  { emailRedirectTo } })`, "Continue with Google" via `signInWithOAuth({ provider: 'google', options:
-  { redirectTo } })`; redirect = `window.location.origin + import.meta.env.BASE_URL + 'auth/callback'`
+{ emailRedirectTo } })`, "Continue with Google" via `signInWithOAuth({ provider: 'google', options:
+{ redirectTo } })`; redirect = `window.location.origin + import.meta.env.BASE_URL + 'auth/callback'`
   (never hardcoded). `?next=` parked in `sessionStorage` (`hygieia.auth.next`) before leaving, off-site
   values dropped. States: form → `sending` → `sent` (`role=status`) or `failed` (`role=alert`);
   `unavailable` renders the bilingual "Sign-in unavailable" state; `signed-in` shows the email + sign-out.
@@ -107,8 +165,8 @@ whether a shared index lives in `src/content/`.
   session arrives within `timeoutMs` (prop, default 15 s; tests use 20 ms).
 - `src/routes/routes.tsx` — two routes appended before `*`. `src/i18n/dictionary.ts` — 13 keys appended
   to the interface and BOTH literals under `// auth (P2)`: `signIn, signInIntro, signInEmailLabel,
-  signInSendLink, signInLinkSent, signInGoogle, signInUnavailableTitle, signInUnavailableBody,
-  signInFailed, signOut, callbackWorking, callbackFailed, backToSignIn` (natural Greek; parity test green).
+signInSendLink, signInLinkSent, signInGoogle, signInUnavailableTitle, signInUnavailableBody,
+signInFailed, signOut, callbackWorking, callbackFailed, backToSignIn` (natural Greek; parity test green).
 - Tests: `SignInPage.test.tsx` (12): OTP called with the email and a redirect ending `/auth/callback`,
   then "link sent"; Google → `provider: 'google'` + same redirect; safe `?next=` stored / `//evil.example`
   not; OTP error → `signInFailed`; unavailable copy in `en` and `el`; signed-in → sign-out; callback:
@@ -120,7 +178,7 @@ whether a shared index lives in `src/content/`.
 
 - `src/auth/profile.ts` — `ensureProfile(client, user)`: select `user_id, display_name, is_admin` from
   `profiles` where `user_id = eq(uid)` (`maybeSingle`); when absent, ONE insert `{ user_id, display_name:
-  email local-part | 'user' }` — `ProfileInsert` has no `is_admin` member, so sending it is a type error.
+email local-part | 'user' }` — `ProfileInsert` has no `is_admin` member, so sending it is a type error.
   `profileClientFor(HygieiaClient)` is a thin typed adapter: a direct structural assignment of the real
   client to the small `ProfileClient` interface hits TS2589 (Supabase's query-builder generics); the
   adapter pins the exact chain and the compiler still checks it against the real client (no cast).
@@ -239,6 +297,7 @@ from `types.ts`. Erasable syntax only (no `enum`/`namespace`/parameter propertie
 `check:pwa OK — Hygieia · Υγίεια, 3 icons, sw.js present` · Prettier clean.
 
 **Next:** P1.6 contract test must assert the migration CHECK literals equal these arrays.
+
 ## 2026-10-05 — P1.1 + P1.2 + P1.3 — migration toolchain, PGlite gate, live applier (builder, worktree `wt/a`)
 
 **Done (P1.1 — scaffold):** `package.json` scripts `db:check`, `db:gate`, `db:gate:prove-red`, `db:apply`,
