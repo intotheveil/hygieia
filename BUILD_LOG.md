@@ -3,6 +3,53 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+## 2026-10-06 — P4.3 Recipe page: nutrition + cost panels — DONE (builder, worktree `wt/f`; not committed — the lead merges)
+
+**Delivered.**
+- **`src/recipes/NutritionPanel.tsx`** — `<section aria-labelledby="recipe-nutrition" data-testid="nutrition-panel">`: kcal headline +
+  protein/carbs/fat as whole numbers (`Math.round` → `Intl.NumberFormat` `el-GR`/`en-GB`, grams unit from `t.units.g`), the
+  per-portion / per-recipe toggle (two `aria-pressed` buttons, `data-testid="scope-portion"` / `"scope-recipe"`), a macro bar
+  (`role="img"`, `aria-label` = `macroBarLabel` filled with ENERGY shares 4/4/9 kcal/g; not drawn when there is no energy), the
+  `confidenceTypical` line (a `Record<NutritionResult['confidence'], string>` so a new literal is a type error), the
+  `typicalValuesNote` footnote naming USDA FoodData Central, and `notCounted` listing `unknown` slugs when any. Takes a
+  `NutritionResult` (no computing in the panel). Without `onScopeChange` it renders no toggle.
+- **`src/recipes/CostPanel.tsx`** — `<section aria-labelledby="recipe-cost" data-testid="cost-panel">`: `costRange` ("About €0.83–€1.45" /
+  "Περίπου 0,83 €–1,45 €" — both from `Intl` currency format, Greek puts € after with comma decimals) for the shared `scope` plus a
+  scope caption (`data-testid="cost-scope"`), `pricesAsOf` with `asOf` through `Intl.DateTimeFormat(…, { dateStyle: 'long', timeZone: 'UTC' })`
+  ("5 October 2026" / "5 Οκτωβρίου 2026", `data-testid="cost-as-of"`), `unpriced` lines named in the page language via the optional
+  `ingredientsBySlug` map (slug when unknown, `data-testid="cost-unpriced"`), and the `priceBasisNote` ("typical Greek supermarket range").
+  When NOTHING is priced the range is omitted rather than shown as €0.00–€0.00.
+- **`src/recipes/panelFormat.ts`** (new, pure) — `Scope`, `localeFor`, `formatWhole`, `formatEuro`, `formatIsoDate`, `energyShare`; shared by
+  both panels so neither `.tsx` exports a non-component (react-refresh rule).
+- **`src/recipes/RecipePage.tsx`** — `RecipeView` builds the slug map from `recipe.lines` (`indexBySlug`, nulls dropped — no extra fetch),
+  runs `computeNutrition` + `computeCost` in `useMemo`, owns ONE `scope` state and renders both panels under the ingredients, before the method.
+- **`src/i18n/features/recipes.ts`** — 16 keys in the recipes module (interface + en + el, same order): `nutritionTitle`, `costTitle`,
+  `kcal`, `protein`, `carbs`, `fat`, `perPortion`, `perRecipe`, `typicalValuesNote`, `notCounted`, `confidenceTypical`, `costRange`,
+  `pricesAsOf`, `unpriced`, `priceBasisNote`, `macroBarLabel`. `kcal` is the already allow-listed Latin-script unit. No edit to
+  `dictionary.ts`, `features/index.ts`, `routes/**`, `App.tsx`.
+- **Tests.** `src/recipes/panels.test.tsx` (10): synthetic 4-line recipe through the REAL engines with hand-checked arithmetic
+  (583 / 1,165 kcal; 7/80/26 g; €0.40–€0.60 ↔ €0.80–€1.20; as-of = oldest `2026-09-01`); per-portion default; toggle recomputes BOTH
+  panels and flips `aria-pressed`; footnotes per language (USDA FDC named); as-of localised; unpriced listed by name/slug; unknown listed;
+  no bar / no toggle / no range when there is nothing to show; `panelFormat` unit tests (`1.165` Greek grouping, `2,10 €`, date fallback,
+  4/4/9 shares). `src/recipes/RecipePage.test.tsx` +1 (×2 languages): the seeded fasolada shows both panels between ingredients and method
+  with plausible figures (200 < kcal/portion < 1200, €0.30 < cost/portion < €10, nothing unknown/unpriced), exactly the engine's rounded
+  figures, and exactly ONE per-recipe button whose click moves both panels.
+
+**Gotcha (recorded for whoever writes the e2e):** jest-dom's `toHaveTextContent` collapses the element's NBSP (which `Intl` puts
+before "€" in `el-GR`) to a plain space but does NOT normalise the expected string — compare after `s.replace(/\s+/g, ' ')` or two
+"identical" strings fail. Also: a worktree needs `npm ci` after the font packages landed on main (`@fontsource-variable/inter`
+unresolved → `vite build` red → `scripts/check-bundle-secrets.test.ts` red too, since it runs the real build).
+
+**Gates (2026-10-06, `D:/projects/hygieia-wt/f`, after `npm ci`):** `npm run lint` 0 errors (21 pre-existing react-refresh warnings in
+tips/workouts/LangProvider/routes — none in `src/recipes/**`) · `npm run typecheck` clean · `npm test` 61 files / 3135 passed, 0 failed ·
+`npm run build` ✓ (42 precache entries) · `check:pwa OK — Hygieia · Υγίεια, 3 icons, sw.js present`.
+Not run here: `npm run e2e` (the P3.7 lane extends the recipes spec — target `[data-testid="nutrition-panel"]`, `[data-testid="cost-panel"]`,
+`[data-testid="scope-recipe"]` / `"scope-portion"`, `[data-testid="nutrition-kcal"]`, `[data-testid="cost-range"]`, `[data-testid="cost-as-of"]`),
+`db:*` (no schema change).
+
+**Not done / next:** nothing committed. `BRAIN.md` not edited (lead's merge; §3/§6 pointer belongs there). P4.12's `recipe-panels.spec.ts`
+is the e2e for this task.
+
 ## 2026-10-06 — RECONCILIATION: one `useAsync` for four lanes, one `fill`, seven-dictionary barrel — DONE (builder, worktree `wt/e`; merge of `main` left uncommitted for the lead)
 
 **Why.** Four parallel lanes (workouts/tips, fridge, diets/plans/account, recipes) each shipped their own `src/lib/useAsync.ts`

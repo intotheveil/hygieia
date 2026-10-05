@@ -1,10 +1,12 @@
 // RECIPE DETAIL `/recipes/:slug` (P3.2). Localized title, meta (portions · minutes · meals),
 // diet chips linking back to the filtered list (`/recipes?diet=<slug>`; `/diets/:slug` arrives
 // in P4.4), ingredient lines formatted by ./format.ts, steps in order, and a favourite button
-// through the per-user source (the bilingual note when that source is disabled). Unknown slug →
+// through the per-user source (the bilingual note when that source is disabled). Under the
+// ingredients, the nutrition and cost panels (P4.3) run the pure engines on the recipe's own
+// resolved lines — no extra fetch — and share ONE per-portion / per-recipe toggle. Unknown slug →
 // the app's NotFound. `source` is a prop (default: the app's `contentSource`) so tests can inject.
 
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { DraftRibbon } from '../components/DraftRibbon'
 import { SignedOutNote } from '../components/SignedOutNote'
@@ -17,13 +19,19 @@ import {
   type Recipe,
   type Result,
 } from '../content/source.ts'
+import { computeCost } from '../cost/compute.ts'
+import { indexBySlug } from '../fridge/match.ts'
 import { useLang } from '../i18n/LangProvider'
 import { plural } from '../i18n/fill.ts'
 import { useAsyncResult } from '../lib/useAsync.ts'
+import { computeNutrition } from '../nutrition/compute.ts'
 import { NotFound } from '../routes/routes'
 import { useUserData } from '../user/useUserData'
+import { CostPanel } from './CostPanel'
 import { recipeTitle, serializeRecipeFilterParams } from './filter.ts'
 import { dietName, formatRecipeLine } from './format.ts'
+import { NutritionPanel } from './NutritionPanel'
+import type { Scope } from './panelFormat.ts'
 
 export interface RecipePageProps {
   source?: ContentSource
@@ -95,6 +103,24 @@ function RecipeView({
   const dietsBySlug = new Map(diets.map((diet) => [diet.slug, diet] as const))
   const steps = lang === 'el' ? recipe.steps_el : recipe.steps_en
 
+  // The engines read the catalogue by slug; the recipe row already carries every visible
+  // ingredient on its lines (a hidden one is `null` and so lands in `unknown` / `unpriced`).
+  const [scope, setScope] = useState<Scope>('portion')
+  const ingredientsBySlug = useMemo(
+    () =>
+      indexBySlug(
+        recipe.lines.flatMap((recipeLine) =>
+          recipeLine.ingredient === null ? [] : [recipeLine.ingredient],
+        ),
+      ),
+    [recipe],
+  )
+  const nutrition = useMemo(
+    () => computeNutrition(recipe, ingredientsBySlug),
+    [recipe, ingredientsBySlug],
+  )
+  const cost = useMemo(() => computeCost(recipe, ingredientsBySlug), [recipe, ingredientsBySlug])
+
   return (
     <main className="mx-auto flex min-h-dvh max-w-3xl flex-col gap-8 px-4 py-10 sm:px-6">
       <header className="flex flex-col gap-4">
@@ -153,6 +179,11 @@ function RecipeView({
           ))}
         </ul>
       </section>
+
+      <div className="flex flex-col gap-6">
+        <NutritionPanel result={nutrition} scope={scope} onScopeChange={setScope} />
+        <CostPanel result={cost} scope={scope} ingredientsBySlug={ingredientsBySlug} />
+      </div>
 
       <section aria-labelledby="recipe-steps" className="flex flex-col gap-3">
         <h2 id="recipe-steps" className="font-display text-xl font-semibold text-olive-950">
