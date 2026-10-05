@@ -34,7 +34,7 @@ npm run dev                # local dev server
 npm run lint               # eslint
 npm run typecheck          # tsc -b
 npm test                   # vitest
-npm run e2e                # Playwright against the production build (E2E_PREBUILT=1 skips the build)
+npm run e2e                # Playwright against a local-only production build (E2E_PREBUILT=1 skips the build)
 npm run build              # tsc -b && vite build → dist/
 npm run check:bundle       # dist/ secret scan (every text file in dist/ is public)
 npm run check:pwa          # manifest fields, every icon it names, the service worker
@@ -50,8 +50,51 @@ npm run db:live-check      # read-only: live ledger == archive, anon sees nothin
 ```
 
 CI (`.github/workflows/deploy.yml`) runs lint → typecheck → test → `db:check` → `db:gate` →
-`db:gate:prove-red` → `seed:check` → build → `check:bundle` → `check:pwa` → e2e, then deploys `main`
-to Pages. Nothing in CI reaches the live database or holds a credential.
+`db:gate:prove-red` → `seed:check` → build (local-only) → `check:bundle` → `check:pwa` → e2e →
+`check:lighthouse` → build (configured, see Deploy) → `check:bundle` → `check:pwa`, then deploys
+`main` to Pages. Nothing in CI reaches the live database or holds a credential: the browser-driven
+gates run against a local-only build, and the only values the configured build inlines are public.
+
+## Deploy
+
+`main` deploys to GitHub Pages at https://intotheveil.github.io/hygieia/ (the `deploy` job of the
+workflow above; a pull request runs every gate and stops before the upload).
+
+**How the site becomes "configured".** The browser reads five `VITE_*` names, inlined at build time
+(`src/lib/env.ts`, `src/telemetry.ts`; `.env.example` lists them). CI's Pages build takes them from
+GitHub Actions **repository variables** (Settings → Secrets and variables → Actions → Variables):
+
+| Variable                                                    | Set by                          | Effect when set                                                                                                               |
+| ----------------------------------------------------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`               | operator, OPERATOR-P2 **OP2.c** | the app runs in **configured** mode: approved content from the `hygieia` schema, no draft ribbon, sign-in in the account menu |
+| `VITE_FLEET_URL`, `VITE_FLEET_KEY`, `VITE_FLEET_PRODUCT_ID` | operator, OPERATOR-P6 **OP6.a** | runtime errors are reported to the fleet dashboard (`src/telemetry.ts`)                                                       |
+
+They are **variables, not secrets**, because every one of them is public by design: Vite writes them
+into the bundle Pages serves, the anon key is bound by RLS, the fleet key is write-only. A secret
+would only hide the value from the workflow log while it sits in plain text in `dist/`. Nothing
+server-side (`service_role`, access tokens) is ever a browser name; `check:bundle` fails the build if
+such a value reaches `dist/`, and the lint allow-list stops `src/**` from reading it.
+
+**Until the operator sets the variables** the expressions resolve to empty strings and the deploy
+runs in **local-only** mode: the site serves the bundled draft content with the draft ribbon, offers
+no sign-in and sends nothing anywhere. Same for a pull request from a fork, which sees no variables.
+That is the correct behaviour, not a failure — the next `main` push after the variables exist is
+what flips the live site to configured mode; no code change is needed.
+
+**Two builds in CI, on purpose.** e2e and Lighthouse drive a real browser; they must not reach the
+live backend from a CI runner (no traffic against production tables, no telemetry rows from CI
+runs, no backend latency in the performance score). So CI builds once with the five names blanked
+for those gates, then builds again from the variables for the artifact it uploads, and runs
+`check:bundle` + `check:pwa` on that artifact too. Same commit; only the inlined env differs
+(`DECISIONS.md`, 2026-10-06).
+
+**What `npm run smoke:live` proves** (`scripts/smoke-live.mjs`, HTTP only, read-only): that the
+deployed site is the installable, deep-linkable PWA `check:pwa` verified — home page, manifest and
+icons, service worker, `404.html` fallback with status 404, no secret-looking value in the served
+bundle — and, when `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` are in the shell environment,
+that the live backend exposes schema `hygieia` to anon exactly as the policies promise (approved
+recipes readable, pending ones and profiles invisible). After OP2.c, a `SMOKE PASSED` with the
+backend probes reporting rows is the evidence that the deploy is in configured mode.
 
 ## Database
 

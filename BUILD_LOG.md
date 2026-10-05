@@ -3,6 +3,69 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+## 2026-10-06 — P6.4 Production env wiring: configured mode on Pages — DONE (builder, worktree `wt/d`; not yet committed)
+
+**Delivered.**
+- **`.github/workflows/deploy.yml`** — the `verify` job now builds TWICE (DECISIONS.md 2026-10-06). (1) `Build, local-only mode
+  (test build)`: `npm run build` with all five browser names (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_FLEET_URL`,
+  `VITE_FLEET_KEY`, `VITE_FLEET_PRODUCT_ID`) set to `''` explicitly; `check:bundle` → `check:pwa` → e2e (`E2E_PREBUILT=1`, as
+  before) → `check:lighthouse` run against it unchanged, so no CI browser ever reaches the live backend. (2) `Build, configured
+  mode (Pages artifact)` after the Lighthouse upload: `npm run build` with `env:` from repository VARIABLES
+  (`${{ vars.VITE_SUPABASE_URL }}` … all five), then `check:bundle` and `check:pwa` again on that artifact, then
+  `upload-pages-artifact`. Comment block records why variables and not secrets (every value public by design; unset → `''` →
+  local-only on PRs from forks and before OP2.c/OP6.a; Vite empties `dist/` so nothing of the test build survives). YAML parsed
+  with js-yaml: 24 steps in the intended order, upload path `dist`.
+- **`README.md`** — the CI sentence names both builds; new **Deploy** section: how the deploy becomes configured (the five names,
+  the variables table with OP2.c / OP6.a, effect when set), why variables not secrets, local-only on draft content until then,
+  the two-build rationale, and what `npm run smoke:live` proves (static probes always; backend probes only with the anon pair in
+  the shell env; `SMOKE PASSED` with rows = configured-mode evidence). `npm run e2e` line says "local-only production build".
+- **`.env.example`** — comment: CI reads the five names from `vars` of the same name for the Pages artifact; who sets them and
+  when; e2e/Lighthouse builds blank them regardless. Still names only.
+- **`DECISIONS.md`** — dated entry: two builds in order (over a separate `dist-e2e/` + `E2E_DIST` env), variables not secrets.
+- **Deviation from the lead's sketch, on purpose:** `playwright.config.ts`, `e2e/support/pages-server.mjs` and `.gitignore` are
+  UNTOUCHED. The sketch (e2e builds its own `dist-e2e/`, Pages artifact stays in `dist/`) left `check:lighthouse` — which
+  hard-codes `dist/` in `scripts/check-lighthouse.mjs`, out of this task's scope — driving a browser against the configured
+  artifact: live anon traffic from CI, telemetry rows from CI runs, live latency in the perf score. Building local-only first and
+  configured last keeps EVERY browser gate off the live backend with a single file changed, and `E2E_PREBUILT=1` keeps meaning
+  "no rebuild".
+
+**Evidence (this worktree, Node 24, `npm ci` fresh).**
+- Configured simulation: `VITE_SUPABASE_URL=https://example.supabase.co VITE_SUPABASE_ANON_KEY=sb_publishable_test` (+ fleet trio)
+  `npm run build` → `npm run check:bundle` → `check:bundle: OK, no secret-looking value or server-only name in 10 files (1261552
+  bytes) in dist` (an anon-looking `sb_publishable_` key is not a finding — check-bundle-secrets.mjs's prefixes are `sk-ant-`,
+  `sk_live_`, `sk_test_`, `whsec_`, `sbp_`, `sb_secret_`); `grep -c example.supabase.co dist/assets/*.js` → `2` (Supabase URL +
+  fleet URL inlined), `sb_publishable_test` → `1`.
+- RED check of the second scan: the same build with `VITE_SUPABASE_ANON_KEY=sb_secret_notarealkey123` → `check:bundle: FAIL: 1
+  finding(s) … [secret-value] sb_sec… (24 chars)`, exit 1 — a wrong key kind in the variable stops the job before upload.
+- Local-only simulation (the e2e/Lighthouse path): build with the five names blank → the only `sb_publishable`/`example.supabase.co`
+  hit in `dist/assets/*.js` is supabase-js's own `e.startsWith(\`sb_publishable_\`)` check (no value inlined) → `check:bundle: OK`
+  → `check:pwa OK — Hygieia · Υγίεια, 3 icons, sw.js present` → `E2E_PREBUILT=1 npm run e2e` → **7 passed, 1 failed** —
+  `offline.spec.ts:74` only, PRE-EXISTING on `main` (see below; this task changes nothing that enters the build).
+- Final: plain `npm run build` → `dist/` local-only (`example.supabase.co` in dist js: 0), `check:bundle: OK` (1261461 bytes),
+  `check:pwa OK`.
+- `npm run lint` → 0 errors, 21 warnings (pre-existing) · `npm run typecheck` clean · `npm test` → `Test Files 60 passed (60)`,
+  `Tests 3123 passed (3123)` when run alone (two runs concurrent with a Playwright run showed 3 then 1 timeout failures in
+  `src/workouts/WorkoutsPage.test.tsx`-class tests; the file passes 14/14 alone — CPU contention, not code).
+- `git status` → `M .env.example`, `M .github/workflows/deploy.yml`, `M README.md` (+ this entry, DECISIONS.md). No commit.
+
+**Found, OUT OF SCOPE — for the lead (CI's e2e step is red on `main` `fb171c7` for this):** `e2e/local/offline.spec.ts` step 1
+fails deterministically: `navigator.serviceWorker.ready` resolves, `controller` stays `null` for 10 s. Diagnosed in a scratch
+Chromium run: every one of the 42 precache entries is 200 through pages-server; the registration reaches `active: "activated"`
+but never claims the page. Cause: the generated `dist/sw.js` has NO `clientsClaim()` and a prompt-style `"SKIP_WAITING"` message
+listener instead of `skipWaiting()`. vite-plugin-pwa 2.0.0 (`dist/index.js:875`) applies the `autoUpdate` defaults ONLY when
+`injectRegister` is `'auto'`/unset: `if ((injectRegister === "auto" || injectRegister == null) && registerType === "autoUpdate")
+{ workbox.skipWaiting = true; workbox.clientsClaim = true }`. P5.3 (`a94daa9`, lane without `offline.spec.ts` — BUILD_LOG P5.3
+entry flags it) set `injectRegister: 'script-defer'`, which silently dropped both. **Fix (one line in `vite.config.ts`, not this
+task's file):** `workbox: { skipWaiting: true, clientsClaim: true, globPatterns: …, navigateFallback: … }`. **Proven on the
+artifact:** inserting `self.skipWaiting(),self.addEventListener("activate",()=>self.clients.claim()),` before
+`precacheAndRoute(` in the built `dist/sw.js` → `E2E_PREBUILT=1 npx playwright test e2e/local/offline.spec.ts` → **1 passed
+(1.6s)**; artifact restored afterwards. Until fixed, the deployed PWA also does not auto-update (the spec is right).
+
+**Not done / next:** OP2.c + OP6.a (operator) make the next `main` deploy configured; then `npm run smoke:live` with the anon pair
+in the shell env → `SMOKE PASSED` with "approved rows: N" is the P6.4 acceptance evidence. The `vite.config.ts` fix above (lead
+or a follow-up task) before the P6 gate, or CI's e2e step fails on `main`. P6.5 records.
+
+
 ## 2026-10-06 — RECONCILIATION: one `useAsync` for four lanes, one `fill`, seven-dictionary barrel — DONE (builder, worktree `wt/e`; merge of `main` left uncommitted for the lead)
 
 **Why.** Four parallel lanes (workouts/tips, fridge, diets/plans/account, recipes) each shipped their own `src/lib/useAsync.ts`
