@@ -3,6 +3,55 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+## 2026-10-05 — P1.11 group 2 recipes seed (low-carb & protein-centric) — DONE (builder, worktree `wt/b`; not yet committed)
+
+**Scope:** one of three parallel builders for P1.11. Delivered ONLY
+`src/content/seed/recipes/group2.ts` (`export const RECIPES_GROUP2: readonly RecipeSeed[]`) for the diets
+`paleo`, `low-carb`, `keto`, `atkins`, `carnivore`, `high-protein`. The aggregate `recipes.ts` and
+`recipes.test.ts` are another builder's. Nothing else touched.
+
+**Volume (operator: "as many as you can"; target 40+):** **61 recipes**, 445 ingredient lines over 120 distinct P1.9
+slugs, every line in the ingredient's own unit or g/ml, raw weights. 278 steps (3–6 per recipe), EL/EN counts equal,
+Greek in plural imperative; loanwords (keto, paleo, Atkins, Cobb, Meatza) Latin-script.
+
+**Coverage matrix (diet × meal type; requirement ≥ 5 total and ≥ 2 each for breakfast/lunch/dinner):**
+
+| diet | total | breakfast | lunch | dinner | snack |
+|---|---|---|---|---|---|
+| paleo | 27 | 7 | 20 | 20 | 4 |
+| low-carb | 59 | 18 | 39 | 37 | 12 |
+| keto | 48 | 14 | 32 | 31 | 8 |
+| atkins | 44 | 12 | 31 | 30 | 6 |
+| carnivore | 10 | 3 | 6 | 7 | 1 |
+| high-protein | 39 | 6 | 32 | 33 | 4 |
+
+**Compliance rules applied (checked by a throwaway script against every tag, 0 violations):** `carnivore` =
+meat/poultry/fish categories + egg, butter, ghee, hard cheese, tallow, lard, bone broth/marrow, salt, water
+— no spices (black pepper excluded from all 10 carnivore recipes). `keto`/`atkins` ≤ 15.5 g TOTAL carbs per
+portion, no grains/legumes/sugar/starchy veg/fruit beyond berries+avocado; Atkins additionally no nuts,
+almond flour, berries or yoghurt (induction). `paleo` no dairy except eggs (butter/ghee excluded; tallow and
+lard used instead), no grains/legumes/soy/peanut/seed oils/processed meat/mayonnaise/mustard/erythritol.
+`low-carb` ≤ 32 g carbs. `high-protein` ≥ 30 g protein per portion and no bacon/sausage/pork belly.
+Per-portion kcal 155–833 for all 61 (via `computeNutrition`; no `unknown`, no unit-mismatch warnings).
+
+**Keto sample (per portion; total carbs — the catalogue has no fibre column, so this is an upper bound on net):**
+chicken caesar no croutons 466 kcal / 7.9 g · tuna steak avocado salsa 559 / 14.5 · roast goat 383 / 6.2 ·
+Cobb salad 833 / 13.3 · avocado egg feta bowl 506 / 12.2. Highest keto carbs in the group: cauliflower-rice
+chicken bowl 14.8 g.
+
+**Decision (non-obvious):** `mustard` was removed from the one paleo-tagged recipe that used it (turkey steak,
+now with thyme) rather than dropping the tag — prepared mustard is contested in paleo. `pork-belly` is tagged
+carnivore/keto/atkins/paleo but NOT high-protein (14 g). Chia pudding and almond porridge are `paleo`+`low-carb`,
+not keto (16–26 g total carbs).
+
+**Gates (worktree `wt/b`):** `npm run lint` → `✖ 6 problems (0 errors, 6 warnings)` — all six are pre-existing
+`react-refresh/only-export-components` warnings in `AuthProvider.tsx`, `LangProvider.tsx`, `routes.tsx`;
+`group2.ts` lints with 0 problems · `npm run typecheck` clean · `npm run build` → PWA `precache 24 entries`,
+exit 0 · `npm test` → `Test Files 20 passed (20)`, `Tests 408 passed (408)` · Prettier check passes.
+
+**Next:** the aggregate builder concatenates `RECIPES_GROUP2` into `recipes.ts`; cross-group slug collisions
+are theirs to check (all 61 slugs here are prefixed `carnivore-`/`keto-`/`paleo-`/`low-carb-`/`high-protein-`).
+
 ## 2026-10-05 — P4.9 (content half) health tips seed — DONE (builder, worktree `wt/f`; not yet committed)
 
 **Pulled forward** by the lead: the seed depends only on the P1.4 types (`HealthTipSeed`,
