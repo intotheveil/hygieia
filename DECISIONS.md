@@ -233,3 +233,15 @@ effect`) and asserts A's rows unchanged — instead of adding new checks — bec
   `extends A, B` at merge (the file is `merge=union`).
 - **`savedLists` always calls `fridgeLists.list()`** regardless of `kind`: the disabled source answers an honest
   empty list, so the page has one code path and no `kind` branch around the fetch.
+- **2026-10-06 (P4.6) — A saved plan persists recipe SLUGS and the per-day totals, never recipe copies** (`serializePlan` in
+  `src/plans/PlanView.tsx`: `{ dietSlug, weekStart, seed, days[{ index, slots{breakfast|lunch|dinner: slug|null}, totals }], warnings }`).
+  Content is keyed by slug (PLAN §1.6) and recipes are admin-editable; freezing 21 recipe bodies into `saved_plans.plan` would go stale
+  and bloat the jsonb. The seed is stored too, so the exact plan is reproducible from the same content.
+- **2026-10-06 (P4.4/P4.6) — "Reshuffle" derives the next seed from the current one** (`nextSeed = floor(mulberry32(seed)() × 2³¹)`,
+  never equal to its input) instead of `Math.random()`: deterministic, so tests and e2e can predict the second plan, and the UI exposes
+  `data-seed` for them.
+- **2026-10-06 (P4.6) — `loadFailed` / `retry` live in the plans feature dictionary and macro labels are namespaced (`planMacros`)**:
+  the base dictionary has no load-error copy, and P4.3 (another lane) owns `kcal`/`protein`/`carbs`/`fat`. Identical-typed duplicate
+  keys across feature modules merge harmlessly (later spread wins); differing types would be a TS error at the composition point.
+- **2026-10-06 (P4.6) — `src/lib/useAsync.ts` stores only the SETTLED outcome tagged with (loader, attempt)**; "loading" is derived, so
+  no state is set synchronously inside an effect (react-hooks `set-state-in-effect`) and a stale result never shows for a new key.

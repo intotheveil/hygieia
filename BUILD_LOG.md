@@ -253,6 +253,37 @@ values exactly as the matcher predicts; reload restores chips and the switch; `l
 
 **Not done / next:** nothing committed (the lead merges `wt/e`). P3.5 adds the `/fridge` route + header nav; P3.7 the e2e. When the
 recipes lane's `RecipesDictionary` lands, drop the `no-empty-object-type` disable in `features/index.ts` (the rule allows multi-extends).
+## 2026-10-06 — P4.4 Diets pages + P4.6 Meal-plan UI, save plan, account page — DONE (builder, worktree `wt/f`; not yet committed)
+
+**Scope:** `src/diets/DietsPage.tsx` (`/diets`: 16 cards → `/diets/:slug`, intro, draft ribbon once, error+retry), `src/diets/DietPage.tsx`
+(`/diets/:slug`: name, "What it is", the five list sections allowed/avoided/pros/cons/who-should-avoid, the medical disclaimer, source link
+or "Source pending review", recipes tagged with the diet as plain links to `/recipes/:slug` — P3.5 may swap in `RecipeCard` — and the
+"Generate a weekly plan" section rendering `PlanView`; unknown slug → `NotFound` from `routes.tsx`), `src/plans/PlanView.tsx` (seeded
+generator UI over P4.5: 7 × 3 table with recipe links, rounded per-day totals, bilingual warnings de-duplicated per meal, shopping list
+with summed quantities, Reshuffle = `nextSeed(seed)` derived deterministically, Save plan → `savedPlans.save({ diet_id, week_start:
+nextMonday(today), plan: serializePlan(plan) })`, `SignedOutNote` when the user source is disabled), `src/account/AccountPage.tsx`
+(P2.5 placeholder fleshed out: three tabs — saved plans with diet name + week start + Open → `/diets/:slug`, fridge lists with name +
+count, favourites as recipe links — each with Remove; empty, load-failed+retry and remove-failed copy; `source`/`content` injectable),
+`src/lib/useAsync.ts` (minimal settled-outcome hook, no set-state-in-effect; a duplicate from another lane is reconciled at merge),
+dictionaries `src/i18n/features/diets.ts` + `plans.ts`, composed in `src/i18n/features/index.ts`. Tests: `DietsPage.test.tsx`,
+`DietPage.test.tsx` (loops over all 16 `DIETS` × both languages), `PlanView.test.tsx`, `AccountPage.test.tsx` — 52 tests.
+NOT touched: `dictionary.ts`, `routes.tsx`, `App.tsx`, `SiteHeader` (P3.5 wires navigation), any seed or migration.
+
+**Decisions (→ DECISIONS.md):** saved plans persist recipe SLUGS + day totals, not recipe copies; `loadFailed`/`retry` live in the
+plans dictionary (base has none; identical-typed duplicates from other lanes merge harmlessly); macro labels namespaced as `planMacros`
+to avoid colliding with P4.3's `kcal`/`protein`/… keys.
+
+**Gates (2026-10-06, worktree `D:/projects/hygieia-wt/f`):** `npm run lint` 0 errors (react-refresh warnings only, same rule as the
+pre-existing ones in `LangProvider.tsx`/`routes.tsx`) · `npm run typecheck` clean · `npm run build` green · `check:pwa OK — Hygieia ·
+Υγίεια, 3 icons, sw.js present` · `npm test`: all 52 new tests green; the full suite shows 4 failures NOT from this task —
+(a) `scripts/gen-seed-sql.test.ts` ×3: `seed:check` reports `differs 20261006000700_hygieia_seed_recipes.sql` and `missing
+20261006000900_hygieia_seed_workouts.sql` — pre-existing seed/migration drift on the branch (no seed or migration file touched here);
+(b) `src/auth/guards.test.tsx` "lists what the user has saved, per tab": it asserts the P2.5 PLACEHOLDER label format
+(`2026-10-05 · mediterranean`, `Weekend (2)`); out of this task's file scope, so left for the lead/test-writer — the three
+assertions become `mediterranean` (diet_id fallback label) + `Week of 5 October 2026`, `Weekend` + `2 items`, `greek-salad`.
+
+**Next:** P3.5 wires `/diets`, `/diets/:slug` into `routes.tsx` + header nav and may swap the recipe link list for `RecipeCard`;
+`e2e/local/diets.spec.ts` (P4.12). BRAIN.md §3/§6 left for the lead's merge (not merge=union).
 
 ## 2026-10-05 — P3.1 `filterRecipes` + P3.4 `fridge/storage.ts` (PURE halves, pulled forward) — DONE (builder, worktree `wt/b`; not yet committed)
 
