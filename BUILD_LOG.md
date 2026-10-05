@@ -3,6 +3,85 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+## 2026-10-05 — P1.14 `npm run db:gate:prove-red` — the gate proven RED — DONE (builder, worktree `wt/a`; not yet committed)
+
+**Delivered:** `scripts/db-gate-prove-red.mjs` (replaces the P1.1 stub; harness lifted from Themis:
+temp copies of the archive under `os.tmpdir()`, a control run, `RED_LINE`, a worker pool —
+`PROVE_RED_JOBS` / `--jobs`, default `min(4, cores)`; `--only id,…`; `--verbose` prints every red line
+the gate produced). Two sabotage shapes: `sql` appended as `29991231235959_hygieia_zz_sabotage.sql`
+(sorted last, guard-legal name, runs twice like the archive) and `mutate` (an exactly-once string
+replacement in a COPIED migration — a deletion; 0 or 2+ hits stops prove-red at startup with exit 2).
+Verdict per sabotage: `RED ok` (exit 1 AND every expected line present) · `NOT RED` (gate passed) ·
+`WRONG LINE` (exit 1 but the expected line missing) · `CRASH` (exit ≠ 0, 1). Control must be exit 0 +
+`GATE PASSED` + zero `FAIL` lines. `process.exitCode` only — nothing calls `process.exit()`; SIGINT/SIGTERM
+kill the children, drain the pool, clean the temp root and exit 130. Committed migrations are only read.
+
+**GATE GAP found and closed (also `scripts/db-gate/catalogue.mjs`, pre-authorised by the lead):**
+`saved_plans` UPDATE `using (true) with check (true)` and `favourites` DELETE `using (true)` both left the
+gate **GREEN** (exit 0, 213 PASS; reproduced manually before any harness code). Cause: the per-user probes
+were `update … where user_id = A` / `delete … where user_id = A`; a WHERE that reads a column makes
+Postgres AND the (still correct) SELECT policy into the write, so an open write policy is invisible to a
+filtered probe — while an unfiltered `update hygieia.saved_plans set …` by UB would hit A's rows live.
+Fix: the existing checks now ALSO run a **blind** statement (no WHERE) and assert A's rows are
+byte-identical afterwards — `UB's UPDATE of A's rows has no effect` (blind UPDATE, `affected ≤ B's own`),
+`UB's DELETE of A's rows has no effect` (blind DELETE, A's rows still there), the profiles twin
+`UB's UPDATE and DELETE of UA's row have no effect`, and the content `UA's status update has no effect`
+(blind `set status = 'approved'`). Check NAMES are unchanged on purpose: `scripts/db-isolation.test.ts`
+pins the name set for `user`/`profiles` and is outside this task's scope — strengthening in place keeps
+the Vitest twin green and makes it stronger for free (DECISIONS.md). Child-kind probes were already blind.
+
+**The 25 sabotages (all RED on the expected line; times from the final 4-job run, wall 15.6 s;
+first run 21.8 s):**
+
+| id                               | sabotage                                                                                             | expected FAIL line (gate's real output)                                                                                                                                                                                                                                           | s   |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- |
+| `recipes-select-true-anon`       | recipes anon SELECT `using (true)`                                                                   | `hygieia.recipes: anon reads exactly N approved rows and 0 pending — N = 1 approved of 2; read 2, pending 1`                                                                                                                                                                      | 2.7 |
+| `fridge-lists-select-true`       | fridge_lists SELECT `using (true)`                                                                   | `hygieia.fridge_lists: UB reads ZERO rows of A — 1 rows`                                                                                                                                                                                                                          | 2.7 |
+| `saved-plans-update-true`        | saved_plans UPDATE `using (true)` (was the gap)                                                      | `hygieia.saved_plans: UB's UPDATE of A's rows has no effect — {"o":{"ok":true,"affected":0},"blind":{"ok":true,"affected":2},"own":1}`                                                                                                                                            | 2.7 |
+| `favourites-delete-true`         | favourites DELETE `using (true)` (was the gap)                                                       | `hygieia.favourites: UB's DELETE of A's rows has no effect — {…"blind":{"ok":true,"affected":2},"left":0}`                                                                                                                                                                        | 2.6 |
+| `recipe-ingredients-select-true` | recipe_ingredients anon SELECT `using (true)`                                                        | `hygieia.recipe_ingredients: anon reads only children of approved parents — 4/4 (approved parents: 2)`                                                                                                                                                                            | 2.6 |
+| `favourites-rls-disabled`        | `disable row level security`                                                                         | `RLS is enabled on every hygieia table (14) — favourites` + `hygieia.favourites: UB reads ZERO rows of A — 1 rows` (4 FAIL)                                                                                                                                                       | 2.6 |
+| `is-admin-update-grant`          | `grant update (is_admin) … to authenticated`                                                         | `hygieia.profiles: UA's update of is_admin is refused (no column grant) — {"ok":true,"affected":1}` + `… authenticated holds no INSERT or UPDATE privilege on is_admin — … UPDATE on: display_name, is_admin`                                                                     | 2.6 |
+| `is-admin-returns-true`          | `is_admin()` body → `select true`                                                                    | `hygieia.profiles: hygieia.is_admin() is true for ADMIN, false for UA, false without a profile (NEW) — [true,true,true]` + `hygieia.recipes: UA (signed in, not admin) reads exactly N approved rows … pending 1` + `hygieia.recipes: UA's status update has no effect` (25 FAIL) | 2.8 |
+| `execute-is-admin-to-anon`       | `grant execute on function hygieia.is_admin() to anon`                                               | `anon has EXECUTE on no hygieia function (3) — hygieia.is_admin()` + `hygieia.profiles: anon cannot execute hygieia.is_admin() — {"ok":true,"affected":0}`                                                                                                                        | 2.8 |
+| `is-admin-revoke-deleted`        | MUTATION: the `revoke execute … from public, anon;` line removed from `…000200_hygieia_profiles.sql` | the two lines above + `PUBLIC has EXECUTE on no hygieia function (3) — hygieia.is_admin()`                                                                                                                                                                                        | 2.8 |
+| `drop-stamp-review-trigger`      | `drop trigger recipes_stamp_review`                                                                  | `every status-bearing table has a BEFORE UPDATE stamp_review trigger (6) — recipes` + `hygieia.recipes: ADMIN's status update takes effect and is stamped (…) — {… "reviewed_by":null,"later":null …}`                                                                            | 2.8 |
+| `definer-no-search-path`         | definer fn, no `search_path`, default EXECUTE                                                        | `search_path is pinned on every hygieia function (4) — hygieia.leak_fn()` + anon/PUBLIC EXECUTE lines `(4) — hygieia.leak_fn()`                                                                                                                                                   | 2.5 |
+| `definer-search-path-public`     | definer fn `set search_path = public`                                                                | GUARD: `29991231235959_hygieia_zz_sabotage.sql:2  [forbidden-schema]  search_path includes public — pin it to '' and qualify names` + `GATE FAILED — the static migration guard is red`                                                                                           | 0.1 |
+| `definer-search-path-pg-temp`    | definer fn `set search_path = pg_temp, hygieia`                                                      | `no SECURITY DEFINER function has public/$user/pg_temp on its search_path — hygieia.leak_fn() search_path=pg_temp, hygieia`                                                                                                                                                       | 2.5 |
+| `anon-insert-recipes`            | `grant insert on hygieia.recipes to anon`                                                            | `anon holds exactly SELECT on content and child tables and nothing else — recipes: SELECT, INSERT` + `hygieia.recipes: anon and authenticated hold no INSERT or DELETE privilege — anon:INSERT`                                                                                   | 2.5 |
+| `ledger-select-to-authenticated` | `grant select on hygieia.schema_migrations to authenticated`                                         | `authenticated holds no privilege on hygieia.schema_migrations — SELECT` + `hygieia.schema_migrations: service-only — … — authenticated:SELECT`                                                                                                                                   | 2.5 |
+| `public-table`                   | `create table public.x`                                                                              | GUARD: `…sabotage.sql:1  [forbidden-schema]  reference to public.x — Hygieia may touch schema hygieia only (ADR-0003)` + `GATE FAILED — the static migration guard is red`                                                                                                        | 0.1 |
+| `auth-users-trigger`             | `create trigger … on auth.users`                                                                     | GUARD: `…sabotage.sql:1  [auth-users-trigger]  trigger on auth.users — it would fire on every Alyssos sign-up (ADR-0003 rule 6)` (+ forbidden-schema) + `GATE FAILED — the static migration guard is red`                                                                         | 0.1 |
+| `orphan-table-no-catalogue`      | `create table hygieia.orphan_table (id int)`                                                         | `every hygieia table has a catalogue entry (15) — NO ENTRY: orphan_table — add it to scripts/db-gate/catalogue.mjs` + `RLS is enabled on every hygieia table (15) — orphan_table` (5 FAIL)                                                                                        | 2.7 |
+| `table-dropped-stale-entry`      | `drop table hygieia.favourites cascade`                                                              | `every catalogue entry names an existing hygieia table — favourites` + `fixture seeded (…) — relation "hygieia.favourites" does not exist`                                                                                                                                        | 2.3 |
+| `view-owner-rights`              | a view without `security_invoker`                                                                    | `no hygieia view bypasses RLS (views are security_invoker, no materialized views) — v_recipes`                                                                                                                                                                                    | 2.8 |
+| `enum-mismatch`                  | `exercises.level` CHECK + `'elite'`                                                                  | `exercises.level CHECK admits exactly enums.ts LEVELS — db beginner\|intermediate\|advanced\|elite vs ts beginner\|intermediate\|advanced`                                                                                                                                        | 2.8 |
+| `seed-random-id`                 | a health_tips row with `gen_random_uuid()` id                                                        | `hygieia.health_tips: every row id = md5('hygieia:health_tips:' \|\| slug)::uuid (seed-id rule) — 3 rows checked, 1 off-formula`                                                                                                                                                  | 2.3 |
+| `not-idempotent`                 | `create table hygieia.twice (id int)` (no IF NOT EXISTS)                                             | `re-apply 29991231235959_hygieia_zz_sabotage.sql (idempotent-safe) — relation "twice" already exists` (6 FAIL)                                                                                                                                                                    | 2.2 |
+| `apply-error`                    | `alter table hygieia.no_such add column x int`                                                       | `apply 29991231235959_hygieia_zz_sabotage.sql — relation "hygieia.no_such" does not exist` + `APPLY FAILED — stopping.`                                                                                                                                                           | 1.8 |
+
+Control: `GREEN  control — the untouched archive copy: exit 0, GATE PASSED, 213 PASS (2.7s)`. Final line:
+**`PROVE-RED PASSED — 25/25 sabotages went RED on the expected FAIL line; control GREEN. Wall 15.6s (4 jobs).`**,
+exit 0. Harness self-test (scratch copies outside the repo): a no-op sabotage → `NOT RED  apply-error — the
+gate PASSED (exit 0): the sabotage was not caught` + `PROVE-RED FAILED — 2/3 …; offenders: apply-error`,
+exit 1; a wrong expectation → `WRONG LINE  not-idempotent — exit 1 but the expected FAIL line is missing`
+
+- `PROVE-RED FAILED — 0/1 …`, exit 1; `--only no-such-id` → exit 2.
+
+**Gates (`G1` minus `seed:check`, still the P1.12 stub):** `npm run lint` 0 errors (6 pre-existing
+react-refresh warnings) · `npm run typecheck` clean · `npm test` 22 files / 523 tests green (the isolation
+twin runs the strengthened checks) · `npm run build` green · `check:pwa OK — Hygieia · Υγίεια, 3 icons,
+sw.js present` · `npm run db:check` → `PASS  migration guard: 4 migration(s) stay inside schema hygieia` ·
+`npm run db:gate` → `GATE PASSED — 212 checks green` · Prettier clean on both files.
+
+**Notes for the lead:** (1) A guard-level sabotage runs in 0.1 s (nothing applied); a DB-level one ~2.5 s;
+25 + control at 4 jobs ≈ 16–22 s — far under the 2–3 min budget, so P1.15 can run it in CI without a
+timeout bump. (2) The gap is recorded in BRAIN §5; the rule for future catalogue checks: a write-policy
+probe must include a blind (no-WHERE) statement, or a correct SELECT policy will mask an open write policy.
+(3) `RED ok` requires exit code exactly 1 (not merely ≠ 0): a crash code (e.g. Windows 0xC0000409) is
+reported as `CRASH`, so a gate that dies before its verdict can never count as proof.
+
 ## 2026-10-05 — P4.9 (content half) health tips seed — DONE (builder, worktree `wt/f`; not yet committed)
 
 **Pulled forward** by the lead: the seed depends only on the P1.4 types (`HealthTipSeed`,
@@ -50,6 +129,7 @@ sw.js present` · Prettier clean on both files.
 `topics.*`, `sourcePending`, `readSource`), `gen-seed-sql.mjs` kind `health_tips` +
 `20261006001000_hygieia_seed_tips.sql`, `catalogue.mjs`, `db:gate` `health_tips ≥ 30`,
 `e2e/local/tips.spec.ts`. An admin reviewing the 17 `needs_source` rows can attach a URL in P4.10.
+
 ## 2026-10-05 — P4.5 Weekly meal-plan generator (pure domain) — DONE (builder, worktree `wt/b`; not yet committed)
 
 **Pulled forward from P4** by the lead: the generator depends only on the P1.4 types, P4.1's
@@ -106,6 +186,7 @@ in `scripts/db-apply.test.ts`, untouched since P1.1); `npm ci` fixed it — no l
 recipe at lunch AND dinner on one day) is deliberately not enforced — the contract is per meal;
 revisit in P4.6 if the UI wants it. The recipes seed (P1.11) must give every diet ≥ 1 recipe per
 breakfast/lunch/dinner for the "every slot filled" acceptance to hold on real content.
+
 ## 2026-10-05 — P1.5 + P1.6 + P1.7 + P1.8 — profiles/admin primitives, content tables, per-user tables, gate catalogue (builder, worktree `wt/a`; not yet committed)
 
 **Done (P1.5 — `supabase/migrations/20261006000200_hygieia_profiles.sql`):** `hygieia.profiles`
@@ -358,8 +439,8 @@ free — this lane never touched that file.
 ### P2.4 `UserDataSource`: fridge lists, saved plans, favourites — DONE (builder, `wt/e`; not yet committed)
 
 - `src/user/source.ts` — the contract: `UserDataSource { kind: 'supabase' | 'disabled'; reason?;
-  userId?; fridgeLists { list, save, remove }; favourites { list, add, remove }; savedPlans { list, save,
-  remove } }`, `Result<T> = { ok: true; data } | { ok: false; error: 'disabled' | 'network' | 'unknown' }`
+userId?; fridgeLists { list, save, remove }; favourites { list, add, remove }; savedPlans { list, save,
+remove } }`, `Result<T> = { ok: true; data } | { ok: false; error: 'disabled' | 'network' | 'unknown' }`
   (nothing throws), row types (`FridgeList`, `SavedPlan`, `Favourite`) and WRITE payload types
   (`FridgeListInput { id?, name, ingredient_slugs }`, `SavedPlanInput { diet_id, week_start, plan }`,
   `FavouriteInput { recipe_id }`) — none has a `user_id` member, so sending it is a type error.
@@ -387,9 +468,9 @@ free — this lane never touched that file.
 - `src/auth/fake-client.ts` — EXTENDED (not a second fake): `from(table)` keeps the `profiles` behaviour
   and gives every other table a thenable builder (`select/order/single/maybeSingle/eq/insert/upsert/delete`)
   that RECORDS `{ table, op, payload, filters }` into `fake.calls`; options `userTables: { rows, error,
-  reject }`. A written row comes back WITH `user_id` (simulating the DB default).
+reject }`. A written row comes back WITH `user_id` (simulating the DB default).
 - Dictionary: 5 keys under `// user data (P2.4)`: `userDataUnavailableLocal, userDataSignInToSave, saved,
-  save, remove` (both languages; parity test green).
+save, remove` (both languages; parity test green).
 - Tests `src/user/source.test.ts` (14): disabled impl for both reasons (7 writes refused, 3 lists empty);
   supabase impl targets exactly `{fridge_lists, saved_plans, favourites}` and never `profiles`; sweep over
   10+ recorded calls: no `user_id` in any payload, no `user_id` filter, uid absent from the serialised calls,
@@ -419,12 +500,12 @@ free — this lane never touched that file.
   (no synchronous setState in the effect). A disabled source renders `SignedOutNote`. A failed list shows as
   empty — P4.6 owns the error state and editing (no key was added for it).
 - `src/admin/AdminPage.tsx` — placeholder: `adminTitle` + `adminPlaceholder` ("review tools arrive in P4")
-  + home link. P4.10 replaces the file.
+  - home link. P4.10 replaces the file.
 - `src/App.tsx` — header right side is now `<div class="flex items-center gap-2"><AccountMenu/><LangSwitch/></div>`;
   nothing else changed. `src/routes/routes.tsx` — `/account` → `<RequireAuth><AccountPage/></RequireAuth>`,
   `/admin` → `<RequireAdmin><AdminPage/></RequireAdmin>`, appended before `*`.
 - Dictionary: 10 keys under `// guards (P2.5)`: `account, notAllowedTitle, notAllowedBody, adminTitle,
-  adminPlaceholder, savedPlans, savedFridgeLists, favourites, nothingSavedYet, loading`. `adminTitle` is ONE
+adminPlaceholder, savedPlans, savedFridgeLists, favourites, nothingSavedYet, loading`. `adminTitle` is ONE
   key beyond the lead's list — the admin page needed an `h1` and the bilingual rule forbids a literal.
 - Tests `src/auth/guards.test.tsx` (29, through the real `AppRoutes` + a `LocationProbe`): anonymous at
   `/account` → location `/auth?next=%2Faccount` and the sign-in page renders; query string preserved
@@ -509,6 +590,7 @@ sw.js present` · Prettier check clean on `src/content/seed/`.
 
 **Next:** P1.10 diets (∥ B), P1.11 recipes use these slugs; P1.12 generates
 `20261006000500_hygieia_seed_ingredients.sql` from this module (gate asserts ≥ 160 → will see 322).
+
 ### P1.10 Seed content: diets (16, EL+EN) — DONE (builder, worktree `wt/c`; not yet committed)
 
 **Landed:** `src/content/seed/diets.ts` exporting `DIETS: readonly DietSeed[]` (plus the shared

@@ -107,6 +107,7 @@ The payload types in `src/user/source.ts` have no `user_id` member, so sending i
 who owns a row — a client-supplied id is at best redundant and at worst a spoof attempt RLS has to refuse;
 a client-side `eq('user_id', …)` would duplicate the policy and invite a false sense of safety when it is
 forgotten. Same discipline as P2.3's `is_admin` (never sent; the column grant forbids it).
+
 ## 2026-10-05 — every `hygieia` function revokes EXECUTE explicitly (per-schema default privileges cannot)
 
 `alter default privileges in schema hygieia revoke execute on functions from public` does NOT remove the
@@ -133,3 +134,13 @@ function for anon/PUBLIC EXECUTE and a pinned `search_path`; the sweep is RED-ve
   the "every row id = md5(…)" check is non-vacuous before P1.12 and bites on every seeded row after.
 - **Gate and `npm test` share one check list** (`checksFor` in `scripts/db-gate/catalogue.mjs`); the Vitest
   twin pins the check names, so a check added to the catalogue without a case fails the suite.
+
+## 2026-10-05 — P1.14 prove-red: close the write-policy gap in place, keep the check names
+
+- **Write-policy checks probe filtered AND blind.** prove-red showed `saved_plans` UPDATE / `favourites`
+  DELETE `using (true)` leave the gate GREEN: `… where user_id = A` makes Postgres AND the SELECT policy in,
+  masking the open write policy. The fix adds a blind (no-WHERE) UPDATE/DELETE to the EXISTING checks
+  (`UB's UPDATE/DELETE of A's rows has no effect`, the profiles twin, content `UA's status update has no
+effect`) and asserts A's rows unchanged — instead of adding new checks — because `db-isolation.test.ts`
+  pins the name set and is outside P1.14's scope. Net: the twin stays green and gets the stronger probe.
+- **`RED ok` means exit code exactly 1**, not merely ≠ 0: a crash (Windows 0xC0000409) is `CRASH`, never proof.
