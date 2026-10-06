@@ -755,3 +755,13 @@ builder (worktree `wt/g`) from the lead's decision; BUILD_LOG entry of the same 
   `VITE_FLEET_*` names inline so a build without them drops the client. (6) **Not decided here — fonts:** the two self-hosted variable
   webfonts cost ~9–10 Lighthouse points on every route (recipe 86 → 96 on a build without them); `recipe` stays 86–87 until the lead
   chooses how brand fonts load (BUILD_LOG PERF entry, RESIDUAL).
+
+- 2026-10-06 — **Tasks Advisor +8 topics.** (1) **Core = what must not drop on the tightest budget**, so the anchor rule (weight ≥ 6) is
+  used for care that cannot wait, not just "the big session": pet water + meals + cat litter (2–3 min each) and the morning walk (10 min),
+  the newborn parent's own meal (3 min), the summer water bottle, the quit-date craving plan, the 50-min exam block. A sample-plan pass
+  showed that without this a gentle 15-minute week for a cat owner had no feeding and a tired newborn parent's had no meal.
+  (2) **Health wording is enforced by a test, not by review:** any task about taking or giving medicine names a professional; the
+  plan never names a product or a dose. (3) **Greek specifics stay generic where a name could go stale:** "the national quit-smoking
+  helpline", "your electricity / water / internet provider" — no phone numbers or company names; KTEO, road tax, 112 and the EHIC are
+  named because they are institutions, not vendors. (4) exam-season's timing question is `start` (not `when`, which would read as the
+  task condition key).

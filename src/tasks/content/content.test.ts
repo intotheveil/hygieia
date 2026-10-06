@@ -16,8 +16,8 @@ beforeAll(async () => {
 })
 
 describe('the topic list', () => {
-  it('has at least ten topics, each with a loader, in TOPIC_IDS order', () => {
-    expect(TOPIC_IDS.length).toBeGreaterThanOrEqual(10)
+  it('has nineteen topics, each with a loader, in TOPIC_IDS order', () => {
+    expect(TOPIC_IDS.length).toBe(19)
     expect(Object.keys(TOPIC_LOADERS).sort()).toEqual([...TOPIC_IDS].sort())
     expect(topics.map((t) => t.id)).toEqual([...TOPIC_IDS])
     expect(new Set(TOPIC_IDS).size).toBe(TOPIC_IDS.length)
@@ -35,6 +35,15 @@ describe('the topic list', () => {
       'reduce-stress',
       'morning-routine',
       'budget-groceries',
+      'study-focus',
+      'newborn-routine',
+      'pet-care',
+      'plants-garden',
+      'car-care',
+      'moving-house',
+      'exam-season',
+      'summer-prep',
+      'quit-smoking',
     ]) {
       expect(isTopicId(id), id).toBe(true)
     }
@@ -166,5 +175,38 @@ describe('task banks', () => {
         topic.id,
       ).toBe(true)
     }
+  })
+})
+
+describe('health-sensitive wording', () => {
+  // Newborn, summer heat and quitting smoking touch medicine: the plan never advises a product or a
+  // dose itself — any task about TAKING or GIVING one (a dose, any medicine, regular medicines, quit
+  // medicines, nicotine replacement, starting solids) points to a paediatrician, pharmacist or
+  // doctor. Packing or returning medicines is not advice and is not matched.
+  const MEDICINE =
+    /\b(doses?|any medicine|regular medicines|quit medicines|nicotine replacement|solids)\b/i
+  const PROFESSIONAL = /paediatrician|pharmacist|doctor|midwife/i
+  it('every task about taking or giving medicine names a professional', () => {
+    let checked = 0
+    for (const topic of topics) {
+      for (const t of topic.tasks) {
+        const en = [t.title.en, t.detail?.en ?? ''].join(' ')
+        if (!MEDICINE.test(en)) continue
+        checked++
+        expect(PROFESSIONAL.test(en), `${topic.id}/${t.id}: ${en}`).toBe(true)
+      }
+    }
+    expect(checked).toBeGreaterThanOrEqual(4)
+  })
+
+  it('quit smoking never shames: a slip is a restart, and support is offered', async () => {
+    const quit = await loadTopic('quit-smoking')
+    const text = quit.tasks.map((t) => [t.title.en, t.detail?.en ?? ''].join(' ')).join(' | ')
+    // "failure" may appear only as "is not failure"
+    expect(text).toMatch(/is not failure/i)
+    expect(text.replace(/is not failure/gi, '')).not.toMatch(
+      /\b(weak|fail(ure|ed)?|ashamed|disgusting|lazy|guilty)\b/i,
+    )
+    expect(text).toMatch(/national quit-smoking helpline/i)
   })
 })
