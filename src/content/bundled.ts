@@ -20,6 +20,14 @@
 // skeleton first, and the seed chunk then downloads on its own instead of sharing the first paint's
 // bandwidth. The wait is two animation frames on the first call per table (the loaders are memoised
 // below); the injected fixture tables used by tests are untouched.
+//
+// CONTENT OVERLAYS (2026-10-06). The base seed modules are frozen (their migrations are applied
+// live); later edits and additions live in ./seed/overlays/ (see types.ts there). Each real loader
+// imports its table AND the overlay list side by side and returns base → overlay 0001 → 0002 …
+// (`overlayTable`, the same pure function the seed generator validates with), so the bundled
+// source serves exactly what the DB holds after the overlay migrations. The overlay chunk carries
+// its own applier; a table no overlay touches comes back as the same array. Fixture tables are not
+// overlaid.
 
 import {
   CONTENT_STATUSES,
@@ -48,6 +56,7 @@ import {
   type SkincareTip,
   type WorkoutTemplate,
 } from './source.ts'
+import type { SeedBase } from './seed/overlays/types.ts'
 import type {
   DietSeed,
   ExerciseSeed,
@@ -97,21 +106,55 @@ const afterPaint =
     afterNextPaint().then(load)
 
 /**
+ * Load one base seed table and the overlay list in parallel, then apply every overlay to the table.
+ * The overlay module brings the applier with it (one small chunk, shared by every table).
+ */
+function overlaid<K extends keyof SeedBase>(
+  table: K,
+  load: () => Promise<SeedBase[K]>,
+): () => Promise<SeedBase[K]> {
+  return () =>
+    Promise.all([load(), import('./seed/overlays/index.ts')]).then(([rows, o]) =>
+      o.overlayTable(table, rows, o.OVERLAYS),
+    )
+}
+
+/**
  * The real seed modules, each behind a dynamic import so Vite splits it into its own chunk. The
  * `.ts` paths are literal on purpose: the bundler needs a static string to know the chunk graph.
  */
 export const BUNDLED_SEEDS: BundledSeeds = {
-  ingredients: afterPaint(() => import('./seed/ingredients.ts').then((m) => m.INGREDIENTS)),
-  diets: afterPaint(() => import('./seed/diets.ts').then((m) => m.DIETS)),
-  recipes: afterPaint(() => import('./seed/recipes.ts').then((m) => m.RECIPES)),
-  exercises: afterPaint(() => import('./seed/exercises.ts').then((m) => m.EXERCISES)),
-  workoutTemplates: afterPaint(() => import('./seed/workouts.ts').then((m) => m.WORKOUT_TEMPLATES)),
-  tips: afterPaint(() => import('./seed/tips.ts').then((m) => m.HEALTH_TIPS)),
-  skincareProductTypes: afterPaint(() =>
-    import('./seed/skincare.ts').then((m) => m.SKINCARE_PRODUCT_TYPES),
+  ingredients: afterPaint(
+    overlaid('ingredients', () => import('./seed/ingredients.ts').then((m) => m.INGREDIENTS)),
   ),
-  skincareRoutines: afterPaint(() => import('./seed/skincare.ts').then((m) => m.SKINCARE_ROUTINES)),
-  skincareTips: afterPaint(() => import('./seed/skincare.ts').then((m) => m.SKINCARE_TIPS)),
+  diets: afterPaint(overlaid('diets', () => import('./seed/diets.ts').then((m) => m.DIETS))),
+  recipes: afterPaint(
+    overlaid('recipes', () => import('./seed/recipes.ts').then((m) => m.RECIPES)),
+  ),
+  exercises: afterPaint(
+    overlaid('exercises', () => import('./seed/exercises.ts').then((m) => m.EXERCISES)),
+  ),
+  workoutTemplates: afterPaint(
+    overlaid('workout_templates', () =>
+      import('./seed/workouts.ts').then((m) => m.WORKOUT_TEMPLATES),
+    ),
+  ),
+  tips: afterPaint(
+    overlaid('health_tips', () => import('./seed/tips.ts').then((m) => m.HEALTH_TIPS)),
+  ),
+  skincareProductTypes: afterPaint(
+    overlaid('skincare_product_types', () =>
+      import('./seed/skincare.ts').then((m) => m.SKINCARE_PRODUCT_TYPES),
+    ),
+  ),
+  skincareRoutines: afterPaint(
+    overlaid('skincare_routines', () =>
+      import('./seed/skincare.ts').then((m) => m.SKINCARE_ROUTINES),
+    ),
+  ),
+  skincareTips: afterPaint(
+    overlaid('skincare_tips', () => import('./seed/skincare.ts').then((m) => m.SKINCARE_TIPS)),
+  ),
 }
 
 /** Resolve a `SeedTable` to its rows (an array resolves at once; a loader is called). */

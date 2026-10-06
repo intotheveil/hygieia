@@ -43,6 +43,8 @@ const ARCHIVE = fileURLToPath(new URL('../supabase/migrations', import.meta.url)
 const GATE = fileURLToPath(new URL('./db-gate.mjs', import.meta.url))
 // Sorts after every real migration and matches the guard's filename rule.
 const SABOTAGE_FILE = '29991231235959_hygieia_zz_sabotage.sql'
+// Content-overlay sabotages (2026-10-06) must be NAMED like an overlay migration to be scanned.
+const OVERLAY_SABOTAGE_FILE = '29991231235959_hygieia_overlay_zz_sabotage.sql'
 const PROFILES = '20261006000200_hygieia_profiles.sql'
 const RUN_TIMEOUT_MS = 300_000
 // The lines by which the gate (and the static guard it runs first) reports red.
@@ -57,7 +59,9 @@ const SAB = SABOTAGE_FILE.replace(/\./g, '\\.')
  * @typedef {object} Sabotage
  * @property {string} id
  * @property {string} what
- * @property {string} [sql]  appended as SABOTAGE_FILE
+ * @property {string} [sql]  appended as SABOTAGE_FILE (or as `file`)
+ * @property {string} [file]  the appended file's name when it must match a pattern (overlay
+ *                            sabotages: OVERLAY_SABOTAGE_FILE, so the gate's overlay scan reads it)
  * @property {{ file: string, from: string, to: string }} [mutate]  exactly-once replacement in a copied file
  * @property {(string | RegExp)[]} expect
  */
@@ -382,6 +386,41 @@ alter table hygieia.skincare_tips add constraint skincare_tips_area_check
       /^APPLY FAILED — stopping\.$/,
     ],
   },
+  // --- content overlays (2026-10-06): a patch sets editable content columns only, and lands -----
+  {
+    id: 'overlay-patch-sets-status',
+    what: 'an overlay patch sets status (approved rows must stay approved; additions enter pending)',
+    file: OVERLAY_SABOTAGE_FILE,
+    sql: `update hygieia.health_tips set
+  status = 'pending'
+where slug = 'nutrition-fish-twice-a-week';`,
+    expect: [
+      /^FAIL {2}overlay patches only touch editable content columns \(\d+ overlay file\(s\)\) — 29991231235959_hygieia_overlay_zz_sabotage\.sql: update hygieia\.health_tips sets "status" — not an editable content column$/,
+    ],
+  },
+  {
+    id: 'overlay-patch-sets-id',
+    what: 'an overlay patch sets id next to a content column (identity is never content)',
+    file: OVERLAY_SABOTAGE_FILE,
+    sql: `update hygieia.health_tips set
+  body_en = body_en,
+  id = id
+where slug = 'nutrition-fish-twice-a-week';`,
+    expect: [
+      /^FAIL {2}overlay patches only touch editable content columns \(\d+ overlay file\(s\)\) — 29991231235959_hygieia_overlay_zz_sabotage\.sql: update hygieia\.health_tips sets "id" — not an editable content column$/,
+    ],
+  },
+  {
+    id: 'overlay-patch-misses',
+    what: 'an overlay patch whose slug matches no row (it would be a silent no-op live)',
+    file: OVERLAY_SABOTAGE_FILE,
+    sql: `update hygieia.health_tips set
+  body_en = 'never lands'
+where slug = 'no-such-tip';`,
+    expect: [
+      /^FAIL {2}every overlay patch hits exactly one row \(\d+ patch\(es\)\) — 29991231235959_hygieia_overlay_zz_sabotage\.sql: health_tips where slug = 'no-such-tip' → 0$/,
+    ],
+  },
 ]
 
 // --- CLI ----------------------------------------------------------------------------------------
@@ -451,7 +490,7 @@ const prepare = (name, s) => {
     if (m && m.file === f) text = text.replace(m.from, () => m.to)
     writeFileSync(path.join(dir, f), text)
   }
-  if (s?.sql !== undefined) writeFileSync(path.join(dir, SABOTAGE_FILE), s.sql + '\n')
+  if (s?.sql !== undefined) writeFileSync(path.join(dir, s.file ?? SABOTAGE_FILE), s.sql + '\n')
   return dir
 }
 

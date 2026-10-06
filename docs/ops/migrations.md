@@ -148,6 +148,77 @@ curl status — into `BUILD_LOG.md` under an `OPERATOR-P1` entry with the date a
 they were run from, and close `O1` in `BRAIN.md` §4. Verdict lines carry no secret; the full output
 may (it never should, but do not paste more than the verdicts).
 
+## Content overlays
+
+The seven base seed migrations (`20261006000500`–`001000`, `001200`) are applied live, so their
+source modules under `src/content/seed/*.ts` are **frozen**: `seed:check` pins every byte and an
+applied migration is never edited. Every later content change — a typo, a source added to a tip, a
+recipe `image_path`, a corrected price or nutrition figure, a new dish, diet or ingredient — is an
+**overlay**: an ordered module in `src/content/seed/overlays/` that the bundled source applies on
+top of the base seed and that the generator turns into ONE new forward-only migration.
+
+### Adding an overlay (crew)
+
+1. Create `src/content/seed/overlays/NNNN-<name>.ts` (next free four-digit number, kebab-case name)
+   exporting `OVERLAY: Overlay` (`./types.ts`):
+
+   ```ts
+   import type { Overlay } from './types.ts'
+
+   export const OVERLAY: Overlay = {
+     id: '0002-tip-sources', // = the file name minus .ts
+     summary: 'real sources for three sleep tips', // goes into the migration header
+     patches: {
+       health_tips: [
+         { slug: 'sleep-regular-schedule', set: { source_url: 'https://…', needs_source: false } },
+       ],
+       recipe_ingredients: [{ recipe_slug: 'greek-salad', position: 0, set: { quantity: 150 } }],
+     },
+     additions: {
+       recipes: [/* full RecipeSeed rows: slug, both languages, ingredients, diet_slugs … */],
+       recipe_diets: [{ recipe_slug: 'greek-salad', diet_slug: 'fasting' }],
+     },
+   }
+   ```
+
+   - **Patches** address a row by `slug` (child tables by natural key: `recipe_slug` + `position`,
+     `template_slug` + `position`) and `set` only that table's editable content columns
+     (`PATCH_COLUMNS` = the admin's `EDITABLE_COLUMNS` = the UPDATE grant minus `status`). Never
+     `id`, `slug`, `status` or the review stamp — a type error, an applier error and a gate FAIL.
+     A patch targets rows that exist BEFORE its overlay (base or an earlier overlay).
+   - **Additions** are base-seed-shaped rows (`IngredientSeed`, `RecipeSeed` with nested lines and
+     diet tags, …) with ids by the same `md5('hygieia:<table>:<slug>')` rule, or children appended
+     to an existing parent (`recipe_ingredients`, `recipe_diets`, `workout_template_exercises`). A
+     slug that already exists is an error. Additions carry no `status`.
+   - The seed rules still bind: `needs_source` follows `source_url` (tips) / `sources` (skincare
+     tips); recipe-line notes come as a pair; every slug reference resolves.
+
+2. Add ONE line to `src/content/seed/overlays/index.ts` (`OVERLAYS`, in NNNN order). A module the
+   list does not name, or a list out of order, is a generator error.
+3. `npm run seed:gen` writes `supabase/migrations/20261007<NNNN>00_hygieia_overlay_<name>.sql`:
+   every patch as `update hygieia.<t> set … where slug = '…'`, then every addition as the base
+   generator's `insert … on conflict (…) do nothing`. Nothing else in `supabase/migrations/` may
+   change (`git diff --stat` shows the one new file). `npm run seed:check` covers it from then on.
+4. `npm run db:gate`: the overlay is scanned (`overlay patches only touch editable content columns`),
+   applied twice, and every patch must match exactly one row (`every overlay patch hits exactly one
+row`). `npm test` proves the overlay applies to the full base seed.
+5. Never edit or delete a shipped overlay: like its migration it is applied live. Correct it with
+   the next overlay.
+
+### Applying it live (lead / operator)
+
+Steps 1–4 and 6 above: `db:check` → `db:gate` → `db:apply` (dry-run) → `db:apply -- --apply` →
+`db:live-check`. The overlay file is an ordinary migration with a ledger row and a checksum.
+Patches never touch `status`, so **an approved row stays approved** with the new text. **Additions
+land `pending`**: the operator approves everything, so after the apply the LEAD approves the new
+rows (the admin page, or by SQL on the operator's instruction, as with OP4.b). Until then the public
+site does not show them, while the local-only build already does (as drafts).
+
+**Ordering caveat.** Overlay migrations are numbered `20261007…`. Once one is applied live,
+`db:apply` refuses any later migration with an OLDER version (`OUT OF ORDER`): a new schema
+migration must then be numbered after the newest applied overlay (e.g. `20261008000100_…`), not
+`2026100600xxxx`.
+
 ## What if
 
 | the line says                                                                                                   | it means                                                                                                              | do this                                                                                                                                                                                                                                                                         |

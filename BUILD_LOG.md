@@ -47,6 +47,52 @@ The human reads this first on return (CLAUDE.md §5).
   first cold deep link (pages-server emulates Pages on purpose).
 - **Lighthouse:** not re-run — no route added, the `/tasks` page chunk only gains 8 small metas; the 16-route list is unchanged.
 - **Next:** reviewer on this lane; the lead merges `wt/d` and reconciles BRAIN (§3 topic count 11 → 19, §6).
+### CONTENT OVERLAYS — editable, additive content on top of the applied seed — 2026-10-06 — DONE
+
+- **Problem:** content lives in the TS seed (bundled source) and in the live DB via generated, APPLIED, forward-only migrations
+  000500–001000 + 001200 that `seed:check` pins byte-for-byte — so no existing row could be edited and no row added without editing an
+  applied migration. Lane `wt/a`, branch `wt/a` from `main` `61e36a8`.
+- **Built:** `src/content/seed/overlays/` — `types.ts` (the contract: `Overlay`, per-table `PatchSet`, `PATCH_COLUMNS` = admin
+  `EDITABLE_COLUMNS` = UPDATE grant minus `status`, child natural keys, `OVERLAY_TABLES` in FK order), `apply.ts` (pure
+  `applyOverlays(base, overlays)` / `overlayTable(table, rows, overlays)`: per overlay every table's patches, then every table's additions;
+  copy-on-write; untouched table = same array; throws on unknown slug/key, duplicate addition slug or diet tag, non-editable column, empty
+  set, out-of-order ids, broken seed rules), `index.ts` (`OVERLAYS` list + re-exported applier = the ONE lazy chunk), `0001-fix-typos.ts`.
+  `src/content/bundled.ts`: every real loader = base table + overlays chunk in parallel → `overlayTable` (fixture tables untouched).
+  `scripts/gen-seed-sql.mjs`: base generation unchanged (one refactor: routine-step normalisation extracted to `routineSteps`, output
+  byte-identical); NEW `generateOverlays` / `renderOverlay` / `renderPatch` / `compareOverlays` / `overlayFile` / `PATCH_FORMAT` →
+  `20261007<NNNN>00_hygieia_overlay_<name>.sql` (patches as `update … where slug = …` / `where recipe_id|template_id = … and "position" = n`,
+  additions through the base renderer, status omitted); each overlay is validated by applying it with the same `applyOverlays`;
+  `seed:check` covers overlay files (differs / missing / extra), `--only` skips overlays. `scripts/db-gate/overlay-scan.mjs` (static
+  scan, literals + comments masked) wired into `db:gate`: NEW checks `overlay patches only touch editable content columns (N overlay
+  file(s))` (before apply) and `every overlay patch hits exactly one row (N patch(es))` (after apply). `db:gate:prove-red` + 3 sabotages
+  (`overlay-patch-sets-status`, `overlay-patch-sets-id`, `overlay-patch-misses`; new optional `file` on a sabotage). Runbook section
+  "Content overlays" in `docs/ops/migrations.md`.
+- **Overlay 0001-fix-typos** (2 patches, found by scanning/reading the seed): `health_tips/nutrition-fish-twice-a-week` EN "…, it is a
+  ten-minute meal" → "they make a ten-minute meal" (pronoun vs plural subject); `skincare_tips/face-all-sunscreen-every-day-clouds-included`
+  EL «Κάνε το το τελευταίο βήμα» → «Βάλ’ το ως τελευταίο βήμα». Migration `supabase/migrations/20261007000100_hygieia_overlay_fix_typos.sql`
+  (NOT applied live — lead/operator step: db:check → db:gate → db:apply dry-run → --apply → db:live-check).
+- **Files:** new `src/content/seed/overlays/{types,apply,index,0001-fix-typos,overlays.test}.ts`, `scripts/db-gate/overlay-scan.mjs`,
+  `scripts/overlay-scan.test.ts`, `scripts/gen-seed-overlays.test.ts`, the migration above; modified `src/content/bundled.ts`,
+  `scripts/gen-seed-sql.mjs`, `scripts/db-gate.mjs`, `scripts/db-gate-prove-red.mjs`, `scripts/gen-seed-sql.test.ts` (PGlite md5 test:
+  `await db.waitReady` in its 60 s `beforeAll` — the wasm boot exceeded the 5 s test budget under load, also on unchanged HEAD),
+  `docs/ops/migrations.md`. Migration added: 1 (overlay, content only, no schema/RLS change).
+- **Verified:** lint 0 errors (23 pre-existing warnings) · typecheck clean · `npm test` **3830 tests / 91 files** (was 3762 / 88; +26
+  applier/contract, +18 scan, +24 generator incl. an end-to-end PGlite run of an overlay with EVERY patch/addition shape: DB == applyOverlays,
+  approved row stays approved, additions pending with md5 ids). One full run fully green; other runs on this loaded machine (6 lanes) had 1–2
+  load timeouts in different files each time (db-apply 5 s, App h1 1 s, md5 PGlite) — each green in isolation; unchanged HEAD flaked the same way ·
+  `seed:gen` → `git diff --stat` empty for the 7 base files (only an LF/CRLF working-copy flip on recipes, no content), the overlay file the
+  only new one · `seed:check` OK — 8 (7 base + 1 overlay) · `db:check` 15 files · **`db:gate` 364 green** · **prove-red 34/34** · build
+  OK (entry 229.27 kB unchanged; `overlays-*.js` 6.46 kB / 2.82 kB gzip, lazy, not in index.html) · `check:bundle` OK.
+  **Observable:** `dist/` served by `pages-server`, Chromium on `/hygieia/tips?topic=nutrition` shows "…Grilled or baked with lemon and
+  oregano, they make a ten-minute meal."
+- **Incident (recorded for the lead, BRAIN §5 candidate):** `git stash` is SHARED by all worktrees of one repo. I stashed to measure a
+  baseline; lane `wt/g` stashed meanwhile; my `pop` took wt/g's stash and wt/g's pop then took mine. Recovered without writing to wt/g:
+  wt/g's changes were re-pushed as `stash@{0}` "restored by wt/a lane: … belongs to the lane that pushed it"; my files were copied back
+  from wt/g. **wt/g's working tree still holds a copy of this lane's overlay files** (untracked/modified, listed above) and wt/g's own work
+  (onboarding/prefs/home: App.tsx, Layout.tsx, i18n, e2e onboarding spec, src/home, src/prefs …) sits in that stash — the lead must fix
+  wt/g before its next commit. Rule: never `git stash` in a multi-worktree repo; use a scratch worktree or `git diff > patch`.
+- **Next:** lead applies `20261007000100` live; lanes write overlays per the API in the runbook. Note: once an overlay is live, a new
+  schema migration must be numbered after it (`20261008…`) or `db:apply` refuses it OUT OF ORDER.
 
 ### PERF — restore Lighthouse margin after P7–P9 (CI diet 84) — 2026-10-06 — PARTIAL (16/17 routes ≥ 88 in all three runs; `recipe` 86–87 — residual is the webfonts, a design call for the lead)
 

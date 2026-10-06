@@ -19,6 +19,10 @@
 //         entry, every entry a table); the committed fixture; the orphan scan over every FK; the
 //         per-kind isolation + role matrix from ./db-gate/catalogue.mjs; the "Alyssos's side is
 //         untouched" invariance last (the fixture must not have moved it either).
+//   OVERLAYS (2026-10-06) every `*_hygieia_overlay_*.sql` is statically scanned before the apply
+//         (./db-gate/overlay-scan.mjs): UPDATEs set editable content columns only (never id, slug,
+//         status or the review stamp), INSERTs never name status. The files are then applied (and
+//         re-applied) with the rest of the archive like any migration.
 
 import { PGlite } from '@electric-sql/pglite'
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
@@ -36,6 +40,7 @@ import {
   seedFixture,
   tablePrivs,
 } from './db-gate/catalogue.mjs'
+import { scanOverlayDir } from './db-gate/overlay-scan.mjs'
 
 // Overridable so the gate can be pointed at a MUTATED copy of the archive and proven to go red
 // (P1.14). A gate nobody has ever seen fail is not a gate.
@@ -125,6 +130,14 @@ async function runGate(db) {
     console.log(`FAIL  no migrations found in ${MIG} — the gate has nothing to prove`)
     return 1
   }
+
+  // --- content overlays: a static scan before anything runs (./db-gate/overlay-scan.mjs) ----------
+  const overlayScan = scanOverlayDir(MIG)
+  check(
+    `overlay patches only touch editable content columns (${overlayScan.files.length} overlay file(s))`,
+    overlayScan.problems.length === 0,
+    overlayScan.problems.join('; '),
+  )
   for (const f of files) {
     try {
       await db.exec(readFileSync(path.join(MIG, f), 'utf8'))
@@ -135,6 +148,20 @@ async function runGate(db) {
       return 1
     }
   }
+
+  // Every overlay UPDATE must hit exactly one row of the freshly applied archive: a patch whose slug
+  // or natural key matches nothing would be a silent no-op live as well.
+  await guarded(
+    `every overlay patch hits exactly one row (${overlayScan.targets.length} patch(es))`,
+    async () => {
+      const bad = []
+      for (const t of overlayScan.targets) {
+        const r = await q(`select count(*)::int as n from hygieia.${t.table} where ${t.where}`)
+        if (r.rows[0]?.n !== 1) bad.push(`${t.file}: ${t.table} where ${t.where} → ${r.rows[0]?.n}`)
+      }
+      return [bad.length === 0, list(bad)]
+    },
+  )
 
   // --- idempotent-safe: the whole archive runs a second time without error (CLAUDE.md §3.3) -------
   for (const f of files) {
