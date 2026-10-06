@@ -45,6 +45,7 @@ const SignInPage = lazy(() => import('../auth/SignInPage').then((m) => ({ defaul
 const CallbackPage = lazy(() =>
   import('../auth/CallbackPage').then((m) => ({ default: m.CallbackPage })),
 )
+const TasksPage = lazy(() => import('../tasks/TasksPage').then((m) => ({ default: m.TasksPage })))
 const AccountPage = lazy(() =>
   import('../account/AccountPage').then((m) => ({ default: m.AccountPage })),
 )
@@ -79,6 +80,8 @@ export function AppRoutes() {
         <Route path="/workouts" element={<WorkoutsPage />} />
         <Route path="/tips" element={<TipsPage />} />
         <Route path="/skincare" element={<SkincarePage />} />
+        <Route path="/tasks" element={<TasksPage />} />
+        <Route path="/tasks/:topic" element={<TasksPage />} />
         <Route path="/auth" element={<SignInPage />} />
         <Route path="/auth/callback" element={<CallbackPage />} />
         <Route

@@ -8,11 +8,12 @@ import { plansEn } from './features/plans.ts'
 import { profileEn } from './features/profile.ts'
 import { recipesEn } from './features/recipes.ts'
 import { skincareEn } from './features/skincare.ts'
+import { tasksEn } from './features/tasks.ts'
 import { themeEn } from './features/theme.ts'
 import { tipsEn } from './features/tips.ts'
 import { workoutsEn } from './features/workouts.ts'
 
-/** The ten feature modules composed by `features/index.ts`, by name, over their `en` literal. */
+/** The eleven feature modules composed by `features/index.ts`, by name, over their `en` literal. */
 const FEATURE_MODULES: Readonly<Record<string, object>> = {
   admin: adminEn,
   diets: dietsEn,
@@ -21,6 +22,7 @@ const FEATURE_MODULES: Readonly<Record<string, object>> = {
   profile: profileEn,
   recipes: recipesEn,
   skincare: skincareEn,
+  tasks: tasksEn,
   theme: themeEn,
   tips: tipsEn,
   workouts: workoutsEn,
@@ -90,7 +92,7 @@ describe('bilingual dictionary', () => {
     }
   })
 
-  it('describes all seven modules (six from the intent + skincare), in both languages', () => {
+  it('describes all eight modules (six from the intent + skincare + tasks), in both languages', () => {
     expect(MODULE_IDS).toEqual([
       'tips',
       'diets',
@@ -99,6 +101,7 @@ describe('bilingual dictionary', () => {
       'calories',
       'workouts',
       'skincare',
+      'tasks',
     ])
     for (const dict of [en, el] as Dictionary[]) {
       for (const id of MODULE_IDS) {
@@ -189,7 +192,7 @@ describe('bilingual dictionary — one owner per key (features/index.ts rule; P3
     }
   }
 
-  it('composes exactly the ten feature modules and nothing else', () => {
+  it('composes exactly the eleven feature modules and nothing else', () => {
     const union = new Set(Object.values(FEATURE_MODULES).flatMap((literal) => Object.keys(literal)))
     expect([...union].sort()).toEqual(Object.keys(featuresEn).sort())
   })

@@ -8,7 +8,7 @@ import { featuresEl, featuresEn, type FeatureDictionary } from './features/index
 export const LANGS = ['el', 'en'] as const
 export type Lang = (typeof LANGS)[number]
 
-/** The seven product modules (six from the intent + skincare, P7), in home-page order. */
+/** The eight product modules (six from the intent + skincare, P7, + task plans, P9), in home-page order. */
 export const MODULE_IDS = [
   'tips',
   'diets',
@@ -17,6 +17,7 @@ export const MODULE_IDS = [
   'calories',
   'workouts',
   'skincare',
+  'tasks',
 ] as const
 export type ModuleId = (typeof MODULE_IDS)[number]
 
@@ -26,7 +27,15 @@ export interface ModuleCopy {
 }
 
 /** The site header's primary navigation (P3.5): one label per routed module + the nav's own name. */
-export const NAV_IDS = ['recipes', 'fridge', 'diets', 'workouts', 'tips', 'skincare'] as const
+export const NAV_IDS = [
+  'recipes',
+  'fridge',
+  'diets',
+  'workouts',
+  'tips',
+  'skincare',
+  'tasks',
+] as const
 export type NavId = (typeof NAV_IDS)[number]
 
 export interface NavCopy extends Record<NavId, string> {
@@ -104,9 +113,9 @@ const baseEn: BaseDictionary = {
     'A plate of grilled salmon with roasted vegetables and quinoa salad on a linen tablecloth.',
   statusTitle: 'Where things stand',
   statusBody:
-    'All seven modules are live on draft content that is still awaiting review: health tips, diets with weekly plans, recipes with their cost and calorie estimates, the fridge matcher, workouts and skin and nail care. This copy runs without an account service, so sign-in and saving are switched off.',
+    'All eight modules are live on draft content that is still awaiting review: health tips, diets with weekly plans, recipes with their cost and calorie estimates, the fridge matcher, workouts, skin and nail care, and task plans. This copy runs without an account service, so sign-in and saving are switched off.',
   statusBodyConfigured:
-    'All seven modules are live: health tips, diets with weekly plans, recipes with their cost and calorie estimates, the fridge matcher, workouts and skin and nail care; anything not yet approved by a reviewer is marked as a draft. Sign in to save plans, fridge lists and favourites.',
+    'All eight modules are live: health tips, diets with weekly plans, recipes with their cost and calorie estimates, the fridge matcher, workouts, skin and nail care, and task plans; anything not yet approved by a reviewer is marked as a draft. Sign in to save plans, fridge lists and favourites.',
   roadmap: 'Coming',
   modules: {
     tips: {
@@ -141,6 +150,11 @@ const baseEn: BaseDictionary = {
       blurb:
         'Routines, product types and tips for men and women, by skin type and concern, in the European, American, Korean and Japanese styles. Nails too.',
     },
+    tasks: {
+      title: 'Task plans',
+      blurb:
+        'Pick a goal — a clean home, a workout routine, better sleep and more — answer a few questions and get a daily and weekly plan sized to your time.',
+    },
   },
   nav: {
     label: 'Main navigation',
@@ -150,6 +164,7 @@ const baseEn: BaseDictionary = {
     workouts: 'Workouts',
     tips: 'Tips',
     skincare: 'Skincare',
+    tasks: 'Task plans',
   },
   fridgeLink: 'What is in my fridge?',
   panelsNote: 'Shown on every recipe page.',
@@ -209,9 +224,9 @@ const baseEl: BaseDictionary = {
   heroImageAlt: 'Πιάτο με ψητό σολομό, ψητά λαχανικά και σαλάτα κινόα πάνω σε λινό τραπεζομάντιλο.',
   statusTitle: 'Πού βρισκόμαστε',
   statusBody:
-    'Και οι επτά ενότητες λειτουργούν με πρόχειρο περιεχόμενο που εκκρεμεί προς έλεγχο: συμβουλές υγείας, δίαιτες με εβδομαδιαία πλάνα, συνταγές με εκτίμηση κόστους και θερμίδων, το ψυγείο, προπονήσεις και περιποίηση δέρματος και νυχιών. Αυτό το αντίγραφο λειτουργεί χωρίς υπηρεσία λογαριασμών, οπότε η σύνδεση και η αποθήκευση είναι απενεργοποιημένες.',
+    'Και οι οκτώ ενότητες λειτουργούν με πρόχειρο περιεχόμενο που εκκρεμεί προς έλεγχο: συμβουλές υγείας, δίαιτες με εβδομαδιαία πλάνα, συνταγές με εκτίμηση κόστους και θερμίδων, το ψυγείο, προπονήσεις, περιποίηση δέρματος και νυχιών, και πλάνα εργασιών. Αυτό το αντίγραφο λειτουργεί χωρίς υπηρεσία λογαριασμών, οπότε η σύνδεση και η αποθήκευση είναι απενεργοποιημένες.',
   statusBodyConfigured:
-    'Και οι επτά ενότητες λειτουργούν: συμβουλές υγείας, δίαιτες με εβδομαδιαία πλάνα, συνταγές με εκτίμηση κόστους και θερμίδων, το ψυγείο, προπονήσεις και περιποίηση δέρματος και νυχιών· ό,τι δεν έχει εγκριθεί ακόμη από ελεγκτή σημειώνεται ως πρόχειρο. Συνδέσου για να αποθηκεύεις πλάνα, λίστες ψυγείου και αγαπημένα.',
+    'Και οι οκτώ ενότητες λειτουργούν: συμβουλές υγείας, δίαιτες με εβδομαδιαία πλάνα, συνταγές με εκτίμηση κόστους και θερμίδων, το ψυγείο, προπονήσεις, περιποίηση δέρματος και νυχιών, και πλάνα εργασιών· ό,τι δεν έχει εγκριθεί ακόμη από ελεγκτή σημειώνεται ως πρόχειρο. Συνδέσου για να αποθηκεύεις πλάνα, λίστες ψυγείου και αγαπημένα.',
   roadmap: 'Έρχεται',
   modules: {
     tips: {
@@ -247,6 +262,11 @@ const baseEl: BaseDictionary = {
       blurb:
         'Ρουτίνες, τύποι προϊόντων και συμβουλές για άντρες και γυναίκες, ανά τύπο επιδερμίδας και ανάγκη, σε ευρωπαϊκό, αμερικανικό, κορεατικό και ιαπωνικό στιλ. Και για τα νύχια.',
     },
+    tasks: {
+      title: 'Πλάνα εργασιών',
+      blurb:
+        'Διάλεξε έναν στόχο — καθαρό σπίτι, πρόγραμμα άσκησης, καλύτερο ύπνο και άλλα — απάντησε σε λίγες ερωτήσεις και πάρε καθημερινό και εβδομαδιαίο πλάνο στα μέτρα του χρόνου σου.',
+    },
   },
   nav: {
     label: 'Κύρια πλοήγηση',
@@ -256,6 +276,7 @@ const baseEl: BaseDictionary = {
     workouts: 'Προπονήσεις',
     tips: 'Συμβουλές',
     skincare: 'Περιποίηση',
+    tasks: 'Πλάνα εργασιών',
   },
   fridgeLink: 'Τι έχω στο ψυγείο;',
   panelsNote: 'Εμφανίζεται σε κάθε σελίδα συνταγής.',
