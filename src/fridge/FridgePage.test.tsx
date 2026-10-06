@@ -7,6 +7,7 @@ import type { IngredientSeed, RecipeSeed } from '../content/types.ts'
 import { LangProvider } from '../i18n/LangProvider'
 import { el, en, type Lang } from '../i18n/dictionary'
 import { fill } from '../i18n/fill'
+import { unusedProfileMethods } from '../auth/fake-client'
 import { disabledSource } from '../user/disabled'
 import { ok, type FridgeList, type UserDataSource } from '../user/source'
 import { bundledSource } from '../content/bundled.ts'
@@ -345,6 +346,7 @@ describe('<FridgePage> — save list', () => {
         },
         remove: async () => ok(undefined),
       },
+      ...unusedProfileMethods(),
     }
     renderPage('en')
     const input = await ready()

@@ -266,6 +266,8 @@ async function runGate(db) {
     await q(
       `select c.relname,
               exists (select 1 from pg_attribute a where a.attrelid = c.oid and a.attname = 'status' and not a.attisdropped) as has_status,
+              (exists (select 1 from pg_attribute a where a.attrelid = c.oid and a.attname = 'reviewed_at' and not a.attisdropped)
+               and exists (select 1 from pg_attribute a where a.attrelid = c.oid and a.attname = 'reviewed_by' and not a.attisdropped)) as has_review,
               exists (select 1 from pg_attribute a where a.attrelid = c.oid and a.attname = 'updated_at' and not a.attisdropped) as has_updated_at,
               exists (select 1 from pg_attribute a where a.attrelid = c.oid and a.attname = 'created_at' and not a.attisdropped) as has_created_at,
               (select pg_get_expr(d.adbin, d.adrelid) from pg_attrdef d join pg_attribute a on a.attrelid = d.adrelid and a.attnum = d.adnum
@@ -357,7 +359,14 @@ async function runGate(db) {
     noTouch.length === 0,
     list(noTouch),
   )
-  const statusTables = tableRows.filter((r) => r.has_status).map((r) => String(r.relname))
+  // "Status-bearing" = the REVIEW workflow: `status` WITH `reviewed_at` + `reviewed_by` (PLAN §1.3).
+  // A bare `status` column is a different thing — P8.1 `workout_plans.status` is a per-user plan
+  // lifecycle (active | completed | abandoned) with no review, so it needs no stamp_review trigger
+  // and no pending default; the review-shape check below still requires both columns on every
+  // table that does carry a review status.
+  const isReviewTable = (/** @type {Record<string, unknown>} */ r) =>
+    r.has_status === true && r.has_review === true
+  const statusTables = tableRows.filter(isReviewTable).map((r) => String(r.relname))
   const noStamp = statusTables.filter((t) => !hasBeforeUpdateRow(t, 'stamp_review'))
   check(
     `every status-bearing table has a BEFORE UPDATE stamp_review trigger (${statusTables.length})`,
@@ -549,13 +558,16 @@ async function runGate(db) {
 
   // The DB CHECK literals equal src/content/enums.ts (order and length); the contract test repeats it.
   for (const ec of ENUM_COLUMNS) {
-    await guarded(`${ec.table}.${ec.column} CHECK admits exactly enums.ts ${ec.name}`, async () => {
-      const got = await checkValues(db, ec.table, ec.column)
-      return [
-        JSON.stringify(got) === JSON.stringify([...ec.values]),
-        `db ${got ? got.join('|') : 'no single CHECK'} vs ts ${ec.values.join('|')}`,
-      ]
-    })
+    await guarded(
+      `${ec.table}.${ec.column} CHECK admits exactly ${ec.source ?? 'enums.ts'} ${ec.name}`,
+      async () => {
+        const got = await checkValues(db, ec.table, ec.column)
+        return [
+          JSON.stringify(got) === JSON.stringify([...ec.values]),
+          `db ${got ? got.join('|') : 'no single CHECK'} vs ts ${ec.values.join('|')}`,
+        ]
+      },
+    )
   }
 
   // =================================================================================================
@@ -579,16 +591,17 @@ async function runGate(db) {
   for (const e of CATALOGUE) {
     const r = tableRows.find((x) => x.relname === e.table)
     if (!r) continue
-    if (e.kind === 'content' && !r.has_status)
-      kindMismatch.push(`${e.table}: content without status`)
-    if (e.kind === 'child' && r.has_status) kindMismatch.push(`${e.table}: child with status`)
+    if (e.kind === 'content' && !isReviewTable(r))
+      kindMismatch.push(`${e.table}: content without review status`)
+    if (e.kind === 'child' && isReviewTable(r))
+      kindMismatch.push(`${e.table}: child with review status`)
     if (
       e.kind === 'child' &&
       !fkRows.some((f) => f.child === `hygieia.${e.table}` && f.parent === `hygieia.${e.parent}`)
     )
       kindMismatch.push(`${e.table}: no FK to ${e.parent}`)
-    if ((e.kind === 'user' || e.kind === 'profiles') && r.has_status)
-      kindMismatch.push(`${e.table}: per-user with status`)
+    if ((e.kind === 'user' || e.kind === 'profiles') && isReviewTable(r))
+      kindMismatch.push(`${e.table}: per-user with review status`)
     if (e.kind === 'user' && r.user_id_default !== 'auth.uid()')
       kindMismatch.push(`${e.table}: user_id default ${r.user_id_default}`)
     if (e.kind === 'service-only' && !noPolicy.includes(e.table))
@@ -688,6 +701,47 @@ async function runGate(db) {
         ).rows[0].n,
       )
       return [total > 0 && bad.length === 0, bad.length ? list(bad) : `${total} steps clean`]
+    },
+  )
+
+  // P8.1 — workout_sessions.exercises is jsonb (no FK can hold it): every element must be an object
+  // { exercise_id, sets } whose exercise_id resolves to hygieia.exercises.id, and every set an object
+  // { reps: number, weight_kg: number|null, rpe: number|null, done: boolean }. Runs over every row
+  // the gate sees (the fixture's; per-user data has no seed).
+  await guarded(
+    'workout_sessions: every jsonb exercise references an existing exercises id and has the set shape',
+    async () => {
+      const bad = (
+        await q(
+          `select s.id, e.n::int as n
+             from hygieia.workout_sessions s
+             cross join lateral jsonb_array_elements(s.exercises) with ordinality as e(ex, n)
+            where jsonb_typeof(e.ex) <> 'object'
+               or not (e.ex ?& array['exercise_id', 'sets'])
+               or jsonb_typeof(e.ex -> 'sets') <> 'array'
+               or not exists (select 1 from hygieia.exercises x where x.id::text = e.ex ->> 'exercise_id')
+               or exists (
+                 select 1 from jsonb_array_elements(
+                   case when jsonb_typeof(e.ex -> 'sets') = 'array' then e.ex -> 'sets' else '[]'::jsonb end
+                 ) st
+                  where jsonb_typeof(st) <> 'object'
+                     or not (st ?& array['reps', 'weight_kg', 'rpe', 'done'])
+                     or jsonb_typeof(st -> 'reps') <> 'number'
+                     or jsonb_typeof(st -> 'weight_kg') not in ('number', 'null')
+                     or jsonb_typeof(st -> 'rpe') not in ('number', 'null')
+                     or jsonb_typeof(st -> 'done') <> 'boolean')
+            order by 1, 2`,
+        )
+      ).rows.map((x) => `${x.id}#${x.n}`)
+      const total = Number(
+        (
+          await q(
+            `select count(*)::int as n from hygieia.workout_sessions s
+              cross join lateral jsonb_array_elements(s.exercises)`,
+          )
+        ).rows[0].n,
+      )
+      return [total > 0 && bad.length === 0, bad.length ? list(bad) : `${total} exercises clean`]
     },
   )
 

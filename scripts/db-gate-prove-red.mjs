@@ -117,9 +117,18 @@ create policy recipe_ingredients_select_anon on hygieia.recipe_ingredients
     what: 'alter table hygieia.favourites disable row level security',
     sql: `alter table hygieia.favourites disable row level security;`,
     expect: [
-      /^FAIL {2}RLS is enabled on every hygieia table \(17\) — favourites$/,
+      /^FAIL {2}RLS is enabled on every hygieia table \(22\) — favourites$/,
       /^FAIL {2}hygieia\.favourites: UB reads ZERO rows of A — 1 rows$/,
     ],
+  },
+  {
+    // P8.1: the policy keeps its name and verb but loses the owner filter — the shape a careless
+    // "fix" would take; only the isolation probe sees it.
+    id: 'entries-policy-missing-user-filter',
+    what: "entries SELECT policy rewritten without the user_id filter (using (true)): UB reads A's entries",
+    sql: `drop policy if exists entries_select_own on hygieia.entries;
+create policy entries_select_own on hygieia.entries for select to authenticated using (true);`,
+    expect: [/^FAIL {2}hygieia\.entries: UB reads ZERO rows of A — 1 rows$/],
   },
 
   // --- admin primitives -------------------------------------------------------------------------
@@ -260,8 +269,8 @@ revoke execute on function hygieia.leak_fn() from public, anon;`,
     what: 'a new table hygieia.orphan_table with no catalogue entry (and no RLS)',
     sql: `create table if not exists hygieia.orphan_table (id int);`,
     expect: [
-      /^FAIL {2}every hygieia table has a catalogue entry \(18\) — NO ENTRY: orphan_table — add it to scripts\/db-gate\/catalogue\.mjs$/,
-      /^FAIL {2}RLS is enabled on every hygieia table \(18\) — orphan_table$/,
+      /^FAIL {2}every hygieia table has a catalogue entry \(23\) — NO ENTRY: orphan_table — add it to scripts\/db-gate\/catalogue\.mjs$/,
+      /^FAIL {2}RLS is enabled on every hygieia table \(23\) — orphan_table$/,
     ],
   },
   {

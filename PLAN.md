@@ -948,3 +948,85 @@ seed → ContentSource → page), gated like every other phase (ADR-0005 cadence
 - **Depends on:** P7.QA (VALIDATED). **Rubric:** CLAUDE.md §6.
 
 ### CHECKPOINT P7 — surface summary to human, wait for gate approval
+
+## P8 Profile (operator request 2026-10-06)
+
+Operator, verbatim: _"profile page, which tracks our data and achievements / entries … like save favorites"_ — and, mid-task:
+_"Set up workout plans - register progress etc. Modern"_. Per-user data on the proven P2.4 pattern (user-data spine → page), gated
+like every other phase (ADR-0005 cadence: QA + review after merge).
+
+**Data model (schema `hygieia`, migration `20261006001300_hygieia_profile.sql`, forward-only; enums + types in `src/user/source.ts`,
+the VERBATIM contract P8.2 / P8.3 build against):**
+
+- `entries` — `id`, `kind` ∈ `ENTRY_KINDS` weight | meal | workout | water | sleep | steps | skincare | nails | mood, `entry_date` (default
+  today), `value numeric ≥ 0 | null`, `unit` ∈ `ENTRY_UNITS` kg | kcal | min | ml | h | steps | score | null, `payload jsonb | null` (free
+  detail: `{ recipe_id }`, `{ workout_template_id }`, `{ routine_slug }`), `note ≤ 500 | null`. Index `(user_id, entry_date desc,
+  created_at desc)`. **Achievements and streaks are computed client-side from entries, never stored.**
+- `goals` — PK `(user_id, kind)`, `kind` ∈ `GOAL_KINDS` water | sleep | workout | steps | weight | skincare, `target > 0`, `unit`,
+  `cadence` daily | weekly. Upserted (`onConflict: 'user_id,kind'`).
+- `saved_items` — PK `(user_id, kind, item_id)`, `kind` ∈ `SAVED_ITEM_KINDS` workout | skincare_routine | health_tip | skincare_tip |
+  diet. **Polymorphic on purpose (no FK)**; recipes keep the existing `favourites` table.
+- `workout_plans` — `template_id` → `workout_templates` (RESTRICT), `name` 1–80, `weeks` 1–12, `days_per_week` 1–7, `start_date`
+  (default today), `status` active | completed | abandoned (default active). Index `(user_id, status)`.
+- `workout_sessions` — `plan_id` → `workout_plans` (SET NULL), `template_id` → `workout_templates` (SET NULL), `performed_at` (default
+  today), `duration_min` 1–600 | null, `exercises jsonb` = array of 1–40 `{ exercise_id: uuid, sets: [{ reps: int ≥ 0, weight_kg:
+  number | null ≥ 0, rpe: number | null 1..10, done: boolean }] }` (validated client-side on read; the gate's jsonb scan proves
+  `exercise_id` resolves), `note ≤ 500 | null`. Index `(user_id, performed_at desc)`.
+- Same RLS / grant discipline as `fridge_lists`: `user_id default auth.uid()`, one policy per verb `to authenticated` with
+  `user_id = auth.uid()`, INSERT/UPDATE column grants exclude `user_id`, nothing to anon, service_role DML, touch triggers.
+- `UserDataSource` (`src/user/source.ts`): `listEntries(range?) / addEntry / deleteEntry / listGoals / upsertGoal / listSavedItems /
+  saveItem / unsaveItem / listWorkoutPlans / createWorkoutPlan / setWorkoutPlanStatus / listWorkoutSessions(range?) / addWorkoutSession /
+  deleteWorkoutSession`, all `Result<T>`; `disabledSource` answers `fail('disabled')`; the test double is `fakeClient()`
+  (`src/auth/fake-client.ts`, records `range` / `order` / `options`, simulates the column defaults).
+
+### P8.1 User-data spine — DONE 2026-10-06 (lane `wt/a`)
+
+- **Files:** `supabase/migrations/20261006001300_hygieia_profile.sql`, `src/user/{source,supabase,disabled}.ts` + `source.test.ts`,
+  `src/content/{enums,db-types}.ts` (+ `types.test.ts` pin), `src/auth/fake-client.ts` (+ `unusedProfileMethods` spread in the
+  `AccountPage` / `FridgePage` / `PlanView` tests), `scripts/db-gate/catalogue.mjs` (5 user entries, fixture, 6 enum rows from
+  `source.ts`), `scripts/db-gate.mjs` (sessions jsonb scan; review-shape predicate), `scripts/db-gate-prove-red.mjs` (counts 22 / 23,
+  +1 sabotage), `scripts/db-schema-contract.test.ts`, `scripts/db-isolation.test.ts` (wording), `docs/ops/migrations.md`.
+- **Acceptance (met):** lint 0 errors · typecheck · `npm test` 3456 / 69 · `db:check` 13 · `db:gate` 357 · prove-red 28/28 · build +
+  `check:bundle` OK. BUILD_LOG entry of the same date has the detail and the two gate-forced deviations.
+
+### P8.2 `/profile` page (agent: builder) ∥ with P8.1 review
+
+- **Files:** `src/profile/{ProfilePage.tsx, …}` + tests, `src/routes/routes.tsx` (lazy `/profile` under `RequireAuth`),
+  `e2e/support/routes.ts` (a11y matrix + Lighthouse cell), `src/i18n/features/profile.ts` (+ `features/index.ts`), account menu /
+  header link, `e2e/local/profile.spec.ts`.
+- **Approach:** read through `useUserData()` (P2.4 pattern, `useAsync` + `AsyncState`); sections — quick log (water, weight, sleep,
+  steps, mood → `addEntry`) + today's entries, goals with progress against entries per cadence (`upsertGoal`), achievements / streaks
+  as pure functions over `listEntries()` (never stored), saved items resolved against `contentSource` by kind ("no longer available"
+  when the row is hidden / rejected), favourites (recipes, existing table), recent workout sessions summary. Disabled source →
+  `SignedOutNote`. Both languages, type-checked.
+- **Acceptance:** route in `routes.tsx` AND `e2e/support/routes.ts`; unit tests for the pure computations (streaks, goal progress,
+  achievement rules) and the page states (loading / error / empty / disabled); e2e: signed-out note, a11y cells green; Lighthouse cold
+  ≥ 85 / 90 / 90 on `/profile`; `G0` green. **Depends on:** P8.1.
+
+### P8.3 Workout plans UI (agent: builder)
+
+- **Route under `/workouts`** (e.g. `/workouts/plans`, lazy, `RequireAuth`): plan builder from a `workout_templates` row (name, weeks
+  1–12, days / week 1–7, start date → `createWorkoutPlan`); session logger with sets / reps / weight / RPE / done per exercise, pre-filled
+  from the template's `workout_template_exercises` (→ `addWorkoutSession`); progress (sessions this week vs `days_per_week`, completion
+  %, mark completed / abandoned → `setWorkoutPlanStatus`); PRs (best weight × reps per exercise) computed client-side from
+  `listWorkoutSessions()`. Modern, touch-first controls; both languages.
+- **Acceptance:** unit tests through `fakeClient()` (payload shapes, no `user_id`); e2e both languages; a11y + Lighthouse cells; the
+  route in both lists; `G0` green. **Depends on:** P8.1.
+
+### P8.4 Live apply (OPERATOR)
+
+- `npm run db:apply` (dry-run, then `-- --apply`) for `20261006001300` from the operator's shell (`docs/ops/migrations.md`);
+  `db:live-check` ledger 13/13. Not a crew task.
+
+### P8.QA — QA & Validation (agent: qa)
+
+- Fresh clone: `G0` + `db:check` (13) + `db:gate` (357, every P8.1 check present) + `prove-red` (28/28 incl.
+  `entries-policy-missing-user-filter`) + e2e both projects + `check:lighthouse` with `/profile`; isolation: two users through the gate
+  AND (after P8.4) through the live REST (`Accept-Profile: hygieia`) — user B reads 0 rows of A on all five tables, a write naming
+  `user_id` is `permission denied`; the `/profile` page shows the sign-in note when signed out and never a spinner.
+
+### P8.REVIEW — Quality review (agent: reviewer)
+
+- **Depends on:** P8.QA (VALIDATED). **Rubric:** CLAUDE.md §6.
+
+### CHECKPOINT P8 — surface summary to human, wait for gate approval

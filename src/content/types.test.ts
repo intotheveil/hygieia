@@ -107,7 +107,16 @@ describe('table catalogue', () => {
       'recipe_diets',
       'workout_template_exercises',
     ])
-    expect(USER_TABLES).toEqual(['fridge_lists', 'saved_plans', 'favourites'])
+    expect(USER_TABLES).toEqual([
+      'fridge_lists',
+      'saved_plans',
+      'favourites',
+      'entries',
+      'goals',
+      'saved_items',
+      'workout_plans',
+      'workout_sessions',
+    ])
     const all = [...CONTENT_TABLES, ...CHILD_TABLES, ...USER_TABLES]
     expect(new Set(all).size).toBe(all.length)
   })

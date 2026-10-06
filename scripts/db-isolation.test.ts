@@ -58,7 +58,7 @@ afterAll(async () => {
 })
 
 describe('the tenant tables of §3.2', () => {
-  it('are the three USER_TABLES plus profiles, each RLS-enabled', async () => {
+  it('are the USER_TABLES plus profiles, each RLS-enabled', async () => {
     expect(TENANT_ENTRIES.map((e) => e.table).sort()).toEqual([...USER_TABLES, 'profiles'].sort())
     const rls = await db.query<{ relname: string; on: boolean }>(
       `select c.relname, c.relrowsecurity as "on" from pg_class c
@@ -93,7 +93,7 @@ describe('the tenant tables of §3.2', () => {
 })
 
 // The per-kind checks, one Vitest case each. The names come from the catalogue, so a new check
-// added there is a new case here without editing this file. `user`: 12 checks × 3 tables;
+// added there is a new case here without editing this file. `user`: 12 checks × 8 tables;
 // `profiles`: 12 checks. The fixture is UA/UB/ADMIN/NEW from the catalogue (U).
 describe.each(TENANT_ENTRIES.map((e) => [e.table, e.kind] as const))('hygieia.%s (%s)', (table) => {
   // The list is read lazily (built in beforeAll); the number of cases per kind is pinned here so
