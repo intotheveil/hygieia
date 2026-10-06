@@ -3,6 +3,43 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+### FIX — fridge list rename uses UPDATE, not an upsert that needs an id grant — 2026-10-06 — DONE
+
+- **Finding (P8.1 lane):** `fridgeLists.save({ id, … })` sent `upsert({ id, name, ingredient_slugs })` → PostgREST
+  `insert (id, …) … on conflict (id) do update set id = excluded.id, …`; `20261006000400` grants authenticated only
+  `insert (name, ingredient_slugs), update (name, ingredient_slugs)`, so every rename/update of an existing list in configured mode was
+  `permission denied for table fridge_lists` (now reproduced by the gate, see below). Create (no `id`) was unaffected.
+- **Fix, client only (no migration — grants stay minimal):** `src/user/supabase.ts` adapter `fridgeLists` is now `insert(values)` /
+  `update(id, values)` (`update(values).eq('id', id).select(FRIDGE_LIST_COLUMNS).single()`) instead of `upsert`; the payload type is
+  `FridgeListValues = Omit<FridgeListInput, 'id'>`, so neither path can carry `id` or `user_id`. RLS still scopes the UPDATE to the
+  caller's own row; an id that is not the caller's yields 0 rows → `.single()` error → `unknown`. Doc comment on `FridgeListInput`
+  (`src/user/source.ts`) corrected (it said "Upsert").
+- **Grant audit — every client write in `src/user/supabase.ts` vs `20261006000400` + `20261006001300`:**
+  fridge_lists insert {name, ingredient_slugs} OK · fridge_lists update {name, ingredient_slugs} WHERE id OK (was BROKEN: upsert with id) ·
+  saved_plans insert {diet_id, week_start, plan} OK · favourites insert {recipe_id} OK · entries insert ⊆ {kind, entry_date, value, unit,
+  payload, note} OK · goals upsert {kind, target, unit, cadence} on (user_id, kind) OK — INSERT cols granted, the DO UPDATE sets all four
+  and `update (kind, target, unit, cadence)` covers them; the conflict target needs SELECT (table-level, granted) · saved_items insert
+  {kind, item_id} OK · workout_plans insert ⊆ {template_id, name, weeks, days_per_week, start_date} OK and update {status} WHERE id OK ·
+  workout_sessions insert ⊆ {plan_id, template_id, performed_at, duration_min, exercises, note} OK · deletes: table-level DELETE OK.
+  `goals` is now the ONLY upsert left, and it is gate-proven.
+- **Tests:** `src/user/source.test.ts` fridge-list case rewritten: create = `insert` with exactly `{name, ingredient_slugs}` and no filter;
+  rename = `update` with exactly `{name, ingredient_slugs}` filtered `[['id','fl-9']]`, parsed result carries the id; no call is an
+  `upsert`. **RED-check:** with `HEAD:src/user/supabase.ts` restored the case fails (`expected [ [ 'upsert', … ] ] to deeply equal
+  [ [ 'insert', … ] ]`, 1 failed / 31 passed); fixed code 32/32.
+- **db:gate:** optional `UserEntry.clientWrites` in `scripts/db-gate/catalogue.mjs` — the exact statements the client sends, run as UA
+  against the real grants (`lands`: takes effect, exactly one row of A matches, none of B; `refused`: denied, A unchanged). fridge_lists:
+  "client rename — UA renames its own list via UPDATE … WHERE id (name, ingredient_slugs only)" (lands) and "an upsert carrying id (on
+  conflict (id) do update set id = …) is refused — the client never sends one" (refused — its PASS detail is literally
+  `permission denied for table fridge_lists`, the production failure). goals: "client upsert — UA replaces its own goal on conflict
+  (user_id, kind), setting every payload column" (lands). Names pinned in `scripts/db-isolation.test.ts` (appended per table from the
+  catalogue's `clientWrites`). **prove-red** +3 sabotages, each RED on its exact line: `fridge-lists-no-update-slugs` (revoke update
+  (ingredient_slugs)), `fridge-lists-grant-id` (grant insert/update (id) → the refused check sees `{"ok":true,"affected":1}`),
+  `goals-no-update-kind` (revoke update (kind)).
+- **Verify:** lint 0 errors (23 warnings, identical to baseline) · typecheck clean · **tests 3684 passed (81 files)** · `db:gate` GATE PASSED
+  **360 checks** · `db:gate:prove-red` **31/31** RED on the expected line, control GREEN. No migration; no live apply needed.
+- **Files:** `src/user/supabase.ts`, `src/user/source.ts` (doc comment), `src/user/source.test.ts`, `scripts/db-gate/catalogue.mjs`,
+  `scripts/db-isolation.test.ts`, `scripts/db-gate-prove-red.mjs`; records.
+
 ### THEMES+ — rose and lavender — 2026-10-06 — DONE
 
 - **Operator:** "my wife advised: one-two girly themes, you improvise". Two light skins added the same way as dark/athletic/gamer

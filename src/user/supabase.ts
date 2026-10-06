@@ -79,11 +79,20 @@ export interface QueryResult {
 /** A workout session as written: the exercises already normalised to plain JSON. */
 export type WorkoutSessionValues = Omit<WorkoutSessionInput, 'exercises'> & { exercises: Json }
 
+/**
+ * A fridge list as written: never `id` or `user_id`. The authenticated grants are column-limited to
+ * `insert (name, ingredient_slugs), update (name, ingredient_slugs)`, so a rename is an UPDATE
+ * filtered by id — an upsert carrying `id` would need INSERT on `id` and an `on conflict (id) do
+ * update set id = …` UPDATE on it, and is refused with permission denied.
+ */
+export type FridgeListValues = Omit<FridgeListInput, 'id'>
+
 /** The slice of the client this module uses — one entry per table, one method per operation. */
 export interface UserDataClient {
   fridgeLists: {
     list(): PromiseLike<QueryResult>
-    upsert(values: FridgeListInput): PromiseLike<QueryResult>
+    insert(values: FridgeListValues): PromiseLike<QueryResult>
+    update(id: string, values: FridgeListValues): PromiseLike<QueryResult>
     remove(id: string): PromiseLike<QueryResult>
   }
   savedPlans: {
@@ -141,8 +150,10 @@ export function userDataClientFor(client: HygieiaClient): UserDataClient {
           .from(fridgeLists)
           .select(FRIDGE_LIST_COLUMNS)
           .order('updated_at', { ascending: false }),
-      upsert: (values) =>
-        client.from(fridgeLists).upsert(values).select(FRIDGE_LIST_COLUMNS).single(),
+      insert: (values) =>
+        client.from(fridgeLists).insert(values).select(FRIDGE_LIST_COLUMNS).single(),
+      update: (id, values) =>
+        client.from(fridgeLists).update(values).eq('id', id).select(FRIDGE_LIST_COLUMNS).single(),
       remove: (id) => client.from(fridgeLists).delete().eq('id', id),
     },
     savedPlans: {
@@ -485,12 +496,20 @@ export function supabaseSource(client: UserDataClient, userId: string): UserData
     fridgeLists: {
       list: () => run(client.fridgeLists.list, listOf(toFridgeList)),
       save: (input) => {
-        // Omit `id` entirely when absent so the row default (gen_random_uuid) applies.
-        const values: FridgeListInput =
-          input.id === undefined
-            ? { name: input.name, ingredient_slugs: input.ingredient_slugs }
-            : { id: input.id, name: input.name, ingredient_slugs: input.ingredient_slugs }
-        return run(() => client.fridgeLists.upsert(values), toFridgeList)
+        // Create = INSERT (the row default gen_random_uuid supplies `id`); rename/update = UPDATE …
+        // WHERE id. Neither payload carries `id` or `user_id` — both are outside the grants.
+        const values: FridgeListValues = {
+          name: input.name,
+          ingredient_slugs: input.ingredient_slugs,
+        }
+        const { id } = input
+        return run(
+          () =>
+            id === undefined
+              ? client.fridgeLists.insert(values)
+              : client.fridgeLists.update(id, values),
+          toFridgeList,
+        )
       },
       remove: (id) => run(() => client.fridgeLists.remove(id), nothing),
     },
