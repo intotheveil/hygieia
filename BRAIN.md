@@ -7,7 +7,7 @@
 
 **Last updated:** 2026-10-06 (morning after) by the lead (Claude Code, Fable 5.1) — **CONFIGURED MODE LIVE**: O1 verified, content
 approved, OP2.c variables set, deploy run 37436089418 green, `smoke:live` 16/16 incl. backend probes; previous: same day (night), P5/P6 PASS + CHECKPOINT.
-**Status:** built — P1–P6 on `main` (`b82d024`, CI run 37420337752 green + deployed); P1/P2 and P3/P4 QA VALIDATED + REVIEW PASS;
+**Status:** built — P1–P6 + four cosmetic themes on `main` (`b18f56d`, CI run 37441451272 green + deployed); P1/P2 and P3/P4 QA VALIDATED + REVIEW PASS;
 P5/P6 QA VALIDATED (cold gate, re-run) + REVIEW PASS (flip, 2026-10-06). **Every §9 phase is claimed; the crew is stopped at CHECKPOINT P5/P6
 (BUILD_LOG top) waiting for the operator chain O1 → OP2 → OP4.b → OP2.c/OP6.a.** **The full app is live on Pages in CONFIGURED mode** since run 37436089418 (2026-10-06): approved content from
 schema `hygieia`, sign-in in the account menu, no draft ribbon; `smoke:live` 16/16 incl. backend probes (earlier: local-only from
@@ -146,8 +146,9 @@ pending|approved|rejected` stamped by `stamp_review()` BEFORE UPDATE · per-user
 
 ## 3. CURRENT STATE (what's true RIGHT NOW — the thing a resuming session reads)
 
-- **Built on `main` `a9efff9` (2026-10-06), every local gate green:** lint 0 errors (21 pre-existing `react-refresh` warnings) ·
-  typecheck clean · **tests 3206** (63 files) · **e2e 66** (57 local incl. 24 a11y cells + 9 dead-backend) · `db:check` 10 files ·
+- **Built on `main` `b18f56d` (2026-10-06, themes merged; CI run 37441451272 green + deployed), every local gate green:** lint 0 errors
+  (23 pre-existing `react-refresh` warnings) · typecheck clean · **tests 3229** (66 files) · **e2e 74** (65 local incl. 24 a11y language
+  cells + 8 theme cells; 9 dead-backend) · `db:check` 10 files ·
   **`db:gate` 227** · **prove-red 25/25** · `seed:check` OK · `check:bundle` OK · `check:pwa` OK · **`check:lighthouse` cold
   85/90/90 (ADR-0006) deterministic: three consecutive runs 36/36 cells within ±1**, perf 87–94 locally, 86–94 on the GitHub runner
   (1-point margin on `recipes` / `recipe` / `diet`; 90 stays the recorded target). Entry chunk 235 kB / 74 kB gzip.
