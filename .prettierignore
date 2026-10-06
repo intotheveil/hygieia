@@ -4,3 +4,5 @@ node_modules
 package-lock.json
 .claude
 BRAIN.md
+BUILD_LOG.md
+DECISIONS.md
