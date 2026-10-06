@@ -138,6 +138,12 @@ pending|approved|rejected` stamped by `stamp_review()` BEFORE UPDATE · per-user
   reconciles `BRAIN.md`. Crew kit: 7 hooks + 7 agents from `zeus/.zeus/kit/`; `.claude/.no-greek-scan` present (Greek copy is content).
   Brand: `public/favicon.svg`, `public/brand/*` (ComfyUI renders; hero as `<picture>` WebP 800w/1216w + JPEG).
 
+- **Themes (2026-10-06, operator request):** four cosmetic skins — `default` (kitchen), `dark`, `athletic`, `gamer` — in
+  `src/theme/` (`themes.ts`, `ThemeProvider.tsx`) + `html[data-theme]` blocks in `src/index.css` that RE-MAP the same colour
+  variables; switcher in the header (`ThemeSwitch`, native select); localStorage `hygieia:theme`, pre-paint script in `index.html`;
+  per-theme hero set in `public/brand/hero-<theme>*` picked by `src/App.tsx`; a11y matrix has a theme axis (home + recipes × 4).
+  Adding a theme = one CSS block + one `THEME_COLOR` entry + one dictionary row + one hero set (`npm run brand`).
+
 ## 3. CURRENT STATE (what's true RIGHT NOW — the thing a resuming session reads)
 
 - **Built on `main` `a9efff9` (2026-10-06), every local gate green:** lint 0 errors (21 pre-existing `react-refresh` warnings) ·
@@ -325,6 +331,13 @@ table (14)` is right; P1.QA.2's `(13)` is the typo.
 - **`page.route('**/sw.js', r => r.abort())` does NOT block a service worker in Playwright/Chromium (2026-10-06, review fix 2).** The SW script is fetched outside page interception, so that sabotage stays GREEN and proves nothing. The only valid "no SW" sabotage is `test.use({ serviceWorkers: 'block' })` — then the offline spec fails at step 1 (no controller), as it should. Treat any earlier "blocked sw.js → test went red" claim with suspicion unless it says how.
 
 ## 6. CHANGELOG (append-only — what happened, newest first)
+
+### 2026-10-06 (day) — four cosmetic themes + per-theme hero images (lane `wt/b`; BUILD_LOG `P4.x THEMES`)
+
+- Did: Dark / Athletic / Gamer skins re-mapping the colour variables, header switcher, persistence + pre-paint, per-theme hero sets
+  rendered on the operator's ComfyUI, a11y theme axis (zero axe violations on all four), unit + e2e green. Builder lane was cut by the usage
+  limit mid-verification; the lead finished (CSS-read fix in its test, CRLF regex, fridge locator scope, hero wiring, brand pipeline).
+- Decided: variables re-mapped, not parallel palettes (DECISIONS 2026-10-06 Themes); precache growth accepted for offline parity.
 
 ### 2026-10-06 (late) — seeds LIVE (10/10), P5/P6 QA VALIDATED on the cold gate, full app DEPLOYED local-only (lead, Fable 5.1)
 

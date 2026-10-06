@@ -27,6 +27,16 @@
     <meta property="og:image:height" content="640" />
     <meta name="twitter:card" content="summary_large_image" />
     <title>Hygieia · Υγίεια</title>
+    <!-- Pre-paint theme (src/theme): read the stored choice (key mirrors THEME_STORAGE_KEY) and set
+         `data-theme` BEFORE the stylesheet paints, so a returning visitor never sees a flash of the
+         default palette. Nothing stored → the OS dark preference → `dark`. No network, no secrets. -->
+    <script>
+      try {
+        var t = localStorage.getItem('hygieia:theme')
+        if (!t && matchMedia('(prefers-color-scheme: dark)').matches) t = 'dark'
+        if (t === 'dark' || t === 'athletic' || t === 'gamer') document.documentElement.dataset.theme = t
+      } catch (e) {}
+    </script>
     <!-- Fonts are self-hosted (src/index.css); no third-party stylesheet on the first-paint path. -->
     <!-- No <link rel="preload"> for the home hero (PLAN P5.3, measured 2026-10-06): this document is
          shared by every route, so a preload downloads a 42 kB image on pages that never show it

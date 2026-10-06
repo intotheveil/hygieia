@@ -3,6 +3,33 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+### P4.x THEMES — four cosmetic themes + per-theme hero (operator request) — 2026-10-06 — DONE (builder lane `wt/b`, finished by the lead after the builder hit the usage limit)
+
+- **Operator:** "can you make/add 3 more themes? just cosmetics like: Dark mode // Athletic Mode // Gamer's Mode" … "unless you want to
+  make other changes and graphics ;)".
+- **What:** `src/theme/themes.ts` (`THEMES = default | dark | athletic | gamer`, `THEME_COLOR`, `initialTheme`), `src/theme/ThemeProvider.tsx`
+  (owns `<html data-theme>`, `<meta theme-color>`, localStorage `hygieia:theme`, OS dark preference only when nothing is stored), a
+  pre-paint script in `index.html` (no flash for returning visitors), `ThemeSwitch` (native `<select>`) in the header pill next to the
+  language button, dictionary module `src/i18n/features/theme.ts` (labels + per-theme hero alt, el/en). **CSS:** the three skins RE-MAP the
+  same four colour families under `html[data-theme=…]` in `src/index.css` — `paper` surfaces, `olive` ink, `sage` primary, `clay`
+  secondary — so no component knows about themes; per-skin `color-scheme`, washes and `::selection`; gamer adds a focus-ring glow only.
+- **Graphics:** one hero set per theme, rendered on the operator's ComfyUI (RealVisXL V5, 1216×640): dark = salmon on slate, athletic =
+  meal-prep box on a grey towel, gamer = top-down neon desk mat (two gamer renders were rejected for showing a monitor with a brand mark).
+  `scripts/brand.mjs` now derives `-sm.jpg` / `-800.webp` / `-1216.webp` for all four masters; `src/App.tsx` requests only the chosen
+  set (LCP budget unchanged); per-theme `alt`. Precache grew 69 → 93 entries (2.85 MiB) because the SW precaches every set.
+- **Contrast (WCAG relative luminance, measured by script; text shades vs `paper-100` page / `paper-50` card):** dark — ink 14.3 / 12.7 ·
+  `olive-700` 8.7 / 7.7 · `sage-700` 10.8 / 9.5 · `clay-700` 8.8 / 7.8 · `clay-500` (tint/border) 6.4 — athletic — ink 17.1 / 18.5 · `olive-700`
+  9.0 / 9.7 · `sage-700` 6.8 / 7.4 · `clay-700` 5.3 / 5.7 · `clay-500` (tint/border) 3.2 · `sage-500` (UI) 4.3 — gamer — ink 15.6 / 14.6 ·
+  `olive-700` 10.0 / 9.3 · `sage-700` 13.2 / 12.4 · `clay-700` 8.6 / 8.0 · `clay-500` 5.0. Every text pair ≥ 4.5:1, every UI pair ≥ 3:1.
+  axe confirms: zero violations incl. color-contrast on `/` and `/recipes` for all four themes (a11y matrix theme axis).
+- **Verified (worktree):** lint 0 errors · typecheck clean (app + e2e) · **unit 3229 tests / 66 files** (ThemeProvider: default,
+  stored, invalid → fallback, persistence, OS preference only when unstored; themes ↔ CSS pins) · build (entry 237 kB / 74 kB gzip) ·
+  check:pwa OK · check:bundle OK · **e2e 74 passed** (local 65 incl. a11y 24 lang cells + 8 theme cells; dead-backend 9) · four
+  production screenshots sent to the operator (`e2e/support/theme-shots.mjs`).
+- **Found on the way:** (1) the lane's `themes.test.ts` imported `index.css?raw` — under vitest the Tailwind plugin still transforms it and
+  the `@theme` block vanishes → read from disk; (2) its regex was CRLF-blind (`\n}`) → `\r?\n}`; (3) the fridge spec's bare
+  `getByRole('combobox')` now matched the theme select too → scoped to `<main>`.
+
 ### OPERATOR-P1/P2 close-out — O1 verified, OP2.c set, CONFIGURED MODE LIVE — 2026-10-06 (morning, after the night)
 
 - **O1 (Data API exposure) VERIFIED:** the operator's screenshot showed `hygieia` ticked ("3 of 3 schemas exposed") with the Save button

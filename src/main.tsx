@@ -6,6 +6,7 @@ import { AuthProvider } from './auth/AuthProvider'
 import { LangProvider } from './i18n/LangProvider'
 import { AppRoutes, basenameFrom } from './routes/routes'
 import { startTelemetry } from './telemetry'
+import { ThemeProvider } from './theme/ThemeProvider'
 
 // Fleet telemetry first, before anything renders, so a failure during the first paint is caught.
 // A no-op unless all three VITE_FLEET_* names are set (src/telemetry.ts); never throws.
@@ -17,11 +18,13 @@ startTelemetry()
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <LangProvider>
-      <AuthProvider>
-        <BrowserRouter basename={basenameFrom(import.meta.env.BASE_URL)}>
-          <AppRoutes />
-        </BrowserRouter>
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <BrowserRouter basename={basenameFrom(import.meta.env.BASE_URL)}>
+            <AppRoutes />
+          </BrowserRouter>
+        </AuthProvider>
+      </ThemeProvider>
     </LangProvider>
   </StrictMode>,
 )
