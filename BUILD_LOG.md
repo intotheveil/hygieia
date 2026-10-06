@@ -3,6 +3,24 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+### OPERATOR-P1/P2 close-out — O1 verified, OP2.c set, CONFIGURED MODE LIVE — 2026-10-06 (morning, after the night)
+
+- **O1 (Data API exposure) VERIFIED:** the operator's screenshot showed `hygieia` ticked ("3 of 3 schemas exposed") with the Save button
+  still lit; after saving, anon REST with `Accept-Profile: hygieia` returned approved recipe rows. **Isolation through the live API
+  (anon):** pending tips → `[]` · approved tips count 58 (content-range 0-0/58) · `profiles` → `[]` · blind `POST health_tips` → 401
+  `42501 new row violates row-level security policy`. Same picture the PGlite gate predicted.
+- **OP2.c DONE:** repository variables `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` set with `gh variable set` (public values by
+  design — README → Deploy). `gh workflow run deploy.yml --ref main` → **run 37436089418: both jobs success**; the configured build hashed
+  `index-CamdacCW.js` (the local-only build of the same commit is `index-w_FjhxYD.js`) and that is what Pages now serves.
+- **`smoke:live` with the two names in the shell → SMOKE PASSED, 16 probes** (13 HTTP + 3 backend): `approved rows: 1`, pending `[]`,
+  profiles `[]`. **Hygieia is live in CONFIGURED mode: approved content from the `hygieia` schema, no draft ribbon, sign-in in the
+  account menu.**
+- **Operator also added** Authentication → URL Configuration → Redirect URL `https://intotheveil.github.io/hygieia/auth/callback`
+  (OP2.a's redirect half). Still open: OP2.b admin flag after the operator's first sign-in (`docs/ops/admin.md`) · 17 unsourced tips
+  pending in `/admin` · OP6.a fleet telemetry trio · Google provider (optional) · O2 (Alyssos's call).
+- Operator-side QA now runnable: P6.QA.2 is DONE by this smoke (backend probes with rows); P2.QA.3b/4b/5/6, P4.QA.5, P6.QA.3/4 remain
+  NOT RUN (need a signed-in session / OP6.a).
+
 ### OPERATOR-P4 / OP4.b — content APPROVED on the operator's instruction — 2026-10-06 (night)
 
 - **Operator:** "i approve..." (after reporting O1 done and a failed sign-in link). The admin page could not be used: no sign-in has

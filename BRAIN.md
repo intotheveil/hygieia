@@ -5,12 +5,13 @@
 > intent; rewritten 2026-10-06 to the P1–P6 state (P1/P2 review item 1). Genuine unknowns are
 > marked **❓ needs human input**.
 
-**Last updated:** 2026-10-06 (night) by the lead (Claude Code, Fable 5.1) — P6.5 release notes DONE, offline spec proves content routes,
-P5/P6 re-review on records; previous: same day (late), seeds LIVE + P5/P6 QA VALIDATED + full app deployed.
+**Last updated:** 2026-10-06 (morning after) by the lead (Claude Code, Fable 5.1) — **CONFIGURED MODE LIVE**: O1 verified, content
+approved, OP2.c variables set, deploy run 37436089418 green, `smoke:live` 16/16 incl. backend probes; previous: same day (night), P5/P6 PASS + CHECKPOINT.
 **Status:** built — P1–P6 on `main` (`b82d024`, CI run 37420337752 green + deployed); P1/P2 and P3/P4 QA VALIDATED + REVIEW PASS;
 P5/P6 QA VALIDATED (cold gate, re-run) + REVIEW PASS (flip, 2026-10-06). **Every §9 phase is claimed; the crew is stopped at CHECKPOINT P5/P6
-(BUILD_LOG top) waiting for the operator chain O1 → OP2 → OP4.b → OP2.c/OP6.a.** The full app is live on Pages in local-only mode (first
-deployed from `a9efff9` by CI run 37416889242, now `b82d024` by 37420337752; `smoke:live` 13/13).
+(BUILD_LOG top) waiting for the operator chain O1 → OP2 → OP4.b → OP2.c/OP6.a.** **The full app is live on Pages in CONFIGURED mode** since run 37436089418 (2026-10-06): approved content from
+schema `hygieia`, sign-in in the account menu, no draft ribbon; `smoke:live` 16/16 incl. backend probes (earlier: local-only from
+`a9efff9`/37416889242 and `b82d024`/37420337752).
 **Repo:** `intotheveil/hygieia` (public) · `D:\projects\hygieia` (lane worktrees `D:\projects\hygieia-wt\a..g`, branches `wt/a..g`) ·
 **Deployed:** https://intotheveil.github.io/hygieia/ (GitHub Pages, from `main` via CI — the FULL APP since 2026-10-06, local-only mode until the operator steps in §3)
 
@@ -144,27 +145,24 @@ pending|approved|rejected` stamped by `stamp_review()` BEFORE UPDATE · per-user
   **`db:gate` 227** · **prove-red 25/25** · `seed:check` OK · `check:bundle` OK · `check:pwa` OK · **`check:lighthouse` cold
   85/90/90 (ADR-0006) deterministic: three consecutive runs 36/36 cells within ±1**, perf 87–94 locally, 86–94 on the GitHub runner
   (1-point margin on `recipes` / `recipe` / `diet`; 90 stays the recorded target). Entry chunk 235 kB / 74 kB gzip.
-- **DEPLOYED — the FULL APP is live at https://intotheveil.github.io/hygieia/ in LOCAL-ONLY mode** (CI run 37416889242 on
-  `a9efff9`, both jobs green; `smoke:live` 13/13; entry `index-w_FjhxYD.js`): bundled draft content with the draft ribbon, no sign-in,
-  nothing sent anywhere. It flips to configured mode on the first `main` push after OP2.c sets the two repository variables —
-  deliberately HELD until the content is approved (O1 → OP2.b → OP4.b), otherwise the configured site would show an empty catalogue.
-  Note: the Windows build of the same commit hashes the entry `index-BfBCudBw.js` (10-byte platform difference) — same build is
-  proven by the CI log chain, not by hash equality.
+- **DEPLOYED — the FULL APP is live at https://intotheveil.github.io/hygieia/ in CONFIGURED mode** (run 37436089418, both jobs green,
+  entry `index-CamdacCW.js`; `smoke:live` 16/16 with the backend probes: approved rows 1+, pending `[]`, profiles `[]`). Repository
+  variables `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` are set (OP2.c); the fleet trio is not (OP6.a) so telemetry is still silent.
+  Content: everything approved except 17 unsourced tips (pending, operator's call in `/admin`). Note: the local-only build of the same
+  commit hashes `index-w_FjhxYD.js`, Windows `index-BfBCudBw.js` — same build is proven by the CI log chain, not by hash equality.
 - **Live DB (shared project, schema `hygieia`) — COMPLETE 2026-10-06:** ledger `hygieia.schema_migrations` = **10/10** rows
   (000100–001000), every checksum equal to the sha256 of the LF-normalised archive file; rows 322 ingredients · 16 diets · 152 recipes ·
   1173 recipe_ingredients · 740 recipe_diets · 136 exercises · 63 workout_templates · 579 slots · 75 health_tips; **approved: everything except 17 unsourced tips (OP4.b, night)**
   (all `pending`, by design). `supabase_migrations.schema_migrations` still 8 rows (Alyssos untouched). Schema files went through
   `db:apply -- --apply`; the six seed files through the MCP SQL tool in ≤23 KB pieces inside the same batch shape, per-column md5/sum
-  verified against the files (BUILD_LOG `OPERATOR-P1 / OP4`). **Data API exposure of schema `hygieia` is NOT done (O1):** the
-  `authenticator` role carries no `pgrst.db_schemas` GUC, so the exposed list is Dashboard-managed and invisible from SQL; setting the
-  GUC would override Alyssos's list — not done. Until the Dashboard toggle, `db:live-check` probes 2–3 and every configured-mode read
-  fail with PGRST106, legitimately.
+  verified against the files (BUILD_LOG `OPERATOR-P1 / OP4`). **Data API exposure of schema `hygieia` is DONE and verified (O1 closed 2026-10-06):** anon REST with `Accept-Profile: hygieia` returns
+  approved rows, pending `[]`, profiles `[]`, blind write 401. It was a Dashboard toggle (Settings → Data API → Exposed schemas) that
+  needed its Save click; the `authenticator` role still carries no `pgrst.db_schemas` GUC — platform state, never SQL.
 - **Gates (ADR-0005 cadence):** P1/P2 QA **VALIDATED** · P1/P2 REVIEW **PASS** · P3/P4 QA **VALIDATED** · P3/P4 REVIEW **PASS** ·
   P5/P6 QA **VALIDATED (re-run 2026-10-06 on the cold gate)** · **P5/P6 REVIEW: running at the time of writing — read the top of
   BUILD_LOG for the verdict.** Operator-side QA items (P2.QA.3b/4b/5/6, P4.QA.5, P6.QA.2 backend probes, P6.QA.3, P6.QA.4) are NOT RUN,
   never claimed.
-- **Next, in order:** (1) **O1** operator: Dashboard → Project Settings → Data API → Exposed schemas → add `hygieia` → `npm run
-  db:live-check` PASSED. (2) **OP2.a** Google OAuth client + redirect URLs (`https://intotheveil.github.io/hygieia/auth/callback`,
+- **Next, in order:** (1) ~~O1~~ DONE (verified by anon REST + `smoke:live` backend probes; `db:live-check` still wants `SUPABASE_ACCESS_TOKEN`, not available in this shell). (2) **OP2.a** Google OAuth client + redirect URLs (`https://intotheveil.github.io/hygieia/auth/callback`,
   localhost) · first sign-in · **OP2.b** admin flag per `docs/ops/admin.md` · **OP4.b** approve content in `/admin`. (3) **OP2.c** repo
   variables `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` and **OP6.a** the fleet trio → next `main` deploy is configured →
   `smoke:live` reports rows. (4) P6.5 DONE (`dea5730`); P5/P6 review PASS (flip); **CHECKPOINT P5/P6 written — crew stopped; operator chain next**, then the operator-side QA items (need OP6.a). Backlog: cold perf 87 → 90 on content routes (render the
@@ -175,12 +173,12 @@ pending|approved|rejected` stamped by `stamp_review()` BEFORE UPDATE · per-user
 
 | id         | sev | type     | summary                                                                                                                                                                                                 | status          | added      |
 | ---------- | --- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | ---------- |
-| O1         | 🔴  | operator | **THE blocker for configured mode (content is approved). Operator reported it done 2026-10-06 night, but two anon probes still answered PGRST106 (only public, graphql_public exposed) — probably saved in "Extra search path" or not saved; re-verify first.** expose schema `hygieia` — Dashboard → Project Settings → Data API → Exposed schemas (ADR-0003 rule 5; OP1.b). No `pgrst.db_schemas` GUC exists on `authenticator`, so this cannot be done from SQL without overriding Alyssos's list. Until done `db:live-check` probes 2–3 fail with PGRST106 | open (operator) | 2026-10-05 |
+| O1         | ✅  | operator | ~~Expose schema `hygieia`~~ **DONE + VERIFIED 2026-10-06** (the first attempt was selected but not saved — Save button lit in the screenshot). Anon probes: approved rows, pending `[]`, profiles `[]`, blind write 401 | closed          | 2026-10-05 |
 | O2         | 🟡  | note     | Supabase advisory seen while inspecting the shared project: Alyssos's PostGIS reference table `public.spatial_ref_sys` has RLS disabled. Alyssos's call — flagged, not touched; the gate asserts we never change it | open (operator) | 2026-10-05 |
 | PERF       | 🟡  | perf     | ~~CI Lighthouse below 85 on content routes~~ **CLOSED 2026-10-06** by code splitting + lazy seeds/supabase-js + fallback fonts + ADR-0006 cold gate (QA re-run: 36/36 cells within ±1, runner 86–94). Remaining: cold perf 87 vs target 90 on `recipes`/`recipe`/`fridge`/`diet`; CI margin 1 point | backlog         | 2026-10-06 |
 | REVIEW-P12 | ✅  | gate     | ~~P1/P2 REVIEW REVISE on records~~ **PASS 2026-10-06** (BUILD_LOG `P1/P2 + P3/P4 re-review — PASS`)                                                                                                    | closed          | 2026-10-06 |
 | REVIEW-P34 | ✅  | gate     | ~~P3/P4 REVIEW REVISE~~ **PASS 2026-10-06** on `fecacfa`+ (same entry)                                                                                                                                  | closed          | 2026-10-06 |
-| OP2        | 🟠  | operator | OP2.a Google OAuth client (optional) **+ Authentication → URL Configuration → Redirect URLs must include `https://intotheveil.github.io/hygieia/auth/callback` and the localhost callback — without it magic links bounce to Alyssos's Site URL and read as expired (seen 2026-10-06)**; OP2.b admin flag via `docs/ops/admin.md` after a first sign-in; OP2.c repo variables `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` | open (operator) | 2026-10-06 |
+| OP2        | 🟠  | operator | **OP2.c DONE** (`VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` set; configured deploy run 37436089418) · **redirect URL `https://intotheveil.github.io/hygieia/auth/callback` ADDED by the operator** · still open: **OP2.b admin flag** after the operator's first magic-link sign-in (`docs/ops/admin.md`); Google provider optional | open (OP2.b)    | 2026-10-06 |
 | OP4        | ✅  | operator | OP4.a seeds live ✅ · **OP4.b content APPROVED 2026-10-06 (night) by SQL on the operator's instruction** — all tables approved except 17 `health_tips` with `needs_source = true`, left pending for the operator to source/reject in `/admin` (BUILD_LOG `OPERATOR-P4 / OP4.b`) | closed (17 tips pending) | 2026-10-06 |
 | OP6        | 🟡  | operator | Register Hygieia on the Zeus dashboard, then repo variables `VITE_FLEET_URL`, `VITE_FLEET_KEY`, `VITE_FLEET_PRODUCT_ID` (OP6.a); telemetry client is wired (P6.1) and off until then                   | open (operator) | 2026-10-06 |
 
