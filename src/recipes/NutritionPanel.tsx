@@ -1,7 +1,10 @@
 // NUTRITION PANEL (P4.3). kcal + protein/carbs/fat for one scope (per portion by default, per
 // recipe on toggle), a macro bar by energy share, the "typical values" footnote that names USDA
-// FoodData Central, the confidence, and any recipe line the engine could not count. The figures
-// come in as a `NutritionResult` (the page runs `computeNutrition`); the panel only formats.
+// FoodData Central, the confidence, any recipe line the engine could not count, and — when the
+// engine reports `warnings` (a line unit that is not the ingredient's, converted with the default
+// `grams_per_unit`) — a "treat as rough" footnote, so an admin-side unit edit is visible on the
+// page it distorts. The figures come in as a `NutritionResult` (the page runs `computeNutrition`);
+// the panel only formats.
 //
 // The per-portion / per-recipe toggle is rendered HERE and is the page's only one: the cost panel
 // follows the same `scope` through its prop. Pass no `onScopeChange` to render without the toggle.
@@ -93,6 +96,11 @@ export function NutritionPanel({ result, scope, onScopeChange }: NutritionPanelP
       {result.unknown.length > 0 && (
         <p className={FOOTNOTE} data-testid="nutrition-not-counted">
           {fill(t.notCounted, { items: result.unknown.join(', ') })}
+        </p>
+      )}
+      {result.warnings.length > 0 && (
+        <p className={FOOTNOTE} data-testid="nutrition-unit-mismatch">
+          {t.unitMismatchNote}
         </p>
       )}
       <p className={FOOTNOTE}>{confidenceLabel[result.confidence]}</p>

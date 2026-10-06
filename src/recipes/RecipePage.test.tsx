@@ -77,14 +77,17 @@ describe('<RecipePage>', () => {
         lang === 'el' ? recipe.steps_el : recipe.steps_en,
       )
 
-      // Diet chips link back to the filtered list.
+      // Diet chips link to the diet's own page (PLAN P4.4), not to the filtered recipe list.
       const diets = within(screen.getByRole('region', { name: dict.dietTags }))
       expect(diets.getAllByRole('link')).toHaveLength(recipe.diet_slugs.length)
       expect(
         diets.getByRole('link', {
           name: lang === 'el' ? 'Μεσογειακή διατροφή' : 'Mediterranean diet',
         }),
-      ).toHaveAttribute('href', '/recipes?diet=mediterranean')
+      ).toHaveAttribute('href', '/diets/mediterranean')
+      for (const link of diets.getAllByRole('link')) {
+        expect(link.getAttribute('href')).toMatch(/^\/diets\/[a-z0-9-]+$/)
+      }
 
       // Bundled source ⇒ draft ribbon.
       expect(screen.getByRole('note')).toHaveTextContent(dict.draftRibbon)

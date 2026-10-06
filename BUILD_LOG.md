@@ -3,6 +3,58 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+### P3/P4 REVIEW fixes 1–4 — 2026-10-06 — DONE (builder, worktree `wt/c`; uncommitted for the lead; every gate green, 66/66 e2e)
+
+**Scope: exactly the four REQUIRED FIXES of the P3.REVIEW + P4.REVIEW entry below; nothing else touched.** 13 files, all under `src/`
+(+165 / −23); no migration, no dependency, no change to `Layout.tsx`, `lib/supabase.ts`, `AuthProvider.tsx`, `content/{index,supabase}.ts`,
+`user/supabase.ts`, `admin/adminSource.ts` or `index.css` (the parallel lane's files).
+
+1. **Recipe diet chips → `/diets/<slug>`** (`src/recipes/RecipePage.tsx`): the chips were building `/recipes?diet=<slug>` with
+   `serializeRecipeFilterParams` (import dropped; `RecipesPage` still uses it for its own URL state). Header comment no longer says
+   "`/diets/:slug` arrives in P4.4". `RecipePage.test.tsx` asserts `href="/diets/mediterranean"` AND every chip matches
+   `^/diets/[a-z0-9-]+$`, both languages. `e2e/local/recipes.spec.ts` carries no chip pin (its `?diet=keto` is a direct `goto` of the
+   filtered LIST, which is still the list's URL state) — unchanged. `RecipeCard` chips stay `<span>`s: the card is a stretched-link
+   (`after:absolute after:inset-0` on the title), so nested chip links need z-index work and would change the `cards()` e2e helper's
+   link counts — not "trivial", left on the reviewer's backlog line. DECISIONS one-liner added (plan and code now agree).
+2. **Caveat on plan totals** (`src/plans/PlanView.tsx`): ONE `<p data-testid="plan-totals-note">{t.typicalValuesNote}</p>` directly
+   under the week table (same `text-xs text-olive-700` footnote style as the recipe panel). The key stays recipes-owned; plans reuses
+   it. Asserted in `PlanView.test.tsx` (en: present exactly once; el: Greek text) and in `DietPage.test.tsx` for all 16 diets × 2 langs.
+3. **One owner per dictionary key**: `sourcePending` deleted from `src/i18n/features/diets.ts` (interface + both literals; tips keeps
+   it; `DietPage` reads it through the composed `Dictionary` — its test still passes). `src/i18n/dictionary.test.ts` gains a describe
+   "one owner per key" (3 tests): the seven feature `en` literals (`adminEn, dietsEn, fridgeEn, plansEn, recipesEn, tipsEn,
+workoutsEn`) compose to exactly `featuresEn`'s keys; every key has exactly ONE owning module; and no feature key overlaps the base.
+   `baseEn` is module-private in `dictionary.ts` (NOT in scope), so the base check reads `Object.keys(en)`'s insertion order: a key
+   first inserted by `baseEn` keeps the base position even when a feature re-declares it, so the feature keys must be exactly the
+   tail of `en`'s key list (asserted `tail === Object.keys(featuresEn)`, head ∩ features = ∅). **Prove-red:** re-adding
+   `sourcePending` to diets.ts made the owner test fail with `keys with ≠ 1 owner: [["sourcePending",["diets","tips"]]]`; restored.
+4. **Unit invariant + surfaced warnings + cast:** (a) `src/content/seed/recipes.test.ts` (lines loop) asserts for every line
+   `line.unit === 'g' || line.unit === 'ml' || line.unit === ingredient.unit` with a message naming recipe/ingredient/both units —
+   152 recipes, 0 offenders (matches the reviewer's scratch audit). (b) `src/recipes/NutritionPanel.tsx` renders
+   `<p data-testid="nutrition-unit-mismatch">{t.unitMismatchNote}</p>` when `result.warnings.length > 0`; new recipes-owned key
+   `unitMismatchNote` in `src/i18n/features/recipes.ts` (en "Some quantities were converted with a default weight per unit; treat
+   these figures as rough." / el "Κάποιες ποσότητες μετατράπηκαν με ένα προεπιλεγμένο βάρος ανά μονάδα· θεώρησε αυτά τα νούμερα
+   ενδεικτικά."), same position in both literals (the order sweep). `panels.test.tsx`: a deliberately mismatched fixture (`onion`
+   sold by `piece`, line in `tbsp` → one `unitMismatch:` warning) renders the footnote in both languages, the raw engine string is
+   NOT shown, and the pilaf fixture (all g/ml, `warnings: []`) renders no footnote. (c) `src/fridge/match.ts`: `MatchResult<R extends
+RecipeSeed = RecipeSeed>`, `matchRecipe<R>` / `matchRecipes<R>` generic; `FridgePage.tsx` `ResultCard` takes `MatchResult<Recipe>`
+   and the `as Recipe` cast is gone. `match.test.ts` / `FridgePage.test.tsx` unchanged and green.
+
+**Gates (worktree `wt/c` at `dc9fbd2` + these edits):**
+
+- `npm run lint` → `✖ 21 problems (0 errors, 21 warnings)` (the pre-existing `react-refresh/only-export-components` set QA recorded), exit 0
+- `npm run typecheck` → `tsc -b` silent, exit 0
+- `npm test` → `Test Files 63 passed (63)` · `Tests 3196 passed (3196)` · 17.68s
+- `npm run build` → `precache 68 entries (2097.24 KiB)`, exit 0 · `npm run build:dead` → `precache 68 entries`, exit 0
+- `npm run check:pwa` → `check:pwa OK — Hygieia · Υγίεια, 3 icons, sw.js present`
+- `E2E_PREBUILT=1 npm run e2e` → **`66 passed (37.9s)`**, 0 failed, 0 flaky (list reporter; console watchdog on every spec).
+  First attempt died in the `tsc -p e2e/support/tsconfig.json` pre-step (`TS7006` ×4 in `e2e/local/a11y-matrix.spec.ts`): the
+  worktree's `node_modules` predated the P5.2 merge and lacked `@axe-core/playwright`. `npm ci` (exit 0, `package-lock.json`
+  untouched) fixed it — an environment staleness, not a code issue. Gotcha for any lane: after a merge that adds a dependency,
+  `npm ci` in every worktree before `npm run e2e`.
+
+**Not done (reviewer's backlog, by design):** `RecipeCard` chips as links; an e2e click on a recipe-page chip (the unit test pins
+the href; the e2e happy path does not click a chip). **Next:** lead merges `wt/c`; reviewer flips P3/P4 to PASS per the verdict below.
+
 ### P3.REVIEW + P4.REVIEW — 2026-10-06 — REVISE (two rubric lines at 1: two small acceptance gaps vs PLAN and three pieces of hidden debt; code, tests, isolation, migrations and records otherwise PASS — four small fixes, then PASS without re-reading)
 
 **Independent reviewer (agent `reviewer`, not a builder, not QA).** Judged on `D:/projects/hygieia` at `ca01081` (clean tree) against CLAUDE.md §6, PLAN.md P3.1–P3.7 + P4.1–P4.12 (with the lead's amendments: 16 diets, recipes floor 120, cards 16), DECISIONS.md (incl. ADR-0005 and every 2026-10-05/06 entry) and the P3/P4 QA verdict below. QA's claims were spot-checked once, not re-run: `npm test` → `Test Files 62 passed (62) · Tests 3166 passed (3166)` (20.3 s). Read in full: `src/recipes/**`, `src/fridge/**`, `src/diets/**`, `src/plans/**`, `src/nutrition/compute.ts`, `src/cost/compute.ts`, `src/workouts/**`, `src/tips/**`, `src/admin/**`, `src/account/AccountPage.tsx`, `src/components/{Layout,SiteHeader,DraftRibbon}.tsx`, `src/routes/**`, `src/lib/useAsync.ts`, `src/content/{supabase,source,bundled}.ts`, `src/i18n/features/index.ts` + `dictionary.ts` composition, the engine/matcher/admin/fields tests, the seven P3/P4 e2e specs, `e2e/support/routes.ts`, the UPDATE grants in `…000300_hygieia_content.sql`. Spot-checked content: 10 recipes (4 group 1, 3 group 2, 3 group 3), 5 exercises, 5 tips, 3 workout templates — all bilingual, specific, on-topic, drafting rule honoured (every null `source_url` has `needs_source`, 0 mismatches). Two scratch audits (scratchpad, not the repo): every recipe line's unit against its ingredient's unit through both engines (152 recipes, 1 173 lines → 0 mismatches, 0 `warnings`, 0 `unknown`, 0 `unpriced`; every bunch-priced line computes `basis = bunches`, consistent with the P1.9 "piece = bunch" decision) and the dictionary key-ownership map (48 base keys, 152 feature keys, base/feature overlap 0, feature/feature duplicates 1).

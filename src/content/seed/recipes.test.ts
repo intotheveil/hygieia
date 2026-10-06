@@ -308,6 +308,18 @@ describe.each(RECIPES.map((r) => [r.slug, r] as const))('recipe %s', (_slug, rec
       expect(line.quantity, `${line.ingredient_slug} quantity`).toBeGreaterThan(0)
       expect(Number.isFinite(line.quantity)).toBe(true)
       expect(UNITS).toContain(line.unit)
+      // The invariant both engines rest on (`gramsFor` / `basisQuantity`): a line is in g/ml, or in
+      // the ingredient's OWN unit so `grams_per_unit` means what the line says. Any other unit is
+      // silently converted with that default weight — the engines flag it as a `unitMismatch`
+      // warning; the seed must never ship one.
+      const ingredient = ingredientsBySlug.get(line.ingredient_slug)
+      expect(ingredient).toBeDefined()
+      if (ingredient) {
+        expect(
+          line.unit === 'g' || line.unit === 'ml' || line.unit === ingredient.unit,
+          `${recipe.slug}: ${line.ingredient_slug} line unit "${line.unit}" is neither g/ml nor the ingredient's unit "${ingredient.unit}"`,
+        ).toBe(true)
+      }
       const hasEl = line.note_el !== undefined
       const hasEn = line.note_en !== undefined
       expect(hasEl, `${line.ingredient_slug} note must be both-or-neither`).toBe(hasEn)

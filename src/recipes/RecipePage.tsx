@@ -1,6 +1,6 @@
 // RECIPE DETAIL `/recipes/:slug` (P3.2). Localized title, meta (portions · minutes · meals),
-// diet chips linking back to the filtered list (`/recipes?diet=<slug>`; `/diets/:slug` arrives
-// in P4.4), ingredient lines formatted by ./format.ts, steps in order, and a favourite button
+// diet chips linking to the diet's own page (`/diets/<slug>`, P4.4 — PLAN P4.4 and the P3/P4
+// review), ingredient lines formatted by ./format.ts, steps in order, and a favourite button
 // through the per-user source (the bilingual note when that source is disabled). Under the
 // ingredients, the nutrition and cost panels (P4.3) run the pure engines on the recipe's own
 // resolved lines — no extra fetch — and share ONE per-portion / per-recipe toggle. Unknown slug →
@@ -29,7 +29,7 @@ import { computeNutrition } from '../nutrition/compute.ts'
 import { NotFound } from '../routes/routes'
 import { useUserData } from '../user/useUserData'
 import { CostPanel } from './CostPanel'
-import { recipeTitle, serializeRecipeFilterParams } from './filter.ts'
+import { recipeTitle } from './filter.ts'
 import { dietName, formatRecipeLine } from './format.ts'
 import { NutritionPanel } from './NutritionPanel'
 import type { Scope } from './panelFormat.ts'
@@ -141,11 +141,10 @@ function RecipeView({
           <ul className="flex flex-wrap gap-2">
             {recipe.diet_slugs.map((slug) => {
               const diet = dietsBySlug.get(slug)
-              const search = serializeRecipeFilterParams({ dietSlugs: [slug] }).toString()
               return (
                 <li key={slug}>
                   <Link
-                    to={`/recipes?${search}`}
+                    to={`/diets/${slug}`}
                     className="inline-block rounded-full bg-sage-500/15 px-3 py-1 text-sm font-medium text-sage-700 hover:bg-sage-500/25"
                   >
                     {diet ? dietName(diet, lang) : slug}
