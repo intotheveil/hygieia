@@ -362,7 +362,9 @@ describe('generator errors and seed:check drift', () => {
     const o: Overlay = { id: '0901-x', summary: 'x', patches: TEST_OVERLAY.patches }
     await expect(
       generateOverlays({ seedDir: seedCopy('unlisted', [o], { listExtra: false }) }),
-    ).rejects.toThrow(/overlays\/index\.ts lists \[0001-fix-typos\.ts\] but the directory holds/)
+    ).rejects.toThrow(
+      /overlays\/index\.ts lists \[0001-fix-typos\.ts[^\]]*\] but the directory holds \[[^\]]*0901-x\.ts\]/,
+    )
   })
   it('differs / missing / extra overlay files are named', async () => {
     const gen = await generateOverlays()

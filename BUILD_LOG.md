@@ -3,6 +3,68 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+### PRICES + NUTRITION — Greek retail 2026-10, local products (overlay 0004) — 2026-10-06 — DONE
+
+- **Request (operator approved):** make cost and calorie numbers trustworthy for Greece, as overlay
+  `src/content/seed/overlays/0004-prices-nutrition.ts` (registered last in `overlays/index.ts`; number stays 0004) → migration
+  `supabase/migrations/20261007000400_hygieia_overlay_prices_nutrition.sql` (**322 `update`s, ingredients only, no additions**).
+  Lane `wt/f` from `main` `ab3d4f2`.
+- **Price sources:** the online shelves of **Sklavenitis** (sklavenitis.gr) and **My market** (mymarket.gr), scraped 2026-10-06 (their
+  search pages state a per-kg / per-l / per-piece price for each product). **Not usable:** the government observatory
+  (e-katanalotis.gov.gr → posokanei.gov.gr) answered **403** to every scripted request; AB Vassilopoulos and Masoutis render prices
+  client-side only. Ollama was not used — every number comes straight from a shelf page.
+- **Method:** per ingredient, Greek queries on both chains, matches filtered (accent-stripped titles) and **reviewed by hand** — ready
+  meals, snacks, sauces, frozen/cooked versions and pet food that merely name the ingredient excluded; organic excluded unless only organic
+  is stocked. Range = **10th–90th percentile** of the per-unit prices when ≥ 5 products match, otherwise lowest–highest; per-piece rows
+  from pack prices (eggs) or per-kg × `grams_per_unit` (avocado, lime); coffee per brewed litre at 60 g ground; mayonnaise ml→kg at
+  0.92. Hand-set with the evidence in the note: garlic (per-head prices at ~50 g a head), parsley / dill / spring onion bunches, cucumber,
+  arborio (Greek glacé + imported arborio).
+- **Counts:** **142 ingredients shelf-checked** (`price_as_of` 2026-10-06, `price_note` = basis + chains + date + n + method) — every
+  ingredient used by ≥ 2 recipes except vanilla extract, skyr, basil, pumpkin, beef liver, bone broth, tallow, erythritol (not stocked as
+  such) and strawberries (out of season: only a frozen pack) — plus the Greek products below. **180 rows keep their value** with
+  `price_note` "Estimate, not checked against shelf prices in the 2026-10 refresh — …".
+- **Big movers (> 30 % on the range midpoint, 46):** kiwi 1.5–3 → 5.75–5.99 €/kg (+161 %, imported Zespri before the Greek season) ·
+  asparagus 6–10 → 19.8 (+148 %, imported out of season) · bay leaf 40–70 → 98.5–165 (+140 %) · canned tuna 10–18 → 17.5–44.6 (+122 %, per
+  kg drained) · salt 0.5–1.5 → 0.79–3.52 (+116 %) · vine leaves 8–14 → 18.3–26.5 (+104 %) · turmeric 20–35 → 51.5 (+87 %) · cherry tomato
+  3–5 → 5.19–9.64 (+85 %) · paprika 20–35 → 15.4–85 (+83 %) · chicken thigh 5–8 → 5.19–18.2 (+80 %, bone-in to fillet) · rosemary +73 % ·
+  white wine +61 % · pastourma 25–40 → 37–65.5 (+58 %) · cocoa +56 % · apple-cider vinegar +56 % · black pepper +55 % · lime 0.4–0.8 →
+  0.25–0.29 /piece (−55 %) · kasseri 12–18 → 18–27.9 (+53 %) · ginger 5–9 → 3.1–3.99 (−49 %) · Greek yoghurt 10 % 5–8 → 2.65–4.24 (−47 %) ·
+  walnuts +46 % · cucumber −43 % · rice +42 % · baking powder −42 % · trahanas −42 % · spinach +41 % · water −41 % · red onion −41 % ·
+  garlic +40 % · parmesan +40 % · Kalamata olives +39 % · horta −39 % · almond flour, heavy cream, halva +37 % · raisins +36 % · coffee
+  −36 % · hilopites −36 % · beef mince +35 % · coriander −35 % · onion −34 % · basmati +34 % · feta 9–14 → 12.4–17.7 (+31 %) · avocado
+  −31 % · mint +31 % · roasted red peppers −30 %. Olive oil 9–14 → 6.95–10.3 €/l (−25 %, 56 products).
+- **Nutrition (33 rows; carbs kept "by difference" = EU carbohydrate + fibre):** **CIQUAL 2020** (ANSES — EU national table) for feta PDO
+  (285 kcal), extra-virgin olive oil (884 → 900, fat 99.9), tahini (621), dandelion for horta (49), split pea for fava (344) — energy
+  computed with EU Reg. 1169/2011 factors where CIQUAL gives none. The Greek food composition tables (Hellenic Health Foundation) were not
+  reachable, so **22 Greek products** use the **mean of the EU nutrition labels** on Sklavenitis product pages (deduplicated; a label kept
+  only if its kcal agrees with its own macros ±12 % and lies within 35 % of the median; note names the category, never a brand):
+  graviera 399 · kefalotyri 363 · dry mizithra 269 · kasseri 344 · anthotyro 169 · manouri 451 · strained yoghurt 10 % 130 / 2 % 71 ·
+  sheep yoghurt 100 · barley rusks 362 · trahanas 370 · hilopites 354 · kritharaki 359 · phyllo 292 (fat 6 → 1) · halva 547 · honey 334
+  (USDA 304) · Kalamata olives 236 · pastourma 187 (fat 14 → 4.8) · village sausage 276 · gigantes 294 · vine leaves 52 · roasted peppers
+  23. **Outliers fixed:** chilli flakes 318 → 376, cloves 274 → 335, cocoa 228 → 387 (CIQUAL); baking powder 53 → 146 (CIQUAL
+  composition); allspice 263 → 348 (USDA FDC composition, EU factors); erythritol 20 → 0 (EU Annex XIV). Petimezi and halloumi: no
+  usable label → unchanged.
+- **Sanity test** `src/content/seed/ingredients-sanity.test.ts` (7 tests) on the **overlaid** table: kcal ≈ 4P + 4C + 9F within ±15 % or
+  ±20 kcal; 21 named SPECIAL rows (15 fibre, 5 alcohol, 1 polyol), each with its cited constant, checked with
+  4P + 4(C − fibre) + 2·fibre + 9F + 7·alcohol, and each must really fail the plain formula; macros ≤ 100 g; 0 < min ≤ max; every
+  checked price names a chain, every other says "Estimate"; ≥ 120 shelf-checked and every row used by ≥ 5 recipes checked (vanilla,
+  strawberry excepted, reason in the test). **Proved red:** feta kcal → 100 and almond-butter min → 99 fail exactly those two checks;
+  restored → green.
+- **Pins updated (each named the real overlay list or the un-overlaid ingredient array):** `src/content/source.test.ts` (ingredients
+  loader now `toStrictEqual(overlayTable(...))`), `src/content/seed/overlays/overlays.test.ts` (0004 lands on every ingredient, other
+  tables unchanged), `scripts/gen-seed-overlays.test.ts` (the "unlisted module" message regex no longer pins `[0001-fix-typos.ts]` exactly
+  — any future overlay would have broken it).
+- **Observable (cost + nutrition engines on the overlaid table vs base):** horiatiki €/portion 1.75–3.09 → 1.92–3.21, kcal 518 → 546 ·
+  trahana-soup-feta 0.80–1.37 → 0.77–1.08, 361 → 375 · strapatsada 1.35–2.20 → 1.35–2.47 · hummus 0.30–0.51 → 0.28–0.58; 0 unpriced
+  lines.
+- **Verify:** lint 0 errors (23 pre-existing warnings, none in touched files) · typecheck clean · `npm test` **92 files / 3839 tests
+  green** (first full run: 1 load flake in `App.test.tsx` "/fridge renders …" — 21/21 alone, full rerun green) · `seed:check` OK (7 base
+  + 2 overlay) · `db:check` PASS (16 migrations) · `db:gate` **365 green** (overlay columns editable-only; **324 overlay patches each hit
+  exactly one row**; re-apply idempotent) · `db:gate:prove-red` **34/34** · `build` OK (precache 142 entries). `seed:gen` flipped
+  the 8 existing generated files to LF only — restored with `git checkout`; `git status` = the 2 new files + intended edits.
+- **Not done / next:** live apply is the lead's (`db:apply` → `db:live-check`). Next refresh 2027-01: retry the observatory first
+  (DECISIONS); re-run the scrape method in the overlay header as overlay NNNN; skyr/vanilla/basil/pumpkin need a stocked source.
+
 ### TASKS ADVISOR +8 topics — 2026-10-06 — DONE
 
 - **Request (operator approved):** eight more Tasks Advisor topics on the P9 model, lane `wt/d` from `main` `61e36a8`. Bundled content

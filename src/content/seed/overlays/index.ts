@@ -8,8 +8,9 @@
 // `overlayTable`: the applier ships with the overlays and costs the entry chunk nothing.
 
 import { OVERLAY as O0001 } from './0001-fix-typos.ts'
+import { OVERLAY as O0004 } from './0004-prices-nutrition.ts'
 import type { Overlay } from './types.ts'
 
-export const OVERLAYS: readonly Overlay[] = [O0001]
+export const OVERLAYS: readonly Overlay[] = [O0001, O0004]
 
 export { applyOverlays, overlayTable } from './apply.ts'

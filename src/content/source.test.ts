@@ -11,6 +11,7 @@ import { CONTENT_STATUSES } from './enums'
 import { hexToUuid, md5 } from './md5'
 import { DIETS } from './seed/diets'
 import { INGREDIENTS } from './seed/ingredients'
+import { OVERLAYS, overlayTable } from './seed/overlays/index'
 import { RECIPES } from './seed/recipes'
 import { filterRecipes, matchesRecipeFilter, type ContentSource, type Result } from './source'
 import {
@@ -143,7 +144,10 @@ describe('bundledSource (real seeds)', () => {
     expect(typeof BUNDLED_SEEDS.ingredients).toBe('function')
     expect(typeof BUNDLED_SEEDS.recipes).toBe('function')
     expect(typeof BUNDLED_SEEDS.diets).toBe('function')
-    expect(await load(BUNDLED_SEEDS.ingredients)).toBe(INGREDIENTS)
+    // Overlay 0004 patches every ingredient (prices, nutrition): the loader serves the overlaid table.
+    expect(await load(BUNDLED_SEEDS.ingredients)).toStrictEqual(
+      overlayTable('ingredients', INGREDIENTS, OVERLAYS),
+    )
     expect(await load(BUNDLED_SEEDS.recipes)).toBe(RECIPES)
     expect(await load(BUNDLED_SEEDS.diets)).toBe(DIETS)
   })

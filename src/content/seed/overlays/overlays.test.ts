@@ -386,7 +386,13 @@ describe('the real overlay list (./index.ts)', () => {
     expect(sun?.body_el).toContain('Βάλ’ το ως τελευταίο βήμα')
     expect(sun?.body_el).not.toContain('το το')
     expect(out.health_tips).toHaveLength(HEALTH_TIPS.length)
-    expect(out.ingredients).toBe(INGREDIENTS)
+    // 0004-prices-nutrition patches every ingredient in place: same rows, same order, new values.
+    expect(out.ingredients.map((r) => r.slug)).toEqual(INGREDIENTS.map((r) => r.slug))
+    const feta = out.ingredients.find((r) => r.slug === 'feta')
+    expect(feta?.source_note).toMatch(/^CIQUAL 2020/)
+    expect(feta?.price_as_of).toBe('2026-10-06')
+    expect(feta?.name_el).toBe(INGREDIENTS.find((r) => r.slug === 'feta')?.name_el)
+    expect(out.diets).toBe(DIETS)
   })
 
   it('overlayTable applies the list to one table (what the bundled loaders call)', () => {
