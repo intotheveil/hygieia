@@ -35,7 +35,8 @@ if (!strapatsada) throw new Error('seed: recipe "strapatsada-tomato-scrambled-eg
  * highlight — after clicking a chip's remove button, Enter would pick "Ασπράδι αυγού" for "Αυγό".)
  */
 async function addIngredient(page: Page, name: string) {
-  const box = page.getByRole('combobox')
+  // Scoped to <main>: the header's theme switcher (src/components/SiteHeader.tsx) is a combobox too.
+  const box = page.getByRole('main').getByRole('combobox')
   await box.fill(name)
   await expect(page.getByRole('listbox')).toBeVisible()
   await page

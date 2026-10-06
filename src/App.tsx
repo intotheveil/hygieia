@@ -8,6 +8,7 @@ import { Link } from 'react-router-dom'
 import { MODULE_IDS, type ModuleId } from './i18n/dictionary'
 import { useLang } from './i18n/LangProvider'
 import { appEnv } from './lib/env'
+import { useTheme } from './theme/ThemeProvider'
 
 const ICONS: Record<ModuleId, string> = {
   tips: '☀',
@@ -69,6 +70,9 @@ function ModuleCard({ id }: { id: ModuleId }) {
 
 export default function App() {
   const { t } = useLang()
+  const { theme } = useTheme()
+  /** The hero image set for this theme: `hero-plate` (kitchen default) or `hero-<theme>`. */
+  const hero = `${import.meta.env.BASE_URL}brand/hero-${theme === 'default' ? 'plate' : theme}`
   return (
     <main id="top" className="flex flex-1 flex-col gap-14 pb-16">
       <section className="grid gap-8 pt-8 sm:pt-14 lg:grid-cols-[3fr_2fr] lg:items-end">
@@ -84,20 +88,23 @@ export default function App() {
               fallback, fetched at high priority, never lazy. Deliberately NOT preloaded from
               index.html: measured, a preload left home's LCP unchanged (render-bound) and cost every
               other route a 42 kB download it never shows (-3 points on /auth). */}
+          {/* One image set per theme (scripts/brand.mjs; operator request 2026-10-06): the kitchen
+              plate for the default skin, a slate plate for dark, a meal-prep box for athletic, a
+              glowing desk for gamer. Only the chosen set is requested, so the LCP budget is unchanged. */}
           <picture>
             <source
               type="image/webp"
-              srcSet={`${import.meta.env.BASE_URL}brand/hero-plate-800.webp 800w, ${import.meta.env.BASE_URL}brand/hero-plate-1216.webp 1216w`}
+              srcSet={`${hero}-800.webp 800w, ${hero}-1216.webp 1216w`}
               sizes="(min-width: 1024px) 40vw, 100vw"
             />
             <img
-              src={`${import.meta.env.BASE_URL}brand/hero-plate.jpg`}
-              srcSet={`${import.meta.env.BASE_URL}brand/hero-plate-sm.jpg 608w, ${import.meta.env.BASE_URL}brand/hero-plate.jpg 1216w`}
+              src={`${hero}.jpg`}
+              srcSet={`${hero}-sm.jpg 608w, ${hero}.jpg 1216w`}
               sizes="(min-width: 1024px) 40vw, 100vw"
               width={1216}
               height={640}
               fetchPriority="high"
-              alt={t.heroImageAlt}
+              alt={theme === 'default' ? t.heroImageAlt : t.themeHeroAlt[theme]}
               className="aspect-[1216/640] w-full rounded-2xl object-cover shadow-md ring-1 ring-olive-900/10"
             />
           </picture>

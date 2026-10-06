@@ -71,6 +71,82 @@ html {
   color-scheme: light;
 }
 
+/* THEMES (operator request 2026-10-06; DECISIONS.md of that date). Four cosmetic skins, selected by
+   `html[data-theme]` (set before first paint by the inline script in index.html, then owned by
+   src/theme/ThemeProvider.tsx; the attribute's absence or `default` = the kitchen palette above).
+   A theme RE-MAPS the same variables, never adds parallel ones: `paper` stays "surfaces", `olive`
+   "ink", `sage` "primary accent", `clay` "secondary accent", so every utility the pages already use
+   follows along and no component knows about themes. In the two dark skins the scale reads the
+   other way up — `olive-900` is the LIGHT ink, `sage-700`/`clay-700` the LIGHT text shades — and
+   the rule above still holds: `*-700` is the only accent shade used as text. Every text/background
+   pair in use is ≥ 4.5:1 and the UI pairs ≥ 3:1 per theme (table in BUILD_LOG.md, P4.x THEMES);
+   `THEME_COLOR` in src/theme/themes.ts repeats each `--color-paper-100` for <meta theme-color>
+   and src/theme/themes.test.ts pins the two together. */
+html[data-theme='dark'] {
+  color-scheme: dark;
+  /* Charcoal surfaces, cards a step lighter, warm off-white ink, sage lifted for contrast. */
+  --color-paper-50: #1f2326;
+  --color-paper-100: #15181a;
+  --color-paper-200: #2a2f33;
+  --color-paper-300: #3a4046;
+  --color-olive-950: #f5f3ec;
+  --color-olive-900: #e8e6df;
+  --color-olive-700: #b7b5aa;
+  --color-olive-500: #8c8a80;
+  --color-sage-500: #86b270;
+  --color-sage-600: #9cc386;
+  --color-sage-700: #b1d39c;
+  --color-clay-500: #d4895c;
+  --color-clay-700: #e8a87e;
+}
+
+html[data-theme='athletic'] {
+  color-scheme: light;
+  /* Cool white and graphite, electric blue primary, signal orange secondary. Crisp. */
+  --color-paper-50: #ffffff;
+  --color-paper-100: #f4f6f8;
+  --color-paper-200: #e4e9ef;
+  --color-paper-300: #cfd7e0;
+  --color-olive-950: #0a0e12;
+  --color-olive-900: #101418;
+  --color-olive-700: #3a4553;
+  --color-olive-500: #5f6c7b;
+  --color-sage-500: #1e6fe8;
+  --color-sage-600: #175fd0;
+  --color-sage-700: #1150b4;
+  /* clay-500 is a border/bar/tint shade: #ff6a1a measured 2.9:1 on white, so it is held at 3.1:1. */
+  --color-clay-500: #ee5708;
+  --color-clay-700: #b53f06;
+}
+
+html[data-theme='gamer'] {
+  color-scheme: dark;
+  /* Near-black with a violet tint, light ink, neon green primary, magenta secondary. */
+  --color-paper-50: #15131f;
+  --color-paper-100: #0b0b12;
+  --color-paper-200: #201d30;
+  --color-paper-300: #2e2a44;
+  --color-olive-950: #f5f3fb;
+  --color-olive-900: #e6e4f0;
+  --color-olive-700: #bab6cf;
+  --color-olive-500: #847f9c;
+  --color-sage-500: #39ff8a;
+  --color-sage-600: #2fe07a;
+  /* The neon is a bar/tint shade; as TEXT it is toned down a step (still 13:1 on paper-100). */
+  --color-sage-700: #4df08f;
+  --color-clay-500: #e0409a;
+  --color-clay-700: #ff80cc;
+}
+
+/* The only non-colour touch: a faint glow on KEYBOARD focus in the gamer skin. `:focus-visible`
+   only, so pointer clicks are untouched; the outline stays a solid 2 px ring (the glow is decoration,
+   the outline is the indicator). */
+html[data-theme='gamer'] :focus-visible {
+  outline: 2px solid var(--color-sage-500);
+  outline-offset: 2px;
+  box-shadow: 0 0 12px rgb(57 255 138 / 0.45);
+}
+
 body {
   @apply bg-paper-100 font-sans text-olive-900 antialiased;
 }
@@ -94,4 +170,31 @@ body::before {
 
 ::selection {
   background: rgb(127 163 107 / 0.35);
+}
+
+/* Per-theme washes and selection: the same two radials, in each skin's primary + secondary hue, kept
+   faint (the washes are on the pseudo-element above, so contrast measurement is unaffected). */
+html[data-theme='dark'] body::before {
+  background-image:
+    radial-gradient(48rem 28rem at 12% -10%, rgb(134 178 112 / 0.14), transparent 60%),
+    radial-gradient(36rem 22rem at 100% 30%, rgb(212 137 92 / 0.08), transparent 60%);
+}
+html[data-theme='dark'] ::selection {
+  background: rgb(134 178 112 / 0.45);
+}
+html[data-theme='athletic'] body::before {
+  background-image:
+    radial-gradient(48rem 28rem at 12% -10%, rgb(30 111 232 / 0.12), transparent 60%),
+    radial-gradient(36rem 22rem at 100% 30%, rgb(238 87 8 / 0.08), transparent 60%);
+}
+html[data-theme='athletic'] ::selection {
+  background: rgb(30 111 232 / 0.3);
+}
+html[data-theme='gamer'] body::before {
+  background-image:
+    radial-gradient(48rem 28rem at 12% -10%, rgb(57 255 138 / 0.12), transparent 60%),
+    radial-gradient(36rem 22rem at 100% 30%, rgb(224 64 154 / 0.14), transparent 60%);
+}
+html[data-theme='gamer'] ::selection {
+  background: rgb(57 255 138 / 0.4);
 }

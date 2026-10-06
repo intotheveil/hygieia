@@ -5,6 +5,7 @@ import { LangProvider } from '../i18n/LangProvider'
 import { el, en, type Lang } from '../i18n/dictionary'
 import type { HygieiaClient } from '../lib/supabase'
 import { AppRoutes } from '../routes/routes'
+import { ThemeProvider } from '../theme/ThemeProvider'
 import { AuthProvider } from './AuthProvider'
 import { fakeClient, fakeSession } from './fake-client'
 
@@ -23,12 +24,14 @@ function LocationProbe() {
 function renderAt(path: string, client: HygieiaClient | null, lang: Lang = 'en') {
   return render(
     <LangProvider initial={lang}>
-      <AuthProvider client={client}>
-        <MemoryRouter initialEntries={[path]}>
-          <AppRoutes />
-          <LocationProbe />
-        </MemoryRouter>
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider client={client}>
+          <MemoryRouter initialEntries={[path]}>
+            <AppRoutes />
+            <LocationProbe />
+          </MemoryRouter>
+        </AuthProvider>
+      </ThemeProvider>
     </LangProvider>,
   )
 }

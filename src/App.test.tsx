@@ -4,16 +4,19 @@ import { AuthProvider } from './auth/AuthProvider'
 import { LangProvider } from './i18n/LangProvider'
 import { MODULE_IDS, el, en, type Lang, type ModuleId } from './i18n/dictionary'
 import { AppRoutes, basenameFrom } from './routes/routes'
+import { ThemeProvider } from './theme/ThemeProvider'
 
 /** The whole app as main.tsx mounts it, in local-only mode (`client={null}`: no account service). */
 function renderAt(path: string, initial: Lang = 'el') {
   return render(
     <LangProvider initial={initial}>
-      <AuthProvider client={null}>
-        <MemoryRouter initialEntries={[path]}>
-          <AppRoutes />
-        </MemoryRouter>
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider client={null}>
+          <MemoryRouter initialEntries={[path]}>
+            <AppRoutes />
+          </MemoryRouter>
+        </AuthProvider>
+      </ThemeProvider>
     </LangProvider>,
   )
 }

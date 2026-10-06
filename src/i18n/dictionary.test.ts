@@ -6,16 +6,18 @@ import { fridgeEn } from './features/fridge.ts'
 import { featuresEn } from './features/index.ts'
 import { plansEn } from './features/plans.ts'
 import { recipesEn } from './features/recipes.ts'
+import { themeEn } from './features/theme.ts'
 import { tipsEn } from './features/tips.ts'
 import { workoutsEn } from './features/workouts.ts'
 
-/** The seven feature modules composed by `features/index.ts`, by name, over their `en` literal. */
+/** The eight feature modules composed by `features/index.ts`, by name, over their `en` literal. */
 const FEATURE_MODULES: Readonly<Record<string, object>> = {
   admin: adminEn,
   diets: dietsEn,
   fridge: fridgeEn,
   plans: plansEn,
   recipes: recipesEn,
+  theme: themeEn,
   tips: tipsEn,
   workouts: workoutsEn,
 }
@@ -33,6 +35,8 @@ const SAME_VALUE_ALLOWLIST: readonly string[] = [
   'calisthenics',
   'keto',
   'paleo',
+  // The gamer theme's name is the same loanword in Greek gaming culture.
+  'Gamer',
   // Units are written Latin-script in Greek too ("320 kcal").
   'kcal',
   'ml',
@@ -171,7 +175,7 @@ describe('bilingual dictionary — one owner per key (features/index.ts rule; P3
     }
   }
 
-  it('composes exactly the seven feature modules and nothing else', () => {
+  it('composes exactly the eight feature modules and nothing else', () => {
     const union = new Set(Object.values(FEATURE_MODULES).flatMap((literal) => Object.keys(literal)))
     expect([...union].sort()).toEqual(Object.keys(featuresEn).sort())
   })

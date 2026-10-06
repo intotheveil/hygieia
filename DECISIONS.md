@@ -189,6 +189,18 @@ effect`) and asserts A's rows unchanged — instead of adding new checks — bec
   pending ingredient is an admin-ordering state the UI should show honestly (the fridge matcher already
   reports such slugs under `unknown`).
 
+## 2026-10-06 — Themes are re-mapped variables, not parallel palettes; one hero set per theme
+
+- **Four cosmetic themes re-map the SAME colour variables** (`--color-paper/olive/sage/clay-*`) under `html[data-theme]`
+  instead of adding theme-specific utilities or parallel palettes: every Tailwind utility the pages already use follows
+  the theme, no component knows about theming, and a new theme is one CSS block + one dictionary row. The stored choice
+  always wins; `prefers-color-scheme: dark` picks `dark` only when nothing is stored. A pre-paint inline script in
+  `index.html` mirrors the storage key literally so returning visitors never see a flash (the only duplicated literal;
+  pinned by tests). Each theme has its own hero image set (ComfyUI renders), requested one set at a time so the LCP
+  budget is unchanged; the price is a larger service-worker precache (69 → 93 entries), accepted for offline parity.
+  Rejected: a CSS-only `prefers-color-scheme` dark mode (no operator choice, no athletic/gamer), and theme-scoped
+  utility classes (every component would carry four variants).
+
 ## 2026-10-06 — P4.8/P4.9 UI: pages read the ContentSource, not the seed resolver; async state keyed by its loader
 
 - **`/workouts` resolves a session with `contentSource.getWorkoutTemplate(type, level, intensity)` and groups the
