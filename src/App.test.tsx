@@ -124,18 +124,22 @@ describe('App (home)', () => {
     ['/auth', en.signInUnavailableTitle],
     ['/account', en.signInUnavailableTitle],
     ['/admin', en.signInUnavailableTitle],
-  ])('%s renders its page inside Layout (header nav + footer), one banner, one h1', (path, h1) => {
-    renderAt(path, 'en')
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(h1)
-    // The site nav sits in Layout's top-level <header>. (Not `getAllByRole('banner')`: jsdom does
-    // not scope a page's own <header> inside <main> out of the banner role the way browsers do.)
-    const nav = screen.getByRole('navigation', { name: en.nav.label })
-    expect(nav.closest('header')?.parentElement?.tagName).not.toBe('MAIN')
-    expect(nav.closest('main')).toBeNull()
-    // The footer disclaimer, exactly once from Layout (pages that repeat it inside their card are
-    // allowed: the home page does not).
-    expect(screen.getAllByText(en.notMedicalAdvice).length).toBeGreaterThanOrEqual(1)
-  })
+  ])(
+    '%s renders its page inside Layout (header nav + footer), one banner, one h1',
+    async (path, h1) => {
+      renderAt(path, 'en')
+      // Every page but the home is a lazy chunk (routes.tsx), so the h1 arrives after the import.
+      expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent(h1)
+      // The site nav sits in Layout's top-level <header>. (Not `getAllByRole('banner')`: jsdom does
+      // not scope a page's own <header> inside <main> out of the banner role the way browsers do.)
+      const nav = screen.getByRole('navigation', { name: en.nav.label })
+      expect(nav.closest('header')?.parentElement?.tagName).not.toBe('MAIN')
+      expect(nav.closest('main')).toBeNull()
+      // The footer disclaimer, exactly once from Layout (pages that repeat it inside their card are
+      // allowed: the home page does not).
+      expect(screen.getAllByText(en.notMedicalAdvice).length).toBeGreaterThanOrEqual(1)
+    },
+  )
 })
 
 describe('basenameFrom', () => {
