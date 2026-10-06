@@ -152,6 +152,15 @@ export const CHILD_TABLES = [
 ] as const
 export type ChildTable = (typeof CHILD_TABLES)[number]
 
-/** Per-user tables: RLS `user_id = auth.uid()` on every verb (PLAN.md §1.7). */
-export const USER_TABLES = ['fridge_lists', 'saved_plans', 'favourites'] as const
+/** Per-user tables: RLS `user_id = auth.uid()` on every verb (PLAN.md §1.7; P8.1 profile tables). */
+export const USER_TABLES = [
+  'fridge_lists',
+  'saved_plans',
+  'favourites',
+  'entries',
+  'goals',
+  'saved_items',
+  'workout_plans',
+  'workout_sessions',
+] as const
 export type UserTable = (typeof USER_TABLES)[number]

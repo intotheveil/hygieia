@@ -7,11 +7,53 @@
 import type { AuthChangeEvent, Session } from '@supabase/supabase-js'
 import { CONTENT_TABLES } from '../content/enums.ts'
 import type { HygieiaClient } from '../lib/supabase'
+import { fail, type UserDataSource } from '../user/source'
 import type { ProfileInsert } from './profile'
 
 export function fakeSession(id: string, email?: string): Session {
   // reason: only `user.id` / `user.email` are read; the rest of Session is irrelevant to the tests.
   return { user: { id, email }, access_token: 'fake' } as unknown as Session
+}
+
+type ProfileMethod =
+  | 'listEntries'
+  | 'addEntry'
+  | 'deleteEntry'
+  | 'listGoals'
+  | 'upsertGoal'
+  | 'listSavedItems'
+  | 'saveItem'
+  | 'unsaveItem'
+  | 'listWorkoutPlans'
+  | 'createWorkoutPlan'
+  | 'setWorkoutPlanStatus'
+  | 'listWorkoutSessions'
+  | 'addWorkoutSession'
+  | 'deleteWorkoutSession'
+
+/**
+ * The P8.1 profile members of a `UserDataSource`, each answering `fail('unknown')`: for page tests
+ * that hand-build a source and exercise only the P2.4 slices (fridge lists, favourites, saved
+ * plans). Spread it into the literal so the type stays complete as the contract grows.
+ */
+export function unusedProfileMethods(): Pick<UserDataSource, ProfileMethod> {
+  const unused = async <T>() => fail<T>('unknown')
+  return {
+    listEntries: unused,
+    addEntry: unused,
+    deleteEntry: unused,
+    listGoals: unused,
+    upsertGoal: unused,
+    listSavedItems: unused,
+    saveItem: unused,
+    unsaveItem: unused,
+    listWorkoutPlans: unused,
+    createWorkoutPlan: unused,
+    setWorkoutPlanStatus: unused,
+    listWorkoutSessions: unused,
+    addWorkoutSession: unused,
+    deleteWorkoutSession: unused,
+  }
 }
 
 type Listener = (event: AuthChangeEvent, session: Session | null) => void
@@ -29,6 +71,29 @@ export interface RecordedCall {
   payload?: unknown
   /** Every `.eq(column, value)` in the chain, in order. */
   filters: Array<[string, string]>
+  /** Every `.gte` / `.lte` in the chain, in order (P8.1 date ranges). Absent when none was called. */
+  range?: Array<[string, 'gte' | 'lte', string]>
+  /** Every `.order(column, { ascending })` in the chain, in order. Absent when none was called. */
+  order?: Array<[string, boolean]>
+  /** The options object of an `upsert(values, options)`, when one was given (P8.1 goals). */
+  options?: unknown
+}
+
+/**
+ * The DB column defaults of the P8.1 per-user tables, as the fake's "database" fills them in on a
+ * written row the payload left unset (the real DB does the same with `default current_date`,
+ * `default 'active'`, nullable columns). Dates are fixed so tests are deterministic.
+ */
+export const USER_TABLE_DEFAULTS: Record<string, Record<string, unknown>> = {
+  entries: { entry_date: '2026-10-06', value: null, unit: null, payload: null, note: null },
+  workout_plans: { start_date: '2026-10-06', status: 'active' },
+  workout_sessions: {
+    plan_id: null,
+    template_id: null,
+    performed_at: '2026-10-06',
+    duration_min: null,
+    note: null,
+  },
 }
 
 export interface UserTablesOptions {
@@ -131,36 +196,57 @@ export function fakeClient(
   })
 
   // A thenable builder: every method returns the same object, so any chain the real client allows
-  // (`select().order()`, `insert().select().single()`, `delete().eq()`, a bare `insert()`) can be
-  // awaited at any point. The DB default is simulated: a written row comes back WITH `user_id`.
+  // (`select().order()`, `insert().select().single()`, `delete().eq()`, a bare `insert()`,
+  // `update().eq().select().single()`, `.gte().lte()`) can be awaited at any point. The DB
+  // defaults are simulated: a written row comes back WITH `user_id` and with the P8.1 column
+  // defaults (`USER_TABLE_DEFAULTS`) under whatever the payload set; an `update` applies its payload
+  // to the configured rows matching the `.eq` filters and answers with the first of them.
   const userTable = (table: string) => {
     const call: RecordedCall = { table, op: 'select', filters: [] }
     calls.push(call)
+    const stamp = '2026-10-05T12:00:00.000Z'
+    const fromDefaults = (): Record<string, unknown> => ({
+      id: 'fake-row-id',
+      user_id: 'fake-uid-from-db-default',
+      created_at: stamp,
+      updated_at: stamp,
+      ...(USER_TABLE_DEFAULTS[table] ?? {}),
+    })
     const settle = async (): Promise<{ data: unknown; error: unknown }> => {
       if (opts.userTables?.reject !== undefined) throw opts.userTables.reject
       if (opts.userTables?.error) return { data: null, error: opts.userTables.error }
       if (call.op === 'select') return { data: opts.userTables?.rows?.[table] ?? [], error: null }
       if (call.op === 'delete') return { data: null, error: null }
       const payload = (call.payload ?? {}) as Record<string, unknown>
-      const stamp = '2026-10-05T12:00:00.000Z'
-      return {
-        data: {
-          id: 'fake-row-id',
-          user_id: 'fake-uid-from-db-default',
-          created_at: stamp,
-          updated_at: stamp,
-          ...payload,
-        },
-        error: null,
+      if (call.op === 'update') {
+        const matching = (opts.userTables?.rows?.[table] ?? []).filter((row) =>
+          call.filters.every(([column, value]) => String(row[column]) === value),
+        )
+        for (const row of matching) Object.assign(row, payload)
+        const id = call.filters.find(([column]) => column === 'id')?.[1]
+        const base = matching[0] ?? { ...fromDefaults(), ...(id === undefined ? {} : { id }) }
+        return { data: { ...base, ...payload }, error: null }
       }
+      return { data: { ...fromDefaults(), ...payload }, error: null }
     }
     const builder = {
       select: () => builder,
-      order: () => builder,
+      order: (column: string, options?: { ascending?: boolean }) => {
+        ;(call.order ??= []).push([column, options?.ascending ?? true])
+        return builder
+      },
       single: () => builder,
       maybeSingle: () => builder,
       eq: (column: string, value: string) => {
         call.filters.push([column, value])
+        return builder
+      },
+      gte: (column: string, value: string) => {
+        ;(call.range ??= []).push([column, 'gte', value])
+        return builder
+      },
+      lte: (column: string, value: string) => {
+        ;(call.range ??= []).push([column, 'lte', value])
         return builder
       },
       insert: (values: unknown) => {
@@ -168,8 +254,14 @@ export function fakeClient(
         call.payload = values
         return builder
       },
-      upsert: (values: unknown) => {
+      upsert: (values: unknown, options?: unknown) => {
         call.op = 'upsert'
+        call.payload = values
+        if (options !== undefined) call.options = options
+        return builder
+      },
+      update: (values: unknown) => {
+        call.op = 'update'
         call.payload = values
         return builder
       },

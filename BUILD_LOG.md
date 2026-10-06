@@ -3,6 +3,64 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+### P8.1 PROFILE user-data spine — 2026-10-06 — DONE (builder, lane `wt/a`)
+
+- **Operator:** "profile page, which tracks our data and achievements / entries … like save favorites" — and, mid-task: "Set up workout
+  plans - register progress etc. Modern". This task is the user-data spine; P8.2 (the `/profile` page) and P8.3 (workout plans UI) build on
+  it against the verbatim contract in `src/user/source.ts` (PLAN.md `## P8 Profile`).
+- **Schema (`supabase/migrations/20261006001300_hygieia_profile.sql`, forward-only, inside `hygieia`, modelled line-for-line on
+  `20261006000400_hygieia_user_data.sql`):** FIVE per-user tables — `entries` (kind ∈ 9, `entry_date` default today, nullable numeric
+  `value ≥ 0` + `unit` ∈ 7, free `payload jsonb`, `note ≤ 500`; index `(user_id, entry_date desc, created_at desc)`), `goals` (PK
+  `(user_id, kind)`, kind ∈ 6, `target > 0`, `unit`, `cadence daily|weekly`), `saved_items` (PK `(user_id, kind, item_id)`, kind ∈ 5,
+  POLYMORPHIC — no FK on `item_id`; recipes keep `favourites`), `workout_plans` (FK `workout_templates` RESTRICT, `name` 1–80, `weeks`
+  1–12, `days_per_week` 1–7, `start_date` default today, `status active|completed|abandoned` default active; index `(user_id, status)`),
+  `workout_sessions` (`plan_id` / `template_id` nullable SET NULL, `performed_at` default today, `duration_min` 1–600, `exercises jsonb`
+  array of 1–40 `{ exercise_id, sets[{ reps, weight_kg, rpe, done }] }`, `note ≤ 500`; index `(user_id, performed_at desc)`).
+  `user_id uuid not null default auth.uid()` cascade on every table; ONE policy per verb `to authenticated` with `user_id = auth.uid()`;
+  INSERT/UPDATE column grants exclude `user_id`, `id` and the timestamps (`goals`' UPDATE grant includes `kind`: PostgREST's upsert
+  SETs every payload column, conflict key included); `select, delete` to authenticated; service_role DML; `touch_updated_at` on all five.
+- **Client contract (`src/user/source.ts`, verbatim per brief):** `ENTRY_KINDS / ENTRY_UNITS / GOAL_KINDS / SAVED_ITEM_KINDS` (+ `CADENCES`,
+  `PLAN_STATUSES` as `as const` twins of the `Cadence` / `PlanStatus` unions, so the DB CHECKs can be pinned); types `Entry / EntryInput /
+  Goal / GoalInput / SavedItem / WorkoutPlan / WorkoutPlanInput / WorkoutSet / WorkoutSessionExercise / WorkoutSession / WorkoutSessionInput /
+  DateRange`; `UserDataSource` gains `listEntries(range?) / addEntry / deleteEntry / listGoals / upsertGoal / listSavedItems / saveItem /
+  unsaveItem / listWorkoutPlans / createWorkoutPlan / setWorkoutPlanStatus / listWorkoutSessions(range?) / addWorkoutSession /
+  deleteWorkoutSession`; `USER_TABLES` gains `entries, goals, savedItems, workoutPlans, workoutSessions`. No input carries `user_id`.
+  `src/user/supabase.ts`: `userDataClientFor` pins the chains (range = `.gte().lte()` on the date column, orders as the contract says,
+  goals `upsert(values, { onConflict: 'user_id,kind' })`, status `update({ status }).eq('id', id)`, every write `.select(COLUMNS).single()`);
+  writes strip `undefined` keys so DB defaults apply (`entry_date`, `start_date`, `performed_at`; `status` is never written on create);
+  `exercisesToJson` rebuilds the exercises with exactly the documented keys; parsers narrow enum columns to the unions and validate the
+  jsonb sets on read (integer reps ≥ 0, weight ≥ 0, rpe 1..10, non-empty). `disabled.ts`: every P8.1 method answers `fail('disabled')`
+  (reads too — a profile with no user has nothing to be empty of). `src/content/{enums,db-types}.ts`: `USER_TABLES` 3 → 8, five
+  `Row` / `Insert` types.
+- **Test double (`src/auth/fake-client.ts`, the existing `fakeClient()`):** the per-user builder learns `.gte / .lte` (recorded as
+  `call.range`), `.order` (`call.order`), `.update` (applied to the configured rows matching the `.eq` filters; answers with the row),
+  `upsert(values, options)` (`call.options`), and fills the P8.1 column defaults (`USER_TABLE_DEFAULTS`) on written rows like the DB
+  would. `unusedProfileMethods()` for page tests that hand-build a source (`AccountPage`, `FridgePage`, `PlanView` tests spread it).
+- **Gate coverage:** `scripts/db-gate/catalogue.mjs` five `user` entries (leak / control inserts chosen to miss every fixture row) + fixture
+  rows of A and B per table + six `ENUM_COLUMNS` rows sourced from `src/user/source.ts` (new optional `source` field; the gate line reads
+  `entries.kind CHECK admits exactly source.ts ENTRY_KINDS`); `scripts/db-gate.mjs` new structural check `workout_sessions: every jsonb
+  exercise references an existing exercises id and has the set shape` (2 fixture exercises clean) and a **gate refinement**: "status-bearing"
+  now means the REVIEW shape (`status` + `reviewed_at` + `reviewed_by`), so a bare lifecycle `status` (`workout_plans`) needs no
+  `stamp_review` / pending default and is not "per-user with status" (the stamp check still binds on 9 content tables); prove-red pinned
+  counts 17 → 22 tables, 18 → 23 catalogue entries, **+1 sabotage `entries-policy-missing-user-filter`** (SELECT policy keeps its name,
+  loses the owner filter → `hygieia.entries: UB reads ZERO rows of A — 1 rows`); `scripts/db-schema-contract.test.ts` five column lists,
+  the six CHECK ↔ union pins (through `ENUM_COLUMNS`), PKs, FK actions (RESTRICT / SET NULL / CASCADE), `CURRENT_DATE` + `'active'` defaults,
+  row CHECKs, and "saved_items' only FK is user_id"; `scripts/db-isolation.test.ts` runs the catalogue's 12 checks × 8 tables unchanged.
+- **Verified (worktree `wt/a` at `ca32ea7` + this change):** lint **0 errors** (23 pre-existing `react-refresh` warnings) · typecheck clean ·
+  **unit 3456 tests / 69 files** (was 3348) · `db:check` **13 migration(s)** · **`db:gate` 357 checks green** (was 289) · **prove-red 28/28**
+  (control 358 PASS, wall 22 s) · build: entry 237.39 kB / 74.31 kB gzip (unchanged — nothing new in the eager graph) · `check:bundle` OK
+  (39 files) · `docs/ops/migrations.md` row 13 + expected counts.
+- **Deviations from the brief (two, both forced by the gate; the client contract is untouched):** (1) all five tables carry `created_at` AND
+  `updated_at` + the touch trigger — the structural sweep requires both on every table; `entries`, `saved_items`, `workout_sessions` were
+  specified with `created_at` only, and their client row types expose exactly what the brief lists. (2) `workout_plans.status` keeps the
+  brief's column name; the gate's review predicate was refined instead of renaming the column (above).
+- **Found on the way:** PostgREST's upsert `on conflict … do update` SETs every payload column, so `fridgeLists.save({ id, … })` sends `id`,
+  which the shipped `update (name, ingredient_slugs)` grant on `fridge_lists` does not cover — a rename of an existing list in configured
+  mode is likely `permission denied` (not exercised live yet). Out of scope here; flagged for the lead (fix = a NEW migration granting
+  `update (id)`, or an `update().eq('id')` path in `supabase.ts`).
+- **Left for P8.2 / P8.3 / operator:** the `/profile` page and the workout-plans UI (contract above); live apply of `001300` (P8.4, operator);
+  BRAIN.md §2 / §3 reconcile at merge (lanes append records, the lead owns the brain — ADR-0005).
+
 ### P7.2 SKINCARE page — 2026-10-06 — DONE (builder, lane `wt/c`)
 
 - **What:** `/skincare` — the seventh module on the P7.1 data spine (PLAN.md `## P7 Skincare`). Lazy route chunk in `src/routes/routes.tsx` →

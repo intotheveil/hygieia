@@ -5,6 +5,7 @@ import { bundledSource } from '../content/bundled.ts'
 import type { Diet, Ingredient, Recipe } from '../content/source.ts'
 import { LangProvider } from '../i18n/LangProvider'
 import { dictionaries, type Lang } from '../i18n/dictionary'
+import { unusedProfileMethods } from '../auth/fake-client'
 import { disabledSource } from '../user/disabled'
 import { fail, ok, type SavedPlan, type UserDataSource } from '../user/source'
 import { generateWeekPlan, nextMonday } from './generate.ts'
@@ -37,6 +38,7 @@ function fakeUserData(save = vi.fn()): UserDataSource & { save: typeof save } {
     fridgeLists: { list: unused, save: unused, remove: unused },
     favourites: { list: unused, add: unused, remove: unused },
     savedPlans: { list: unused, save, remove: unused },
+    ...unusedProfileMethods(),
   }
 }
 

@@ -259,6 +259,55 @@ export type FavouriteRow = Timestamps & {
   recipe_id: string
 }
 
+// P8.1 profile (20261006001300_hygieia_profile.sql). The enum columns are `string` here, as the
+// wire carries them; src/user/source.ts narrows them to its `as const` unions when parsing.
+export type EntryRow = Timestamps & {
+  id: string
+  user_id: string
+  kind: string
+  entry_date: string
+  value: number | null
+  unit: string | null
+  payload: Json | null
+  note: string | null
+}
+
+export type GoalRow = Timestamps & {
+  user_id: string
+  kind: string
+  target: number
+  unit: string
+  cadence: string
+}
+
+export type SavedItemRow = Timestamps & {
+  user_id: string
+  kind: string
+  item_id: string
+}
+
+export type WorkoutPlanRow = Timestamps & {
+  id: string
+  user_id: string
+  template_id: string
+  name: string
+  weeks: number
+  days_per_week: number
+  start_date: string
+  status: string
+}
+
+export type WorkoutSessionRow = Timestamps & {
+  id: string
+  user_id: string
+  plan_id: string | null
+  template_id: string | null
+  performed_at: string
+  duration_min: number | null
+  exercises: Json
+  note: string | null
+}
+
 export type SchemaMigrationRow = {
   version: string
   name: string
@@ -407,6 +456,85 @@ export type Database = {
             foreignKeyName: 'favourites_recipe_id_fkey'
             columns: ['recipe_id']
             referencedRelation: 'recipes'
+            referencedColumns: ['id']
+          },
+        ]
+      >
+      // P8.1 profile tables (20261006001300_hygieia_profile.sql).
+      entries: Table<
+        EntryRow,
+        {
+          id?: string
+          user_id?: string
+          kind: string
+          entry_date?: string
+          value?: number | null
+          unit?: string | null
+          payload?: Json | null
+          note?: string | null
+        } & TimestampsInsert,
+        []
+      >
+      goals: Table<
+        GoalRow,
+        {
+          user_id?: string
+          kind: string
+          target: number
+          unit: string
+          cadence: string
+        } & TimestampsInsert,
+        []
+      >
+      saved_items: Table<
+        SavedItemRow,
+        { user_id?: string; kind: string; item_id: string } & TimestampsInsert,
+        []
+      >
+      workout_plans: Table<
+        WorkoutPlanRow,
+        {
+          id?: string
+          user_id?: string
+          template_id: string
+          name: string
+          weeks: number
+          days_per_week: number
+          start_date?: string
+          status?: string
+        } & TimestampsInsert,
+        [
+          {
+            foreignKeyName: 'workout_plans_template_id_fkey'
+            columns: ['template_id']
+            referencedRelation: 'workout_templates'
+            referencedColumns: ['id']
+          },
+        ]
+      >
+      workout_sessions: Table<
+        WorkoutSessionRow,
+        {
+          id?: string
+          user_id?: string
+          plan_id?: string | null
+          template_id?: string | null
+          performed_at?: string
+          duration_min?: number | null
+          exercises: Json
+          note?: string | null
+        } & TimestampsInsert,
+        [
+          {
+            foreignKeyName: 'workout_sessions_plan_id_fkey'
+            columns: ['plan_id']
+            referencedRelation: 'workout_plans'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'workout_sessions_template_id_fkey'
+            columns: ['template_id']
+            referencedRelation: 'workout_templates'
             referencedColumns: ['id']
           },
         ]

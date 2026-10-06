@@ -37,6 +37,14 @@ import {
   USER_TABLES,
   WORKOUT_TYPES,
 } from '../src/content/enums.ts'
+import {
+  CADENCES,
+  ENTRY_KINDS,
+  ENTRY_UNITS,
+  GOAL_KINDS,
+  PLAN_STATUSES,
+  SAVED_ITEM_KINDS,
+} from '../src/user/source.ts'
 
 const MIG =
   process.env.DB_GATE_MIGRATIONS ??
@@ -235,6 +243,42 @@ const EXPECTED: Record<string, string[]> = {
     ...STAMPS,
   ],
   favourites: ['user_id:uuid', 'recipe_id:uuid', ...STAMPS],
+  // P8.1 profile (20261006001300_hygieia_profile.sql)
+  entries: [
+    'id:uuid',
+    'user_id:uuid',
+    'kind:text',
+    'entry_date:date',
+    'value:numeric',
+    'unit:text',
+    'payload:jsonb',
+    'note:text',
+    ...STAMPS,
+  ],
+  goals: ['user_id:uuid', 'kind:text', 'target:numeric', 'unit:text', 'cadence:text', ...STAMPS],
+  saved_items: ['user_id:uuid', 'kind:text', 'item_id:uuid', ...STAMPS],
+  workout_plans: [
+    'id:uuid',
+    'user_id:uuid',
+    'template_id:uuid',
+    'name:text',
+    'weeks:integer',
+    'days_per_week:integer',
+    'start_date:date',
+    'status:text',
+    ...STAMPS,
+  ],
+  workout_sessions: [
+    'id:uuid',
+    'user_id:uuid',
+    'plan_id:uuid',
+    'template_id:uuid',
+    'performed_at:date',
+    'duration_min:integer',
+    'exercises:jsonb',
+    'note:text',
+    ...STAMPS,
+  ],
 }
 
 /** Columns that must be NOT NULL beyond the obvious keys: every locale pair (PLAN §1.2). */
@@ -367,6 +411,13 @@ describe('CHECK enum literals equal src/content/enums.ts (length and order)', ()
         'CARE_AREAS',
         'SKINCARE_CATEGORIES',
         'PRICE_BANDS',
+        // P8.1 (src/user/source.ts)
+        'ENTRY_KINDS',
+        'ENTRY_UNITS',
+        'GOAL_KINDS',
+        'CADENCES',
+        'SAVED_ITEM_KINDS',
+        'PLAN_STATUSES',
       ].sort(),
     )
     // Every content table has its status enum entry.
@@ -445,6 +496,103 @@ describe('CHECK enum literals equal src/content/enums.ts (length and order)', ()
       'nail_remover',
     ])
     expect(PRICE_BANDS).toEqual(['low', 'mid', 'high'])
+    // P8.1 profile (src/user/source.ts) — the page contract, verbatim
+    expect(ENTRY_KINDS).toEqual([
+      'weight',
+      'meal',
+      'workout',
+      'water',
+      'sleep',
+      'steps',
+      'skincare',
+      'nails',
+      'mood',
+    ])
+    expect(ENTRY_UNITS).toEqual(['kg', 'kcal', 'min', 'ml', 'h', 'steps', 'score'])
+    expect(GOAL_KINDS).toEqual(['water', 'sleep', 'workout', 'steps', 'weight', 'skincare'])
+    expect(CADENCES).toEqual(['daily', 'weekly'])
+    expect(SAVED_ITEM_KINDS).toEqual([
+      'workout',
+      'skincare_routine',
+      'health_tip',
+      'skincare_tip',
+      'diet',
+    ])
+    expect(PLAN_STATUSES).toEqual(['active', 'completed', 'abandoned'])
+  })
+})
+
+describe('P8.1 profile tables: keys, defaults, FK actions and row CHECKs', () => {
+  const constraints = async (t: string, type: 'c' | 'p' | 'f' | 'u') =>
+    (
+      await db.query<{ name: string; def: string; ondelete: string }>(
+        `select c.conname as name, pg_get_constraintdef(c.oid) as def, c.confdeltype::text as ondelete
+           from pg_constraint c where c.conrelid = $1::regclass and c.contype = $2 order by 1`,
+        [`hygieia.${t}`, type],
+      )
+    ).rows
+  const columnDefault = async (t: string, column: string) =>
+    (
+      await db.query<{ def: string }>(
+        `select pg_get_expr(d.adbin, d.adrelid) as def from pg_attrdef d
+           join pg_attribute a on a.attrelid = d.adrelid and a.attnum = d.adnum
+          where d.adrelid = $1::regclass and a.attname = $2`,
+        [`hygieia.${t}`, column],
+      )
+    ).rows[0]?.def
+
+  it('goals is keyed per kind and saved_items per (kind, item_id); entries / plans / sessions by id', async () => {
+    expect((await constraints('goals', 'p'))[0]?.def).toBe('PRIMARY KEY (user_id, kind)')
+    expect((await constraints('saved_items', 'p'))[0]?.def).toBe(
+      'PRIMARY KEY (user_id, kind, item_id)',
+    )
+    for (const t of ['entries', 'workout_plans', 'workout_sessions'])
+      expect((await constraints(t, 'p'))[0]?.def, t).toBe('PRIMARY KEY (id)')
+  })
+
+  it('saved_items is polymorphic: its ONLY foreign key is user_id → auth.users (item_id has none)', async () => {
+    const fks = await constraints('saved_items', 'f')
+    expect(fks.map((f) => f.def)).toEqual([
+      'FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE',
+    ])
+  })
+
+  it('FK actions: plans.template_id RESTRICT; sessions.plan_id and template_id SET NULL; user_id CASCADE everywhere', async () => {
+    const plans = await constraints('workout_plans', 'f')
+    expect(plans.find((f) => f.def.includes('(template_id)'))?.ondelete).toBe('r')
+    const sessions = await constraints('workout_sessions', 'f')
+    expect(sessions.find((f) => f.def.includes('(plan_id)'))?.ondelete).toBe('n')
+    expect(sessions.find((f) => f.def.includes('(template_id)'))?.ondelete).toBe('n')
+    for (const t of ['entries', 'goals', 'saved_items', 'workout_plans', 'workout_sessions']) {
+      const user = (await constraints(t, 'f')).find((f) => f.def.includes('(user_id)'))
+      expect(user?.ondelete, `${t}.user_id`).toBe('c')
+    }
+  })
+
+  it('defaults: entry_date / start_date / performed_at = CURRENT_DATE; plan status = active', async () => {
+    expect(await columnDefault('entries', 'entry_date')).toBe('CURRENT_DATE')
+    expect(await columnDefault('workout_plans', 'start_date')).toBe('CURRENT_DATE')
+    expect(await columnDefault('workout_sessions', 'performed_at')).toBe('CURRENT_DATE')
+    expect(await columnDefault('workout_plans', 'status')).toBe(`'active'::text`)
+  })
+
+  it('row CHECKs: value >= 0, target > 0, weeks 1..12, days 1..7, duration 1..600, exercises array of 1..40, notes <= 500', async () => {
+    const defs = async (t: string) => (await constraints(t, 'c')).map((x) => x.def).join('\n')
+    const entries = await defs('entries')
+    expect(entries).toMatch(/value IS NULL\) OR \(value >= \(0\)/)
+    expect(entries).toMatch(/length\(note\) <= 500/)
+    expect(await defs('goals')).toMatch(/target > \(0\)/)
+    const plans = await defs('workout_plans')
+    expect(plans).toMatch(/weeks >= 1\) AND \(weeks <= 12/)
+    expect(plans).toMatch(/days_per_week >= 1\) AND \(days_per_week <= 7/)
+    expect(plans).toMatch(/length\(name\) >= 1\) AND \(length\(name\) <= 80/)
+    const sessions = await defs('workout_sessions')
+    expect(sessions).toMatch(/duration_min >= 1\) AND \(duration_min <= 600/)
+    expect(sessions).toMatch(/jsonb_typeof\(exercises\) = 'array'/)
+    expect(sessions).toMatch(
+      /jsonb_array_length\(exercises\) >= 1\) AND \(jsonb_array_length\(exercises\) <= 40/,
+    )
+    expect(sessions).toMatch(/length\(note\) <= 500/)
   })
 })
 

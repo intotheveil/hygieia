@@ -5,6 +5,7 @@ import { bundledSource, seedId } from '../content/bundled.ts'
 import { DIETS } from '../content/seed/diets.ts'
 import { LangProvider } from '../i18n/LangProvider'
 import { dictionaries, type Lang } from '../i18n/dictionary'
+import { unusedProfileMethods } from '../auth/fake-client'
 import { disabledSource } from '../user/disabled'
 import {
   fail,
@@ -51,6 +52,7 @@ function fakeSource(store: Store) {
       add: refuse,
       remove: removeFavourite,
     },
+    ...unusedProfileMethods(),
   }
   return { source, removePlan, removeList, removeFavourite }
 }

@@ -60,6 +60,15 @@ import {
   WORKOUT_TYPES,
 } from '../../src/content/enums.ts'
 import { WORKOUT_TEMPLATES } from '../../src/content/seed/workouts.ts'
+// P8.1 per-user enums live with the user-data contract, not with the content enums.
+import {
+  CADENCES,
+  ENTRY_KINDS,
+  ENTRY_UNITS,
+  GOAL_KINDS,
+  PLAN_STATUSES,
+  SAVED_ITEM_KINDS,
+} from '../../src/user/source.ts'
 
 // --- identities ----------------------------------------------------------------------------------
 export const U = Object.freeze({
@@ -160,6 +169,14 @@ export const ID = Object.freeze({
   fridgeB: '20000000-0000-4000-8000-00000000000b',
   planA: '30000000-0000-4000-8000-00000000000a',
   planB: '30000000-0000-4000-8000-00000000000b',
+  // P8.1 profile fixture rows (one of A, one of B per table).
+  entryA: '40000000-0000-4000-8000-00000000000a',
+  entryB: '40000000-0000-4000-8000-00000000000b',
+  wplanA: '50000000-0000-4000-8000-00000000000a',
+  wplanB: '50000000-0000-4000-8000-00000000000b',
+  wsessA: '60000000-0000-4000-8000-00000000000a',
+  wsessB: '60000000-0000-4000-8000-00000000000b',
+  drinkWater: sid('health_tips', 'fx-drink-water'),
 })
 
 // --- archive -------------------------------------------------------------------------------------
@@ -295,6 +312,31 @@ export async function seedFixture(db) {
     insert into hygieia.favourites (user_id, recipe_id, updated_at) values
       ('${U.UA}', '${ID.greekSalad}', '${OLD}'),
       ('${U.UB}', '${ID.greekSalad}', '${OLD}');
+
+    -- P8.1 profile: one row of A and one of B per table. Kinds are chosen so the catalogue's leak /
+    -- control inserts (a water entry, a sleep goal, a health_tip item, a 'leak' plan / session)
+    -- match nothing the fixture holds.
+    insert into hygieia.entries (id, user_id, kind, entry_date, value, unit, payload, note, updated_at) values
+      ('${ID.entryA}', '${U.UA}', 'weight', '2026-10-01', 80, 'kg', null, 'A weight', '${OLD}'),
+      ('${ID.entryB}', '${U.UB}', 'weight', '2026-10-01', 70, 'kg', '{"source":"fixture"}', null, '${OLD}');
+    insert into hygieia.goals (user_id, kind, target, unit, cadence, updated_at) values
+      ('${U.UA}', 'water', 2000, 'ml', 'daily', '${OLD}'),
+      ('${U.UB}', 'water', 1500, 'ml', 'daily', '${OLD}');
+    insert into hygieia.saved_items (user_id, kind, item_id, updated_at) values
+      ('${U.UA}', 'workout', '${ID.tplApproved}', '${OLD}'),
+      ('${U.UB}', 'workout', '${ID.tplApproved}', '${OLD}');
+    insert into hygieia.workout_plans (id, user_id, template_id, name, weeks, days_per_week, start_date,
+      status, updated_at) values
+      ('${ID.wplanA}', '${U.UA}', '${ID.tplApproved}', 'A plan', 4, 3, '2026-10-01', 'active', '${OLD}'),
+      ('${ID.wplanB}', '${U.UB}', '${ID.tplApproved}', 'B plan', 8, 4, '2026-10-01', 'completed', '${OLD}');
+    insert into hygieia.workout_sessions (id, user_id, plan_id, template_id, performed_at, duration_min,
+      exercises, note, updated_at) values
+      ('${ID.wsessA}', '${U.UA}', '${ID.wplanA}', '${ID.tplApproved}', '2026-10-02', 45,
+       '[{"exercise_id":"${ID.squat}","sets":[{"reps":10,"weight_kg":60,"rpe":7,"done":true}]}]',
+       'A session', '${OLD}'),
+      ('${ID.wsessB}', '${U.UB}', null, null, '2026-10-02', null,
+       '[{"exercise_id":"${ID.pushup}","sets":[{"reps":12,"weight_kg":null,"rpe":null,"done":false}]}]',
+       null, '${OLD}');
   `)
 
   // workout_templates: no free unique cell (header), so ADOPT two seeded rows instead of inserting.
@@ -338,7 +380,9 @@ export async function seedFixture(db) {
  * Every CHECK-constrained enum column and the src/content/enums.ts array it must equal, in order.
  * The DB literal list is read back with `checkValues`; the schema-contract test and the gate both
  * assert equality, so the DB and TS enums cannot drift (PLAN P1.6).
- * @type {ReadonlyArray<{ table: string, column: string, name: string, values: readonly string[] }>}
+ * `source` names the TS module the array lives in (default src/content/enums.ts; the P8.1
+ * per-user enums live in src/user/source.ts).
+ * @type {ReadonlyArray<{ table: string, column: string, name: string, values: readonly string[], source?: string }>}
  */
 export const ENUM_COLUMNS = Object.freeze([
   { table: 'ingredients', column: 'unit', name: 'UNITS', values: UNITS },
@@ -396,6 +440,37 @@ export const ENUM_COLUMNS = Object.freeze([
     name: 'CONTENT_STATUSES',
     values: CONTENT_STATUSES,
   })),
+  // P8.1 profile — the per-user enums of src/user/source.ts.
+  {
+    table: 'entries',
+    column: 'kind',
+    name: 'ENTRY_KINDS',
+    values: ENTRY_KINDS,
+    source: 'source.ts',
+  },
+  {
+    table: 'entries',
+    column: 'unit',
+    name: 'ENTRY_UNITS',
+    values: ENTRY_UNITS,
+    source: 'source.ts',
+  },
+  { table: 'goals', column: 'kind', name: 'GOAL_KINDS', values: GOAL_KINDS, source: 'source.ts' },
+  { table: 'goals', column: 'cadence', name: 'CADENCES', values: CADENCES, source: 'source.ts' },
+  {
+    table: 'saved_items',
+    column: 'kind',
+    name: 'SAVED_ITEM_KINDS',
+    values: SAVED_ITEM_KINDS,
+    source: 'source.ts',
+  },
+  {
+    table: 'workout_plans',
+    column: 'status',
+    name: 'PLAN_STATUSES',
+    values: PLAN_STATUSES,
+    source: 'source.ts',
+  },
 ])
 
 /**
@@ -716,6 +791,54 @@ export const CATALOGUE = Object.freeze([
     leakInsert: `insert into hygieia.favourites (user_id, recipe_id) values ('${U.UA}', '${ID.omelette}')`,
     controlInsert: `insert into hygieia.favourites (recipe_id) values ('${ID.omelette}')`,
     inserted: `recipe_id = '${ID.omelette}'`,
+  },
+  // P8.1 profile tables (20261006001300). Every leak/control value misses every fixture row.
+  {
+    table: 'entries',
+    kind: 'user',
+    probe: `note = 'pwned'`,
+    leakInsert: `insert into hygieia.entries (user_id, kind, value, unit) values ('${U.UA}', 'water', 250, 'ml')`,
+    controlInsert: `insert into hygieia.entries (kind, value, unit) values ('water', 250, 'ml')`,
+    inserted: `kind = 'water' and value = 250`,
+  },
+  {
+    table: 'goals',
+    kind: 'user',
+    probe: `target = 999`,
+    leakInsert: `insert into hygieia.goals (user_id, kind, target, unit, cadence)
+                 values ('${U.UA}', 'sleep', 8, 'h', 'daily')`,
+    controlInsert: `insert into hygieia.goals (kind, target, unit, cadence) values ('sleep', 8, 'h', 'daily')`,
+    inserted: `kind = 'sleep'`,
+  },
+  {
+    table: 'saved_items',
+    kind: 'user',
+    probe: `kind = 'diet'`,
+    // Polymorphic: item_id has no FK, so any uuid is a valid reference; the fixture tip's id is used.
+    leakInsert: `insert into hygieia.saved_items (user_id, kind, item_id)
+                 values ('${U.UA}', 'health_tip', '${ID.drinkWater}')`,
+    controlInsert: `insert into hygieia.saved_items (kind, item_id) values ('health_tip', '${ID.drinkWater}')`,
+    inserted: `kind = 'health_tip'`,
+  },
+  {
+    table: 'workout_plans',
+    kind: 'user',
+    probe: `name = 'pwned'`,
+    leakInsert: `insert into hygieia.workout_plans (user_id, template_id, name, weeks, days_per_week)
+                 values ('${U.UA}', '${ID.tplApproved}', 'leak', 4, 3)`,
+    controlInsert: `insert into hygieia.workout_plans (template_id, name, weeks, days_per_week)
+                    values ('${ID.tplApproved}', 'leak', 4, 3)`,
+    inserted: `name = 'leak'`,
+  },
+  {
+    table: 'workout_sessions',
+    kind: 'user',
+    probe: `note = 'pwned'`,
+    leakInsert: `insert into hygieia.workout_sessions (user_id, exercises, note)
+                 values ('${U.UA}', '[{"exercise_id":"${ID.squat}","sets":[{"reps":5,"weight_kg":null,"rpe":null,"done":true}]}]', 'leak')`,
+    controlInsert: `insert into hygieia.workout_sessions (exercises, note)
+                    values ('[{"exercise_id":"${ID.squat}","sets":[{"reps":5,"weight_kg":null,"rpe":null,"done":true}]}]', 'leak')`,
+    inserted: `note = 'leak'`,
   },
 ])
 
