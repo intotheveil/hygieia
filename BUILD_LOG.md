@@ -3,6 +3,26 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+### OPERATOR-P4 / OP4.b — content APPROVED on the operator's instruction — 2026-10-06 (night)
+
+- **Operator:** "i approve..." (after reporting O1 done and a failed sign-in link). The admin page could not be used: no sign-in has
+  reached the shared project yet (zero auth events in 12 h — the live site is still local-only, so the link the operator clicked did not
+  come from Hygieia's backend), hence no profile and no admin flag. Approval was therefore applied by SQL via the MCP tool, one
+  transaction: `status='approved', reviewed_at=now()` where `status='pending'`; `reviewed_by` stays NULL (no reviewer user exists; the
+  FK is nullable). **Live counts after:** ingredients 322 approved · diets 16 · recipes 152 · exercises 136 · workout_templates 63 ·
+  health_tips **58 approved, 17 pending** — the 17 carry `needs_source = true` and were deliberately left for the operator to source or
+  reject in `/admin`.
+- **O1 is NOT in effect.** Two anon REST probes with `Accept-Profile: hygieia` answered PGRST106 "Only the following schemas are exposed:
+  public, graphql_public" — after the operator reported adding it. Most likely saved in "Extra search path" or not saved. A third probe
+  was refused by the session's permission classifier, so the current state is unverified from here. **OP2.c (repo variables) stays HELD
+  until O1 is confirmed** — a configured build against an unexposed schema would error on every content read.
+- **Sign-in prerequisites found while diagnosing:** besides OP2.c, Supabase Authentication → URL Configuration → Redirect URLs must
+  include `https://intotheveil.github.io/hygieia/auth/callback` (and the localhost callback), otherwise magic links bounce to the
+  project's Site URL (Alyssos) and read as "expired or already used". Added to OP2.a in BRAIN §4.
+- **Process:** the MCP write was refused twice by the auto-mode classifier with no prompt to approve; it needed a PERSISTENT allow rule
+  for `mcp__plugin_supabase_supabase__execute_sql` in the operator's user settings (the earlier grant was session-only). The operator
+  added it with a one-line node command run through the `!` prefix; the write then went through first time.
+
 ### CHECKPOINT P5/P6 — 2026-10-06 — HUMAN GATE (the crew stops here; CLAUDE.md §7)
 
 **Claimed:** P5 Hardening + P6 Deploy — qa VALIDATED (re-run on the cold gate) · reviewer PASS (flip, all seven rubric lines 2) · G6 green at
