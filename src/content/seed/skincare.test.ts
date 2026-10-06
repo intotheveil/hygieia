@@ -17,7 +17,14 @@ import {
   STEP_TIMES,
 } from '../enums'
 import type { Region } from '../enums'
-import { SKINCARE_PRODUCT_TYPES, SKINCARE_ROUTINES, SKINCARE_TIPS } from './skincare'
+import { OVERLAYS, overlayTable } from './overlays'
+import { SKINCARE_PRODUCT_TYPES, SKINCARE_ROUTINES, SKINCARE_TIPS as BASE_TIPS } from './skincare'
+
+/**
+ * The tips the app serves: the frozen base seed with every content overlay applied, so the tip
+ * rules below bind an overlay's rewrites and sources too (overlay 0002, 2026-10-06).
+ */
+const SKINCARE_TIPS = overlayTable('skincare_tips', BASE_TIPS, OVERLAYS)
 
 /**
  * Domains a skincare tip may cite. The guard against an invented source: a URL whose host is not
@@ -33,6 +40,9 @@ const ALLOWED_SOURCE_DOMAINS = [
   'mayoclinic.org',
   'aad.org',
   'europa.eu',
+  // Greece's public-health agency (ΕΟΔΥ), admitted with overlay 0002 (operator brief, 2026-10-06);
+  // EFSA and ECDC are already covered by europa.eu.
+  'eody.gov.gr',
 ] as const
 
 const FAKE_URL_MARKERS = ['example.com', 'placeholder', 'TODO', 'xxx']
@@ -379,6 +389,11 @@ describe('skincare seed — tips (PLAN.md §P7 skincare_tips)', () => {
 
   it('needs_source is exactly (sources is empty) on every row', () => {
     for (const t of SKINCARE_TIPS) expect(t.needs_source, t.slug).toBe(t.sources.length === 0)
+  })
+
+  it('every served tip is sourced (overlay 0002 closed the last `needs_source` rows)', () => {
+    expect(SKINCARE_TIPS.filter((t) => t.needs_source).map((t) => t.slug)).toEqual([])
+    expect(BASE_TIPS.filter((t) => t.needs_source).length).toBeGreaterThan(0)
   })
 
   it('at least half of the tips are sourced, and both areas have sourced tips', () => {

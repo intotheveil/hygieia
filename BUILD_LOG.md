@@ -64,6 +64,94 @@ The human reads this first on return (CLAUDE.md §5).
   imports it). /recipes and /recipe are at the 85 floor locally (BRAIN records 87–88 before); the LCP element is the draft ribbon and the
   extra seed bytes are charged to it. Other routes are unaffected (tips 89, workouts 92, skincare 91). If CI reads 84, the lever is
   per-table overlay chunks (load an overlay's recipe rows only with the recipes table) — an overlay-infrastructure change, not this lane's.
+### SOURCES — 43 tips sourced (overlay 0002) — 2026-10-06 — DONE
+
+- **Request (operator approved):** every tip still `needs_source: true` gets a real, checked source — 17 health tips
+  (`src/content/seed/tips.ts`) and 26 skincare tips (`src/content/seed/skincare/tips.ts`). Lane `wt/a` from `main` `ab3d4f2`.
+- **Method:** every page was fetched on 2026-10-06 and read against the tip. Where the tip claimed more than the page, the EL + EN
+  wording was softened to what the page says; where no reputable page supported the claim, the tip was rewritten into a claim one does
+  (title too when the title carried the claim). No URL was taken from memory without opening it. `newsinhealth.nih.gov` and
+  `pmc.ncbi.nlm.nih.gov` answer plain `curl`/`fetch` with a Cloudflare / reCAPTCHA page (403 / "Checking your browser") — they were read
+  in headless Chromium (the repo's Playwright), which renders them normally. Greek of all 58 rewritten title/body fields double-checked
+  with the operator's local `qwen2.5:32b` (0 findings); final wording is the builder's.
+- **Result:** **43/43 sourced · kept 1 · softened 32 · rewritten 10 · recommended for rejection 0.** Every served tip now has a source
+  (bundled: 75 health tips → 75 `source_url`; 65 skincare tips → all with `sources`).
+
+| slug | source host(s) | outcome |
+|---|---|---|
+| sleep-morning-daylight | sleepfoundation.org | softened ("first hour", "10 minutes" dropped) |
+| sleep-worry-list | nhs.uk | softened (closing line = NHS wording) |
+| hydration-urine-colour-check | nhs.uk | softened ("already behind when thirsty" dropped) |
+| hydration-bottle-within-reach | cdc.gov | softened ("we drink what we see" dropped) |
+| hydration-older-adults-schedule | mayoclinic.org | softened (Mayo: less body water, water pills, heat/illness) |
+| hydration-alternate-alcohol-with-water | mayoclinic.org | softened ("large glass before bed" dropped) |
+| hydration-drink-with-meals | cdc.gov | softened ("almost half your daily intake" dropped) |
+| nutrition-limit-ultra-processed-foods | nhs.uk | softened (NHS "less often, smaller amounts"; label clue = NHS) |
+| movement-pick-what-you-enjoy | cdc.gov | softened ("company is the surest way" dropped) |
+| habits-know-your-numbers | nhs.uk | softened ("no symptoms" for BP + cholesterol only) |
+| habits-stack-new-on-old | pmc.ncbi.nlm.nih.gov (Gardner et al. 2012) | softened ("impossible to skip" → simple actions automate faster) |
+| habits-cook-at-home-more | hsph.harvard.edu | softened ("always more than you think" dropped) |
+| habits-twenty-twenty-twenty-eyes | mayoclinic.org | kept (brightness wording aligned to Mayo) |
+| habits-plan-meals-and-shop-with-a-list | hsph.harvard.edu | softened ("most poor choices", "never shop hungry" dropped) |
+| mental-time-in-nature | nhs.uk | softened ("lowers stress" → "can boost wellbeing") |
+| mental-limit-news-and-scrolling | cdc.gov | softened (CDC "can be upsetting") |
+| mental-gratitude-three-good-things | newsinhealth.nih.gov | softened ("brain built to…", "two weeks" dropped) |
+| face-men-shave-after-shower-with-the-grain | aad.org ×2 | softened |
+| face-men-change-the-blade-often | aad.org ×2 | softened (5–8 → AAD's 5–7 shaves) |
+| face-men-razor-burn-cold-rinse-and-balm | aad.org ×2 | **rewritten** (cool compress + soothing aftershave; title) |
+| face-men-wash-the-beard-not-every-day | aad.org | **rewritten — claim reversed**: AAD says wash face + beard DAILY, gentle cleanser |
+| face-men-beard-oil-is-for-the-skin-underneath | aad.org | softened (product by skin type, sparingly) |
+| face-men-rinse-after-the-gym | aad.org ×2 | softened ("20–30 min" → "as soon as you can"; title) |
+| face-women-remove-makeup-every-night | aad.org ×2 | softened ("mascara snaps lashes" dropped) |
+| face-women-double-cleanse-only-when-needed | aad.org ×3 | **rewritten** (remover → gentle cleanser at night; wash ≤ 2×/day) |
+| face-women-pregnancy-safe-actives | aad.org ×2 | **rewritten** (azelaic, vit C + glycolic, mineral SPF; retinoids/hydroquinone avoided) |
+| face-women-melasma-needs-tinted-sunscreen | aad.org ×2 | softened (SPF 50 → 30+; "every treatment wasted" dropped) |
+| face-women-clean-brushes-and-sponges | aad.org ×2 | softened (7–10 days, gentle shampoo; title) |
+| face-women-menopause-skin-gets-drier | aad.org | softened (ceramides → hyaluronic/glycerin; title) |
+| face-women-neck-chest-and-hands-count-too | aad.org, mayoclinic.org | softened ("thinner skin", "reapply after every wash" dropped) |
+| face-all-japanese-gel-sunscreens-may-sting | aad.org | **rewritten** ("Japanese = alcohol" unsupported → AAD label guidance) |
+| face-all-retinol-start-slow-twice-a-week | aad.org, medlineplus.gov | softened (AAD: lowest strength, every other night; title) |
+| face-all-retinol-pea-on-dry-skin-sandwich | medlineplus.gov ×2 | softened ("pea", "sandwich keeps effect" → thin layer, dry skin; title) |
+| face-all-one-active-per-evening | aad.org ×3 | softened ("cancel out", weekday schedule dropped) |
+| face-all-vitamin-c-that-turned-orange-is-done | pmc.ncbi.nlm.nih.gov (Telang 2013) | softened (yellow, relatively inactive; fridge/3 months dropped; title) |
+| face-all-niacinamide-pairs-with-almost-everything | pmc.ncbi.nlm.nih.gov (Boo 2021) | **rewritten** (">10 % flushes" contradicted — nicotinamide does not flush) |
+| face-all-greek-summer-humidity-lighter-textures | aad.org ×2 | softened ("sweat's salt dries you" dropped) |
+| face-all-rinse-off-salt-after-the-sea | aad.org ×3 | softened ("salt pulls water out" dropped) |
+| face-all-korean-layering-thin-to-thick | aad.org | **rewritten** (AAD order; "thin→thick, patting absorbs" unsupported; title) |
+| face-all-sheet-mask-do-not-let-it-dry | aad.org | **rewritten** ("drying sheet pulls water back" unsupported → label time; title) |
+| face-all-sleep-shows-on-the-skin | pmc.ncbi.nlm.nih.gov ×2 (Sundelin 2013, 2017) | **rewritten** (night repair, pillow lines dropped; title) |
+| nails-men-short-clean-and-buffed | aad.org ×2 | softened (buffing dropped; cuticles neither cut nor pushed; title) |
+| nails-salon-ventilation-and-pregnancy | cdc.gov (NIOSH), fda.gov | **rewritten** ("no need to give up manicures in pregnancy" unsupported → ventilation; pregnant salon workers → doctor) |
+
+- **Rejection:** none needed — every tip now states only what its source says. **Lead's call:** `face-men-wash-the-beard-not-every-day`
+  keeps a slug that now contradicts its own text (slugs are immutable in an overlay). If slugs ever surface to users, reject it live and
+  re-add the same content under `face-men-wash-the-beard-daily` in a later overlay. Weaker slug drift (still readable):
+  `face-all-korean-layering-thin-to-thick`, `face-all-retinol-start-slow-twice-a-week`, `face-all-retinol-pea-on-dry-skin-sandwich`,
+  `face-all-sheet-mask-do-not-let-it-dry`, `face-all-japanese-gel-sunscreens-may-sting`, `nails-men-short-clean-and-buffed`.
+- **Files:** new `src/content/seed/overlays/0002-tip-sources.ts` (43 patches: `source_url`/`sources` + `needs_source: false`, plus
+  title/body pairs where changed — editable columns only), new `supabase/migrations/20261007000200_hygieia_overlay_tip_sources.sql`
+  (generated, 43 `update … where slug`), `overlays/index.ts` (+1 line). Tests: `overlays.test.ts` +5 (0002 registered second; patches
+  EXACTLY the 17 + 26 base `needs_source` slugs, no additions; every patch sets https source(s) + `needs_source: false`, no duplicate
+  source; EL/EN pairs; bundled source serves 0 unsourced tips and 0001's fix survives); `tips.test.ts` / `skincare.test.ts` now run every
+  seed rule over the **served** (overlaid) rows — allow-list, 2–4 / 2–5 sentences, title ≤ 80, Greek script, no untranslated column,
+  condition → professional — +1 test each "every served tip is sourced"; allow-lists +`ecdc.europa.eu`, `eody.gov.gr` (health) and
+  +`eody.gov.gr` (skincare; EFSA/ECDC already under `europa.eu`), unused so far; `TipsPage.test.tsx` / `SkincarePage.test.tsx` count
+  from the served rows and exercise "source pending" by serving one tip back unsourced (no seed tip is pending any more);
+  `scripts/gen-seed-overlays.test.ts` regex no longer pins the real overlay list to `[0001-fix-typos.ts]` (still requires the unlisted
+  module to be named). `seed:gen` rewrote `20261006000700_hygieia_seed_recipes.sql` with LF only — restored with `git checkout`.
+  BRAIN.md not edited (lead reconciles).
+- **Gates (worktree `D:/projects/hygieia-wt/a`):** lint 0 errors (23 pre-existing warnings) · typecheck clean · **`npm test` 3839 passed
+  / 91 files** (+7 tests; first full run red only on the pinned generator regex above, fixed; no PGlite flake this time) · `seed:check`
+  OK (9 = 7 base + 2 overlay) · `db:check` PASS (16 migrations) · **`db:gate` PASSED, 365 checks** (`overlay patches only touch editable
+  content columns (2 overlay file(s))`, `every overlay patch hits exactly one row (45 patch(es))`, re-apply idempotent) ·
+  **`db:gate:prove-red` 34/34** RED on the expected line, control GREEN · `npm run build` OK (rebuilt after `npm test`): entry
+  `index-*.js` 229.27 kB, lazy `overlays-*.js` 60.69 kB (21.38 kB gz).
+- **Exercised (built `dist/` via `e2e/support/pages-server.mjs`, headless Chromium):** `/hygieia/tips` → 0 "Source pending", 75 source
+  links, rewritten sleep text present; `/hygieia/skincare` → 0 "Source pending", 73 source links on the face tab, the rewritten beard tip
+  present. Only console error: the documented Pages deep-link 404 status (BRAIN §5), not this change.
+- **Live (lead):** `db:apply` the new overlay migration; patches never touch `status`, so approved tips stay approved with the new text.
+- **For BRAIN §5 (lead):** NIH News in Health and PubMed Central sit behind Cloudflare / reCAPTCHA for non-browser clients — a link
+  checker that uses `fetch`/`curl` will report them broken while they are fine; verify in a real browser.
 
 ### TASKS ADVISOR +8 topics — 2026-10-06 — DONE
 

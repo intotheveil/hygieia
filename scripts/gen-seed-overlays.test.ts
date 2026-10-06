@@ -366,6 +366,7 @@ describe('generator errors and seed:check drift', () => {
     await expect(
       generateOverlays({ seedDir: seedCopy('unlisted', [o], { listExtra: false }) }),
     ).rejects.toThrow(
+      // the real list grows with every overlay; what must hold is that the unlisted module is named
       /overlays\/index\.ts lists \[0001-fix-typos\.ts[^\]]*\] but the directory holds \[[^\]]*0901-x\.ts\]/,
     )
   })
