@@ -86,7 +86,7 @@ lint+types: npm run lint && npm run typecheck
 - **Health content is informational, not medical advice.** Keep the disclaimer on every page that
   gives guidance, in both languages, and cite sources for health tips.
 - **Every page renders inside `Layout`** (`src/components/Layout.tsx`: SiteHeader + the page's own
-  `<main>` + the disclaimer footer). Add a new route in `src/routes/routes.tsx` AND in
+  the main landmark + the disclaimer footer). Add a new route in `src/routes/routes.tsx` AND in
   `e2e/support/routes.ts` (with a representative bundled slug for a detail page), so the Lighthouse
   and a11y matrices audit it. `NotFound` lives in `src/routes/NotFound.tsx` — pages import it from
   there, never from `routes.tsx` (import cycle).

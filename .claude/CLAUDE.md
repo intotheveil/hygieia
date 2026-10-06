@@ -2,7 +2,7 @@
      CORE    (§0 §3 §4 §5 §6 §7 §9 §10) come from .zeus/kit/CLAUDE.core.md and are synced fleet-wide.
      PROJECT (§1 §2 §8 §11) come from this repo's .claude/CLAUDE.project.md and are yours.
      Edit a CORE section in the kit, not here, or the next sync will overwrite it.
-     Composed 2026-10-05T21:38:18.884Z for hygieia. -->
+     Composed 2026-10-06T04:19:34.276Z for hygieia. -->
 
 # PROJECT CONSTITUTION — hygieia
 
@@ -88,8 +88,10 @@ informed as the chat that got too big. Start new chats freely — nothing is los
   forward-only, tracked in `hygieia.schema_migrations`, rehearsed by `db:gate` (PGlite), applied ONLY
   by the Management-API applier with the operator's go. **Never `supabase db push`** (ADR-0003 rule 1).
 
-**Deviations from the house stack:** ADR-0001 (GitHub Pages instead of Netlify) and ADR-0003 (shared
-Supabase project, own schema, no `db push`) in DECISIONS.md.
+**Deviations from the house stack:** ADR-0001 (GitHub Pages instead of Netlify), ADR-0003 (shared
+Supabase project, own schema, no `db push`) and ADR-0005 (parallel worktree cadence for P1–P6: file-disjoint
+lanes with G0 each, QA + Review gates run after merge, checkpoints waived by the operator; every phase still
+owes its gate before it is claimed) in DECISIONS.md.
 <!-- KIT:PROJECT:END §2 -->
 
 <!-- KIT:CORE:BEGIN §3 -->
@@ -274,5 +276,10 @@ production errors — investigate a fingerprint once, record the close-out, neve
   `link` or `reset`; applies go through the Management-API applier with the operator's go (ADR-0003).
 - **Health content is informational, not medical advice.** Keep the disclaimer on every page that
   gives guidance, in both languages, and cite sources for health tips.
+- **Every page renders inside `Layout`** (`src/components/Layout.tsx`: SiteHeader + the page's own
+  the main landmark + the disclaimer footer). Add a new route in `src/routes/routes.tsx` AND in
+  `e2e/support/routes.ts` (with a representative bundled slug for a detail page), so the Lighthouse
+  and a11y matrices audit it. `NotFound` lives in `src/routes/NotFound.tsx` — pages import it from
+  there, never from `routes.tsx` (import cycle).
 - **Secrets:** env var NAMES only in tracked files. `.env` is gitignored; never stage it.
 <!-- KIT:PROJECT:END §11 -->
