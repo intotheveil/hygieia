@@ -3,6 +3,52 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+### P1/P2 + P3/P4 RE-REVIEW — 2026-10-06 — PASS (both phases; every required fix landed and verified on `main`)
+
+**Independent reviewer (agent `reviewer`, not a builder, not QA), re-review scoped to the REQUIRED FIXES of the two REVISE verdicts below.**
+Judged on `D:/projects/hygieia` `main` at `f33fec6` (merge: wt/a BRAIN rewrite; clean tree) — the lead's recompose `32bd8b4` landed
+during the review and was taken into account. Nothing outside the fixes was re-read, per the earlier verdicts ("flips to PASS without
+re-reading the rest"). Spot-check: `npx vitest run src/i18n src/recipes src/plans src/fridge` → **Test Files 14 passed (14) · Tests 211
+passed (211)** · 3.31 s. BRAIN §5 preservation checked mechanically, not by the builder's word: every non-blank §5 line of the
+pre-rewrite file (`git show 63e3b71~1:BRAIN.md`, 47 lines) is present verbatim in the new file — **47/47, 0 missing**; §5 now 42 bullets.
+
+**Re-scored rubric lines**
+
+| phase | §6 rubric line | was | now | justification |
+| --- | --- | :---: | :---: | --- |
+| P1/P2 | `BUILD_LOG.md`, `DECISIONS.md`, `BRAIN.md` updated | 1 | **2** | BRAIN header "Last updated 2026-10-06 … P1–P6 built, P1/P2 and P3/P4 QA VALIDATED"; §2 names the whole toolchain (`db:check` → `db:gate` 227 → `prove-red` 25 → `db:apply` dry-run default + ledger `hygieia.schema_migrations` → `db:live-check`; `seed:gen`/`seed:check`, md5 ids), the `ContentSource` layer (bundled lazy chunks vs supabase, `db.schema` pinned, `md5.ts`, ribbon), the auth layer (`AuthProvider`/`useAuth`, `/auth` + `/auth/callback` PKCE, `useProfile`, `RequireAuth`/`RequireAdmin`, `hygieia.auth.next`) and the user-data layer (`useUserData`, `user_id` never sent); §3 is the real state (3196 tests, 66 e2e, gate 227, prove-red 25/25, Lighthouse RED, live ledger 000100–000400, seeds applying, O1 open, gate verdicts, next steps in order); §6 has one entry each for P1, P2, P3, P4, P5, P6 plus the gates entry, each with a left-off pointer; §7 has one dated line per DECISIONS.md entry — the §1.2 same-row locale columns and §1.4 per-role policies (P1.5–P1.8 line), §1.6 seed snapshot + md5 ids (P1.12/P1.13 lines), the P2.4 `user_id` rule, the four hand-offs (P1.9, P1.10, P2.1–P2.3, P2.6) and ADR-0005. DECISIONS: the four hand-off entries exist (`:399` P1.9, `:414` P1.10, `:428` P2.1–P2.3, `:449` P2.6) and ADR-0005 (`:467`) states decision, mechanism, deviation, what still binds, risk. A cold session now learns the data spine from the brain. |
+| P3/P4 | Acceptance criteria met exactly (no scope creep, no gaps) | 1 | **2** | Gap (a) closed: `src/recipes/RecipePage.tsx:147` links each chip to `/diets/<slug>`, header comment `:2` rewritten, `serializeRecipeFilterParams` import gone from the page; `RecipePage.test.tsx:87` pins `href="/diets/mediterranean"` and `:88–90` every chip matches `^/diets/[a-z0-9-]+$`, both languages. Gap (b) closed: `src/plans/PlanView.tsx:235–236` renders `typicalValuesNote` under the week table (`data-testid="plan-totals-note"`); `PlanView.test.tsx:74–87` asserts it present exactly once (en) and the Greek text (el); `DietPage.test.tsx:70` asserts it inside the 16-diets × 2-languages loop. PLAN P4.4 and the code now agree; DECISIONS `:593` records the retarget. The fix commit `229b974` touched 13 files, all under `src/`, no migration, no dependency — no creep. |
+| P3/P4 | No secrets, no out-of-scope writes, TS strict honoured | 1 | **2** | Debt (1) closed: `src/content/seed/recipes.test.ts:317–321` asserts for every line that `line.unit` is `g`, `ml` or the ingredient's own unit, with a recipe/ingredient/units message (152 recipes, 0 offenders); `src/recipes/NutritionPanel.tsx:101–104` renders `unitMismatchNote` (recipes-owned key, `features/recipes.ts:41/81/137`) when `result.warnings.length > 0`; `panels.test.tsx:234–247` uses a deliberately mismatched fixture (`onion` sold by `piece`, line in `tbsp` → one `unitMismatch:` warning) and asserts the footnote in both languages, the raw engine string NOT shown, and `:214` no footnote on the clean pilaf fixture. Debt (2) closed: `sourcePending` is gone from `src/i18n/features/diets.ts` (comment `:4` names tips as owner; tips `:14/35/55` keeps it); `dictionary.test.ts:163–200` builds the key→module map over the seven feature literals and asserts union == `featuresEn` keys, every key exactly one owner (descriptive failure message), and feature keys form exactly the tail of `Object.keys(en)` with zero overlap into the base head — meaningful, and the builder's prove-red (re-adding the key → `keys with ≠ 1 owner: [["sourcePending",["diets","tips"]]]`) is recorded. Debt (3) closed: `src/fridge/match.ts:27/83/142` `MatchResult<R extends RecipeSeed = RecipeSeed>`, `matchRecipe<R>`, `matchRecipes<R>`; `FridgePage.tsx:233` `ResultCard` takes `MatchResult<Recipe>`; no `as Recipe` anywhere in the file. No `any`, `@ts-ignore` or `@ts-expect-error` in the seven touched files. |
+| P3/P4 | `BUILD_LOG.md`, `DECISIONS.md`, `BRAIN.md` updated | 2* | **2** | The asterisk (BRAIN owed) is lifted by the rewrite above; §5 carries the three reviewer lines (unit invariant, same-type key collision, `useAsync` identity) plus the QA/P4.3/P3.5 gotchas named for the rewrite; §7 has the "P3/P4 review fixes" line; DECISIONS `:593–602` records fix 1 with fixes 3 and 4 as companions. |
+
+**Required fixes, one line each**
+
+- P1/P2 fix 1 (BRAIN.md current for P1/P2) — **met**: `BRAIN.md` header/§2/§3/§6/§7 as above; §5 47/47 verbatim; `63e3b71` merged `f33fec6`.
+- P1/P2 fix 2 (four hand-off decisions in DECISIONS.md) — **met**: `DECISIONS.md:399` (P1.9 900-kcal cap + `piece` basis), `:414` (16 diets), `:428` (`hygieia.auth.next`, in-app only, 15 s timeout), `:449` (`db:live-check` redaction, independent probes, PGRST106 ≠ PGRST205); each mirrored as a §7 line.
+- P1/P2 fix 3 (ADR for the cadence, named in the constitution) — **met**: `DECISIONS.md:467` ADR-0005; `.claude/CLAUDE.project.md:46–49` names it; the composed `.claude/CLAUDE.md:91–94` lagged at the start of this review and was recomposed by the lead in `32bd8b4` during it — now in sync, committed.
+- P3/P4 fix 1 (chips → `/diets/<slug>`) — **met**: `RecipePage.tsx:147`, `:2`; `RecipePage.test.tsx:87–90`; `DECISIONS.md:593`.
+- P3/P4 fix 2 (caveat on plan totals) — **met**: `PlanView.tsx:235–236`; `PlanView.test.tsx:74–87`; `DietPage.test.tsx:70` (16 × 2).
+- P3/P4 fix 3 (one owner per key) — **met**: `features/diets.ts` (deleted, `:4` comment); `dictionary.test.ts:163–200` (3 tests).
+- P3/P4 fix 4a (unit invariant pinned) — **met**: `seed/recipes.test.ts:317–321`.
+- P3/P4 fix 4b (warnings surfaced) — **met**: `NutritionPanel.tsx:101–104`; `features/recipes.ts:41/81/137`; `panels.test.tsx:214, 234–247`.
+- P3/P4 fix 4c (cast reasoned or removed) — **met** (removed): `match.ts:27/83/142` generic; `FridgePage.tsx:233`.
+
+**Residuals (none blocking; for the lead's next §0 write)**
+
+1. `BUILD_LOG.md` lines ~30–33 (inside the "BRAIN.md rewritten" entry's §5 bullet) carry a `merge=union` artefact: the file's own
+   three header lines (title, "The crew's trail…", "Newest first") are duplicated mid-sentence right after the `/hygieia/?` gotcha text.
+   Cosmetic; repair in place.
+2. `BRAIN.md` §3 pins `main` at `fecacfa`; `main` is now `32bd8b4` (records + constitution only). §4 rows REVIEW-P12 and REVIEW-P34 are
+   closed by this verdict → move to §6 on the next write; §3 "re-reviews" next-step (4) is done.
+3. `DECISIONS.md:265` (P3.1/P3.2) still reads "chips link to `/recipes?diet=<slug>` for now" — superseded by `:593`, which says so;
+   append-only record, nothing to do.
+4. Backlog unchanged and not required: `RecipeCard` chips as links; an e2e click on a recipe-page diet chip; the non-render twin of the
+   63-combination test; seed-floor constants; `db-types.ts` `profiles.Insert` tightening.
+
+**Verdict: PASS for P1/P2 and PASS for P3/P4.** With `qa = VALIDATED` (both entries below) and `reviewer = PASS` (this entry), P1, P2,
+P3 and P4 may be claimed per §4/§9 and ADR-0005. The operator-side QA items (P2.QA.3b/4b/5/6, P4.QA.5) remain NOT RUN and are not
+part of the claim. P5 and P6 still owe their own QA + Review gates.
+
 ### BRAIN.md rewritten to current state (review item 1) — 2026-10-06 — DONE (builder, worktree `wt/a`; records only, uncommitted for the lead)
 
 **Scope:** `BRAIN.md` only (+ this entry). Closes P1/P2 REVIEW required fix 1 and the P3/P4 reviewer's answer (8); both reviews scored the
