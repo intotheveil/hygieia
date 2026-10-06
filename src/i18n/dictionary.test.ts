@@ -17,6 +17,7 @@ import { prefsCopy, prefsEl, prefsEn } from './features/prefs.ts'
 import { profileCopy, profileEl, profileEn } from './features/profile.ts'
 import { recipesEn } from './features/recipes.ts'
 import { routeFeaturesEn } from './features/routeFeatures.ts'
+import { seasonCopy, seasonEl, seasonEn } from './features/season.ts'
 import { sharedEn } from './features/shared.ts'
 import { skincareCopy, skincareEl, skincareEn } from './features/skincare.ts'
 import { tasksCopy, tasksEl, tasksEn } from './features/tasks.ts'
@@ -43,6 +44,7 @@ const ROUTE_FEATURE_MODULES: Readonly<Record<string, object>> = {
   admin: adminEn,
   prefs: prefsEn,
   profile: profileEn,
+  season: seasonEn,
   skincare: skincareEn,
   tasks: tasksEn,
   workoutPlans: workoutPlansEn,
@@ -272,6 +274,7 @@ describe('bilingual dictionary — app / route split (perf, 2026-10-06; features
       [adminCopy, adminEl, adminEn],
       [prefsCopy, prefsEl, prefsEn],
       [profileCopy, profileEl, profileEn],
+      [seasonCopy, seasonEl, seasonEn],
       [skincareCopy, skincareEl, skincareEn],
       [tasksCopy, tasksEl, tasksEn],
       [workoutPlansCopy, workoutPlansEl, workoutPlansEn],

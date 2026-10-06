@@ -1,6 +1,10 @@
-import { DIETS } from '../../src/content/seed/diets'
+import { OVERLAID_SEED } from '../../src/test/overlaidSeed'
 import { el, en } from '../../src/i18n/dictionary'
 import { expect, test } from '../support/fixtures'
+
+// The seed AS SERVED (base + content overlays, src/content/seed/overlays/): the build is local-only,
+// so the bundled seed with every overlay applied IS the content the pages render.
+const { diets: DIETS } = OVERLAID_SEED
 
 // DIETS + PLAN WORKFLOW on the PRODUCTION build (PLAN P4.12): list → detail → the week plan
 // (generated on load: 7 days × 3 meals = 21 slots; "reshuffle" regenerates it) → shopping list;

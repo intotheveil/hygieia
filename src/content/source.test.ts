@@ -11,6 +11,7 @@ import { CONTENT_STATUSES } from './enums'
 import { hexToUuid, md5 } from './md5'
 import { DIETS } from './seed/diets'
 import { INGREDIENTS } from './seed/ingredients'
+import { OVERLAYS, overlayTable } from './seed/overlays/index'
 import { RECIPES } from './seed/recipes'
 import { filterRecipes, matchesRecipeFilter, type ContentSource, type Result } from './source'
 import {
@@ -137,15 +138,19 @@ describe('seedId', () => {
 })
 
 describe('bundledSource (real seeds)', () => {
-  it('is the bundled kind over the real seed modules (each table a lazy loader of the same array)', async () => {
+  it('is the bundled kind over the real seed modules (each table a lazy loader of the overlaid array)', async () => {
     expect(bundledSource.kind).toBe('bundled')
     // The real seeds are dynamic-import loaders (one chunk per table), not arrays.
     expect(typeof BUNDLED_SEEDS.ingredients).toBe('function')
     expect(typeof BUNDLED_SEEDS.recipes).toBe('function')
     expect(typeof BUNDLED_SEEDS.diets).toBe('function')
-    expect(await load(BUNDLED_SEEDS.ingredients)).toBe(INGREDIENTS)
-    expect(await load(BUNDLED_SEEDS.recipes)).toBe(RECIPES)
-    expect(await load(BUNDLED_SEEDS.diets)).toBe(DIETS)
+    // Base seed → content overlays (seed/overlays/): overlay 0003 adds rows to these three tables.
+    expect(await load(BUNDLED_SEEDS.ingredients)).toEqual(
+      overlayTable('ingredients', INGREDIENTS, OVERLAYS),
+    )
+    expect(await load(BUNDLED_SEEDS.recipes)).toEqual(overlayTable('recipes', RECIPES, OVERLAYS))
+    expect(await load(BUNDLED_SEEDS.diets)).toEqual(overlayTable('diets', DIETS, OVERLAYS))
+    expect((await load(BUNDLED_SEEDS.diets)).length).toBe(DIETS.length + 1)
   })
 
   it('returns ≥ 160 ingredients, ≥ 8 diets, ≥ 40 recipes, every row pending with a formula id', async () => {

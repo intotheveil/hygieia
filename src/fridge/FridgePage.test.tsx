@@ -1,8 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { INGREDIENTS } from '../content/seed/ingredients.ts'
-import { RECIPES } from '../content/seed/recipes.ts'
+import { OVERLAID_SEED } from '../test/overlaidSeed'
 import type { IngredientSeed, RecipeSeed } from '../content/types.ts'
 import { LangProvider } from '../i18n/LangProvider'
 import { el, en, type Lang } from '../i18n/dictionary'
@@ -16,6 +15,9 @@ import { fail, type ContentSource } from '../content/source.ts'
 import { FridgePage } from './FridgePage'
 import { indexBySlug, matchRecipes } from './match'
 import { FRIDGE_STORAGE_KEY, serializeFridgeState } from './storage'
+
+// The seed AS SERVED (base + content overlays) — what the bundled source hands the page.
+const { ingredients: INGREDIENTS, recipes: RECIPES } = OVERLAID_SEED
 
 // The page reads `useUserData()`; default to the real local-only answer, override per test.
 const userData = vi.hoisted(() => ({ current: null as UserDataSource | null }))

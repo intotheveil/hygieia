@@ -6,7 +6,11 @@ import {
 } from '../../test/bilingual'
 import { SLUG_RE } from '../enums'
 import type { DietSeed } from '../types'
-import { ASK_DOCTOR_EL, ASK_DOCTOR_EN, DIETS } from './diets'
+import { OVERLAID_SEED } from '../../test/overlaidSeed'
+import { ASK_DOCTOR_EL, ASK_DOCTOR_EN } from './diets'
+
+// The seed AS SERVED: base + every content overlay, so the rules below bind overlay content too.
+const DIETS = OVERLAID_SEED.diets
 
 // The eight diets PLAN.md P1.10 names, by their exact slugs; more may ship on top.
 const MANDATORY = [

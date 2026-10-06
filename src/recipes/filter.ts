@@ -12,6 +12,12 @@
 //   - `filterRecipes` preserves input order; `sortRecipes` is a separate, deterministic step.
 //   - URL state is `?diet=a,b&meal=lunch&q=…`; unknown or malformed values are dropped on parse,
 //     and `parse(serialize(x))` round-trips any canonical filter.
+//   - SEASON (2026-10-06): `?ingredient=a,b` keeps recipes that use ANY of those ingredients (the
+//     season strip's chips); `?season=now` keeps recipes with ≥ SEASON_MIN_MATCHES distinct
+//     in-season ingredients and `boostInSeason` orders them most-seasonal first. The in-season set
+//     is passed in (`inSeasonSlugs`, from content/seasonal.ts): without it the season criterion
+//     narrows nothing, so the page can render before the calendar has loaded.
+//     Both keys are optional on the params so a filter without them stays canonical as before.
 
 import { MEAL_TYPES, type MealType } from '../content/enums.ts'
 import type { RecipeSeed } from '../content/types.ts'
@@ -26,14 +32,55 @@ export interface RecipeFilterParams {
   mealTypes: MealType[]
   /** Title substring, matched after `normalizeForSearch`. Blank = no title filter. */
   query: string
+  /** Any-of ingredient slugs (`?ingredient=`). Absent/empty = all recipes. */
+  ingredientSlugs?: string[]
+  /** `?season=now`: only recipes with ≥ SEASON_MIN_MATCHES in-season ingredients. */
+  season?: boolean
 }
 
 /** What `filterRecipes` takes: the params (each optional) plus the language whose title to match. */
 export interface RecipeFilter extends Partial<RecipeFilterParams> {
   lang: Lang
+  /** The ingredient slugs in season now; required for `season` to narrow anything. */
+  inSeasonSlugs?: ReadonlySet<string>
 }
 
-export const RECIPE_FILTER_PARAM_KEYS = { diet: 'diet', meal: 'meal', query: 'q' } as const
+/** How many distinct in-season ingredients make a recipe "seasonal" for `?season=now`. */
+export const SEASON_MIN_MATCHES = 2
+
+/** Distinct ingredient slugs of `recipe` that are in `inSeason`. */
+export function inSeasonCount(recipe: RecipeSeed, inSeason: ReadonlySet<string>): number {
+  return new Set(recipe.ingredients.map((l) => l.ingredient_slug).filter((s) => inSeason.has(s)))
+    .size
+}
+
+/**
+ * A NEW array ordered by in-season ingredient count, descending; ties keep their input order
+ * (stable sort), so `boostInSeason(sortRecipes(x))` is "most seasonal first, then by title".
+ */
+export function boostInSeason<R extends RecipeSeed>(
+  recipes: readonly R[],
+  inSeason: ReadonlySet<string>,
+): R[] {
+  const keyed = recipes.map((recipe, index) => ({
+    recipe,
+    index,
+    n: inSeasonCount(recipe, inSeason),
+  }))
+  keyed.sort((a, b) => b.n - a.n || a.index - b.index)
+  return keyed.map((entry) => entry.recipe)
+}
+
+export const RECIPE_FILTER_PARAM_KEYS = {
+  diet: 'diet',
+  meal: 'meal',
+  query: 'q',
+  ingredient: 'ingredient',
+  season: 'season',
+} as const
+
+/** The one value `?season=` accepts. */
+export const SEASON_NOW = 'now'
 
 /** The recipe title in the given language. */
 export function recipeTitle(recipe: RecipeSeed, lang: Lang): string {
@@ -51,12 +98,17 @@ export function filterRecipes<R extends RecipeSeed>(
   const diets = toSet(filter.dietSlugs)
   const meals = toSet(filter.mealTypes)
   const needle = normalizeForSearch(filter.query ?? '')
+  const ingredients = toSet(filter.ingredientSlugs)
+  const inSeason = filter.season === true ? (filter.inSeasonSlugs ?? null) : null
 
   return recipes.filter(
     (recipe) =>
       (diets === null || recipe.diet_slugs.some((slug) => diets.has(slug))) &&
       (meals === null || recipe.meal_types.some((meal) => meals.has(meal))) &&
-      (needle === '' || normalizeForSearch(recipeTitle(recipe, filter.lang)).includes(needle)),
+      (needle === '' || normalizeForSearch(recipeTitle(recipe, filter.lang)).includes(needle)) &&
+      (ingredients === null ||
+        recipe.ingredients.some((line) => ingredients.has(line.ingredient_slug))) &&
+      (inSeason === null || inSeasonCount(recipe, inSeason) >= SEASON_MIN_MATCHES),
   )
 }
 
@@ -127,7 +179,13 @@ export function parseRecipeFilterParams(
   )
   const mealTypes = readList(searchParams, RECIPE_FILTER_PARAM_KEYS.meal).filter(isMealType)
   const query = (searchParams.get(RECIPE_FILTER_PARAM_KEYS.query) ?? '').trim()
-  return { dietSlugs, mealTypes, query }
+  const out: RecipeFilterParams = { dietSlugs, mealTypes, query }
+  const ingredientSlugs = readList(searchParams, RECIPE_FILTER_PARAM_KEYS.ingredient).filter(
+    (slug) => SLUG_PATTERN.test(slug),
+  )
+  if (ingredientSlugs.length > 0) out.ingredientSlugs = ingredientSlugs
+  if (searchParams.get(RECIPE_FILTER_PARAM_KEYS.season) === SEASON_NOW) out.season = true
+  return out
 }
 
 /**
@@ -143,6 +201,9 @@ export function serializeRecipeFilterParams(params: Partial<RecipeFilterParams>)
   if (diets.length > 0) out.set(RECIPE_FILTER_PARAM_KEYS.diet, diets.join(','))
   if (meals.length > 0) out.set(RECIPE_FILTER_PARAM_KEYS.meal, meals.join(','))
   if (query !== '') out.set(RECIPE_FILTER_PARAM_KEYS.query, query)
+  const ingredients = dedupe(params.ingredientSlugs ?? [])
+  if (ingredients.length > 0) out.set(RECIPE_FILTER_PARAM_KEYS.ingredient, ingredients.join(','))
+  if (params.season === true) out.set(RECIPE_FILTER_PARAM_KEYS.season, SEASON_NOW)
   return out
 }
 
@@ -155,6 +216,8 @@ export function isEmptyRecipeFilter(params: Partial<RecipeFilterParams>): boolea
   return (
     (params.dietSlugs?.length ?? 0) === 0 &&
     (params.mealTypes?.length ?? 0) === 0 &&
-    (params.query ?? '').trim() === ''
+    (params.query ?? '').trim() === '' &&
+    (params.ingredientSlugs?.length ?? 0) === 0 &&
+    params.season !== true
   )
 }

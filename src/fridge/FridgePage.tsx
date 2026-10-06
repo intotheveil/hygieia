@@ -17,12 +17,17 @@
 // `aria-busy` and, if the fridge already holds ingredients, shows the list skeleton. A failure of
 // either read shows the same fridge ErrorState below the header (Retry re-runs the read that
 // failed).
+//
+// SEASON (2026-10-06): the "What's in season" strip (components/SeasonStrip.tsx) sits under the
+// header — this month's Greek produce, each chip a link to the recipes that use it. It loads its
+// calendar after the first paint into a row of reserved height, so it shifts nothing.
 
 import { useCallback, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { EmptyState, ErrorState, Loading } from '../components/AsyncState'
 import { DraftRibbon } from '../components/DraftRibbon'
+import { SeasonStrip } from '../components/SeasonStrip'
 import { SignedOutNote } from '../components/SignedOutNote'
 import {
   contentSource,
@@ -85,6 +90,8 @@ export function FridgePage({ source = contentSource }: FridgePageProps) {
         </h1>
         <p className="max-w-2xl leading-relaxed text-olive-700">{t.fridgeIntro}</p>
       </header>
+
+      <SeasonStrip />
 
       {catalogue.status === 'loading' ? (
         <Loading variant="detail" />

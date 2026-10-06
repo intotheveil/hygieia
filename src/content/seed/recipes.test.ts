@@ -7,9 +7,16 @@ import {
 import { MEAL_TYPES, SLUG_RE, UNITS } from '../enums'
 import type { IngredientSeed, RecipeSeed } from '../types'
 import { computeNutrition } from '../../nutrition/compute'
-import { DIETS } from './diets'
-import { INGREDIENTS } from './ingredients'
-import { RECIPES } from './recipes'
+import {
+  FASTING_ALLOWED_SEAFOOD,
+  FASTING_FORBIDDEN_CATEGORIES,
+  FASTING_FORBIDDEN_SLUGS,
+  isFastingForbidden,
+} from '../../test/fastingRule'
+import { OVERLAID_SEED } from '../../test/overlaidSeed'
+
+// The seed AS SERVED: base + every content overlay, so the rules below bind overlay content too.
+const { diets: DIETS, ingredients: INGREDIENTS, recipes: RECIPES } = OVERLAID_SEED
 
 // --- Floors the lead raises after the three group files are merged -----------------------------
 
@@ -241,6 +248,8 @@ describe('RECIPES seed — volume and identity (PLAN.md P1.11)', () => {
       ...WHOLE30_DAIRY_EXCEPTIONS,
       ...WHOLE30_FORBIDDEN_SLUGS,
       ...CARNIVORE_ALLOWED_SLUGS,
+      ...FASTING_ALLOWED_SEAFOOD,
+      ...FASTING_FORBIDDEN_SLUGS,
     ]
     for (const slug of lists) {
       expect(ingredientsBySlug.has(slug), `${slug} is not an ingredient`).toBe(true)
@@ -256,6 +265,7 @@ describe('RECIPES seed — volume and identity (PLAN.md P1.11)', () => {
       ...ANIMAL_CATEGORIES,
       ...CARNIVORE_ALLOWED_CATEGORIES,
       ...WHOLE30_FORBIDDEN_CATEGORIES,
+      ...FASTING_FORBIDDEN_CATEGORIES,
     ]) {
       expect(categories.has(category), `${category} is not an ingredient category`).toBe(true)
     }
@@ -397,6 +407,9 @@ describe.each(RECIPES.map((r) => [r.slug, r] as const))('recipe %s', (_slug, rec
     }
     if (tags.includes('whole30')) {
       expect(offenders(isWhole30Forbidden), 'whole30').toEqual([])
+    }
+    if (tags.includes('fasting')) {
+      expect(offenders(isFastingForbidden), 'fasting').toEqual([])
     }
   })
 })

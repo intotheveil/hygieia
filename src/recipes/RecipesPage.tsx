@@ -9,13 +9,21 @@
 // home page's onboarding card gets the list filtered by it — the URL is replaced once with
 // `?diet=<slug>` (src/prefs/apply.ts), so the chip shows pressed and "Clear filters" clears it for
 // good. Any explicit filter in the URL wins and is left untouched.
+// SEASON (2026-10-06): the "What's in season" strip (components/SeasonStrip.tsx) sits under the
+// header; `?ingredient=<slug>` narrows to recipes using that ingredient and `?season=now` to
+// recipes with ≥ 2 in-season ingredients, most seasonal first (recipes/filter.ts). The produce
+// calendar is loaded after the first paint (content/seasonalLoader.ts); while `?season=now` waits
+// for it the list shows its skeleton instead of an unfiltered flash.
 
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { EmptyState, ErrorState, Loading } from '../components/AsyncState'
 import { DraftRibbon } from '../components/DraftRibbon'
+import { SeasonStrip } from '../components/SeasonStrip'
 import { MEAL_TYPES, type MealType } from '../content/enums.ts'
 import { contentSource } from '../content/index.ts'
+import type { Month } from '../content/seasonal.ts'
+import { loadSeasonal } from '../content/seasonalLoader.ts'
 import {
   fail,
   ok,
@@ -24,15 +32,17 @@ import {
   type Recipe,
   type Result,
 } from '../content/source.ts'
+import { seasonCopy } from '../i18n/features/season.ts'
 import { useLang } from '../i18n/LangProvider'
 import { plural } from '../i18n/fill.ts'
-import { useAsyncResult } from '../lib/useAsync.ts'
+import { useAsync, useAsyncResult } from '../lib/useAsync.ts'
 import { applyPrefsToRecipeParams } from '../prefs/apply.ts'
 import { readPrefs } from '../prefs/prefs.ts'
 import { RecipeCard } from './RecipeCard.tsx'
 import { dietName } from './format.ts'
 import {
   RECIPE_FILTER_PARAM_KEYS,
+  boostInSeason,
   filterRecipes,
   isEmptyRecipeFilter,
   parseRecipeFilterParams,
@@ -43,6 +53,8 @@ import {
 
 export interface RecipesPageProps {
   source?: ContentSource
+  /** The month `?season=now` and the strip use; default: the current month (tests pin it). */
+  month?: Month
 }
 
 interface Catalogue {
@@ -84,8 +96,10 @@ function Chip({
 
 const SEARCH_ID = 'recipe-search'
 
-export function RecipesPage({ source = contentSource }: RecipesPageProps) {
-  const { lang, t } = useLang()
+export function RecipesPage({ source = contentSource, month }: RecipesPageProps) {
+  const { lang, t } = useLang(seasonCopy)
+  const seasonal = useAsync(loadSeasonal)
+  const currentMonth: Month = month ?? ((new Date().getMonth() + 1) as Month)
   const load = useCallback(() => loadCatalogue(source), [source])
   const state = useAsyncResult(load)
   const [searchParams, setSearchParams] = useSearchParams()
@@ -117,11 +131,23 @@ export function RecipesPage({ source = contentSource }: RecipesPageProps) {
   // What the user typed, verbatim: `parse` trims, and a trailing space mid-phrase must survive.
   const rawQuery = searchParams.get(RECIPE_FILTER_PARAM_KEYS.query) ?? ''
 
-  const results = useMemo(
-    () =>
-      catalogue ? sortRecipes(filterRecipes(catalogue.recipes, { ...params, lang }), lang) : [],
-    [catalogue, params, lang],
+  const seasonalModule = seasonal.status === 'ready' ? seasonal.data : undefined
+  const inSeasonSlugs = useMemo(
+    () => seasonalModule?.inSeasonSlugs(currentMonth),
+    [seasonalModule, currentMonth],
   )
+  // `?season=now` needs the produce calendar; until it arrives, show the skeleton (a failed
+  // calendar load falls back to the list without the season criterion).
+  const waitingForSeason = params.season === true && seasonal.status === 'loading'
+
+  const results = useMemo(() => {
+    if (!catalogue) return []
+    const sorted = sortRecipes(
+      filterRecipes(catalogue.recipes, { ...params, lang, inSeasonSlugs }),
+      lang,
+    )
+    return params.season === true && inSeasonSlugs ? boostInSeason(sorted, inSeasonSlugs) : sorted
+  }, [catalogue, params, lang, inSeasonSlugs])
 
   function commit(next: RecipeFilterParams, options: { replace: boolean }) {
     const out = serializeRecipeFilterParams(next)
@@ -163,11 +189,19 @@ export function RecipesPage({ source = contentSource }: RecipesPageProps) {
         <DraftRibbon kind={source.kind} />
       </header>
 
-      {state.status === 'loading' && <Loading variant="list" />}
+      <SeasonStrip
+        month={currentMonth}
+        activeIngredients={params.ingredientSlugs}
+        seasonActive={params.season === true}
+      />
+
+      {(state.status === 'loading' || (catalogue && waitingForSeason)) && (
+        <Loading variant="list" />
+      )}
 
       {failed && <ErrorState message={t.loadFailed} onRetry={state.reload} />}
 
-      {catalogue && (
+      {catalogue && !waitingForSeason && (
         <>
           <section className="flex flex-col gap-5">
             <fieldset className="flex flex-col gap-2">
@@ -218,6 +252,10 @@ export function RecipesPage({ source = contentSource }: RecipesPageProps) {
               />
             </div>
           </section>
+
+          {params.season === true && (
+            <p className="max-w-2xl text-sm text-olive-700">{t.seasonFilterNote}</p>
+          )}
 
           <div className="flex flex-wrap items-center gap-4">
             <p role="status" aria-live="polite" className="text-sm font-medium text-olive-700">

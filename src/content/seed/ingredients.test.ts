@@ -6,7 +6,10 @@ import {
 } from '../../test/bilingual'
 import { PRICE_PER, SLUG_RE, UNITS } from '../enums'
 import type { IngredientSeed } from '../types'
-import { INGREDIENTS } from './ingredients'
+import { OVERLAID_SEED } from '../../test/overlaidSeed'
+
+// The seed AS SERVED: base + every content overlay, so the rules below bind overlay content too.
+const INGREDIENTS = OVERLAID_SEED.ingredients
 
 /** PLAN.md §P1.9: the floor the gate and P1.12/P1.13 assert; the file carries far more. */
 const MIN_COUNT = 160
