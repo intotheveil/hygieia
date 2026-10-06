@@ -28,7 +28,7 @@ test('/ renders the Greek shell: hero H1, lang="el", the toggle offers English',
   await expect(page.getByText(el.statusBody)).toBeVisible()
 })
 
-test('the header nav lists the five modules on every route and marks the current one', async ({
+test('the header nav lists the six modules on every route and marks the current one', async ({
   page,
 }) => {
   await page.goto(`${BASE}/`)
@@ -68,7 +68,7 @@ test('the header nav lists the five modules on every route and marks the current
 test('the home module cards link into their modules', async ({ page }) => {
   await page.goto(`${BASE}/`)
   const modules = page.getByRole('region', { name: 'modules' })
-  await expect(modules.getByRole('listitem')).toHaveCount(6)
+  await expect(modules.getByRole('listitem')).toHaveCount(7)
   const expected: Record<string, string> = {
     [el.modules.tips.title]: '/tips',
     [el.modules.diets.title]: '/diets',
@@ -76,6 +76,7 @@ test('the home module cards link into their modules', async ({ page }) => {
     [el.modules.cost.title]: '/recipes',
     [el.modules.calories.title]: '/recipes',
     [el.modules.workouts.title]: '/workouts',
+    [el.modules.skincare.title]: '/skincare',
   }
   for (const [title, path] of Object.entries(expected)) {
     await expect(modules.getByRole('link', { name: title, exact: true })).toHaveAttribute(

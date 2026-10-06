@@ -85,6 +85,12 @@ export const ROUTES: readonly AuditRoute[] = [
     h1: (t) => t.tipsTitle,
     ready: 'main section[aria-labelledby^="topic-"]',
   },
+  {
+    path: '/hygieia/skincare',
+    name: 'skincare',
+    h1: (t) => t.skincareTitle,
+    ready: '#skincare-routines li',
+  },
   { path: '/hygieia/auth', name: 'auth', h1: (t) => t.signInUnavailableTitle },
   { path: '/hygieia/account', name: 'account', h1: (t) => t.signInUnavailableTitle },
   { path: '/hygieia/admin', name: 'admin', h1: (t) => t.signInUnavailableTitle },

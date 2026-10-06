@@ -35,6 +35,7 @@ const PAGES: ReadonlyArray<{ path: string; messageEl: string; messageEn: string 
   { path: '/recipes/carnivore-bacon-and-eggs', messageEl: el.loadFailed, messageEn: en.loadFailed },
   { path: '/diets/keto', messageEl: el.loadFailed, messageEn: en.loadFailed },
   { path: '/fridge', messageEl: el.fridgeLoadFailed, messageEn: en.fridgeLoadFailed },
+  { path: '/skincare', messageEl: el.skincareLoadFailed, messageEn: en.skincareLoadFailed },
 ]
 
 for (const { path, messageEl, messageEn } of PAGES) {

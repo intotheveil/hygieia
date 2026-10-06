@@ -8,8 +8,16 @@ import { featuresEl, featuresEn, type FeatureDictionary } from './features/index
 export const LANGS = ['el', 'en'] as const
 export type Lang = (typeof LANGS)[number]
 
-/** The six product modules from the intent, in the order they appear on the home page. */
-export const MODULE_IDS = ['tips', 'diets', 'recipes', 'cost', 'calories', 'workouts'] as const
+/** The seven product modules (six from the intent + skincare, P7), in home-page order. */
+export const MODULE_IDS = [
+  'tips',
+  'diets',
+  'recipes',
+  'cost',
+  'calories',
+  'workouts',
+  'skincare',
+] as const
 export type ModuleId = (typeof MODULE_IDS)[number]
 
 export interface ModuleCopy {
@@ -18,7 +26,7 @@ export interface ModuleCopy {
 }
 
 /** The site header's primary navigation (P3.5): one label per routed module + the nav's own name. */
-export const NAV_IDS = ['recipes', 'fridge', 'diets', 'workouts', 'tips'] as const
+export const NAV_IDS = ['recipes', 'fridge', 'diets', 'workouts', 'tips', 'skincare'] as const
 export type NavId = (typeof NAV_IDS)[number]
 
 export interface NavCopy extends Record<NavId, string> {
@@ -91,14 +99,14 @@ const baseEn: BaseDictionary = {
   tagline: 'Eat well, move well, in Greek and English.',
   heroTitle: 'Health, food and movement — explained simply.',
   heroLead:
-    'Hygieia brings together health tips, every major diet, recipes tagged by diet, what you can cook from what is already in your fridge, what a meal costs and contains, and workouts for home, gym or calisthenics at three levels.',
+    'Hygieia brings together health tips, every major diet, recipes tagged by diet, what you can cook from what is already in your fridge, what a meal costs and contains, workouts for home, gym or calisthenics at three levels, and skin and nail care for men and women.',
   heroImageAlt:
     'A plate of grilled salmon with roasted vegetables and quinoa salad on a linen tablecloth.',
   statusTitle: 'Where things stand',
   statusBody:
-    'All six modules are live on draft content that is still awaiting review: health tips, diets with weekly plans, recipes with their cost and calorie estimates, the fridge matcher and workouts. This copy runs without an account service, so sign-in and saving are switched off.',
+    'All seven modules are live on draft content that is still awaiting review: health tips, diets with weekly plans, recipes with their cost and calorie estimates, the fridge matcher, workouts and skin and nail care. This copy runs without an account service, so sign-in and saving are switched off.',
   statusBodyConfigured:
-    'All six modules are live: health tips, diets with weekly plans, recipes with their cost and calorie estimates, the fridge matcher and workouts; anything not yet approved by a reviewer is marked as a draft. Sign in to save plans, fridge lists and favourites.',
+    'All seven modules are live: health tips, diets with weekly plans, recipes with their cost and calorie estimates, the fridge matcher, workouts and skin and nail care; anything not yet approved by a reviewer is marked as a draft. Sign in to save plans, fridge lists and favourites.',
   roadmap: 'Coming',
   modules: {
     tips: {
@@ -128,6 +136,11 @@ const baseEn: BaseDictionary = {
       blurb:
         'Home, gym or calisthenics. Beginner, intermediate or advanced, each at three intensities.',
     },
+    skincare: {
+      title: 'Skin and nail care',
+      blurb:
+        'Routines, product types and tips for men and women, by skin type and concern, in the European, American, Korean and Japanese styles. Nails too.',
+    },
   },
   nav: {
     label: 'Main navigation',
@@ -136,6 +149,7 @@ const baseEn: BaseDictionary = {
     diets: 'Diets',
     workouts: 'Workouts',
     tips: 'Tips',
+    skincare: 'Skincare',
   },
   fridgeLink: 'What is in my fridge?',
   panelsNote: 'Shown on every recipe page.',
@@ -191,13 +205,13 @@ const baseEl: BaseDictionary = {
   tagline: 'Τρώμε καλά, κινούμαστε καλά, στα ελληνικά και στα αγγλικά.',
   heroTitle: 'Υγεία, διατροφή και άσκηση — απλά και κατανοητά.',
   heroLead:
-    'Η Υγίεια συγκεντρώνει συμβουλές υγείας, κάθε γνωστή δίαιτα, συνταγές ανά δίαιτα, τι μπορείς να μαγειρέψεις με ό,τι έχεις ήδη στο ψυγείο, πόσο κοστίζει και τι περιέχει ένα γεύμα, και προπονήσεις για σπίτι, γυμναστήριο ή calisthenics σε τρία επίπεδα.',
+    'Η Υγίεια συγκεντρώνει συμβουλές υγείας, κάθε γνωστή δίαιτα, συνταγές ανά δίαιτα, τι μπορείς να μαγειρέψεις με ό,τι έχεις ήδη στο ψυγείο, πόσο κοστίζει και τι περιέχει ένα γεύμα, προπονήσεις για σπίτι, γυμναστήριο ή calisthenics σε τρία επίπεδα, και περιποίηση δέρματος και νυχιών για άντρες και γυναίκες.',
   heroImageAlt: 'Πιάτο με ψητό σολομό, ψητά λαχανικά και σαλάτα κινόα πάνω σε λινό τραπεζομάντιλο.',
   statusTitle: 'Πού βρισκόμαστε',
   statusBody:
-    'Και οι έξι ενότητες λειτουργούν με πρόχειρο περιεχόμενο που εκκρεμεί προς έλεγχο: συμβουλές υγείας, δίαιτες με εβδομαδιαία πλάνα, συνταγές με εκτίμηση κόστους και θερμίδων, το ψυγείο και προπονήσεις. Αυτό το αντίγραφο λειτουργεί χωρίς υπηρεσία λογαριασμών, οπότε η σύνδεση και η αποθήκευση είναι απενεργοποιημένες.',
+    'Και οι επτά ενότητες λειτουργούν με πρόχειρο περιεχόμενο που εκκρεμεί προς έλεγχο: συμβουλές υγείας, δίαιτες με εβδομαδιαία πλάνα, συνταγές με εκτίμηση κόστους και θερμίδων, το ψυγείο, προπονήσεις και περιποίηση δέρματος και νυχιών. Αυτό το αντίγραφο λειτουργεί χωρίς υπηρεσία λογαριασμών, οπότε η σύνδεση και η αποθήκευση είναι απενεργοποιημένες.',
   statusBodyConfigured:
-    'Και οι έξι ενότητες λειτουργούν: συμβουλές υγείας, δίαιτες με εβδομαδιαία πλάνα, συνταγές με εκτίμηση κόστους και θερμίδων, το ψυγείο και προπονήσεις· ό,τι δεν έχει εγκριθεί ακόμη από ελεγκτή σημειώνεται ως πρόχειρο. Συνδέσου για να αποθηκεύεις πλάνα, λίστες ψυγείου και αγαπημένα.',
+    'Και οι επτά ενότητες λειτουργούν: συμβουλές υγείας, δίαιτες με εβδομαδιαία πλάνα, συνταγές με εκτίμηση κόστους και θερμίδων, το ψυγείο, προπονήσεις και περιποίηση δέρματος και νυχιών· ό,τι δεν έχει εγκριθεί ακόμη από ελεγκτή σημειώνεται ως πρόχειρο. Συνδέσου για να αποθηκεύεις πλάνα, λίστες ψυγείου και αγαπημένα.',
   roadmap: 'Έρχεται',
   modules: {
     tips: {
@@ -228,6 +242,11 @@ const baseEl: BaseDictionary = {
       blurb:
         'Σπίτι, γυμναστήριο ή calisthenics. Αρχάριος, μεσαίος ή προχωρημένος, το καθένα σε τρεις εντάσεις.',
     },
+    skincare: {
+      title: 'Περιποίηση δέρματος και νυχιών',
+      blurb:
+        'Ρουτίνες, τύποι προϊόντων και συμβουλές για άντρες και γυναίκες, ανά τύπο επιδερμίδας και ανάγκη, σε ευρωπαϊκό, αμερικανικό, κορεατικό και ιαπωνικό στιλ. Και για τα νύχια.',
+    },
   },
   nav: {
     label: 'Κύρια πλοήγηση',
@@ -236,6 +255,7 @@ const baseEl: BaseDictionary = {
     diets: 'Δίαιτες',
     workouts: 'Προπονήσεις',
     tips: 'Συμβουλές',
+    skincare: 'Περιποίηση',
   },
   fridgeLink: 'Τι έχω στο ψυγείο;',
   panelsNote: 'Εμφανίζεται σε κάθε σελίδα συνταγής.',
