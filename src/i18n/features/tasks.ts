@@ -58,6 +58,8 @@ export interface TasksDictionary {
   tasksCopyFailed: string
   /** Plain-text export section heading for the daily list. */
   tasksEveryDay: string
+  /** Badge on a topic the visitor's goal suggests (home preferences card, src/prefs). */
+  tasksSuggested: string
 }
 
 export const tasksEn: TasksDictionary = {
@@ -106,6 +108,7 @@ export const tasksEn: TasksDictionary = {
   tasksCopied: 'Copied to the clipboard.',
   tasksCopyFailed: 'Could not copy — your browser did not allow it.',
   tasksEveryDay: 'Every day',
+  tasksSuggested: 'Suggested for you',
 }
 
 export const tasksEl: TasksDictionary = {
@@ -155,6 +158,7 @@ export const tasksEl: TasksDictionary = {
   tasksCopied: 'Αντιγράφηκε στο πρόχειρο.',
   tasksCopyFailed: 'Η αντιγραφή δεν έγινε — ο browser δεν το επέτρεψε.',
   tasksEveryDay: 'Κάθε μέρα',
+  tasksSuggested: 'Προτείνεται για σένα',
 }
 
 /** Both literals, for `useLang(tasksCopy)` on the `/tasks` pages. */

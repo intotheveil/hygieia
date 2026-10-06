@@ -7,6 +7,9 @@
 //
 // The H1 (the topic title) and the intro paint before the chunk resolves, so the a11y and
 // Lighthouse gates see a stable frame; `#tasks-question` / `#tasks-plan` mark the settled page.
+//
+// PREFERENCES (2026-10-06): the topics the visitor's goal suggests (src/prefs/apply.ts) carry a
+// "Suggested for you" badge and a ring on the grid; the order of the grid does not change.
 
 import { useCallback, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
@@ -14,6 +17,8 @@ import { EmptyState, ErrorState, Loading } from '../components/AsyncState'
 import { useLang } from '../i18n/LangProvider'
 import { tasksCopy } from '../i18n/features/tasks.ts'
 import { useAsync } from '../lib/useAsync'
+import { suggestedTaskTopics } from '../prefs/apply.ts'
+import { readPrefs } from '../prefs/prefs.ts'
 import { loadTopic as defaultLoadTopic } from './content/index'
 import { TOPICS, TOPIC_IDS, isTopicId, type TopicId } from './content/topics'
 import { generatePlan, isComplete, normalizeAnswers } from './generate'
@@ -53,6 +58,7 @@ const MAIN = 'mx-auto flex min-h-dvh max-w-6xl flex-col gap-8 px-4 py-10 sm:px-6
 
 function TopicGrid() {
   const { t, lang } = useLang(tasksCopy)
+  const [suggested] = useState(() => new Set(suggestedTaskTopics(readPrefs())))
   return (
     <main className={MAIN}>
       <header className="flex max-w-3xl flex-col gap-3">
@@ -72,17 +78,26 @@ function TopicGrid() {
         <ul id="tasks-topics" className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {TOPIC_IDS.map((id) => {
             const topic = TOPICS[id]
+            const isSuggested = suggested.has(id)
             return (
               <li
                 key={id}
-                className="relative flex flex-col gap-3 rounded-2xl border border-olive-900/10 bg-paper-50/80 p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                data-suggested={isSuggested || undefined}
+                className={`relative flex flex-col gap-3 rounded-2xl border border-olive-900/10 bg-paper-50/80 p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md${isSuggested ? ' ring-2 ring-sage-500' : ''}`}
               >
-                <span
-                  aria-hidden="true"
-                  className="grid size-10 place-items-center rounded-xl bg-sage-500/15 font-display text-xl text-sage-700"
-                >
-                  {topic.icon}
-                </span>
+                <div className="flex items-center justify-between gap-3">
+                  <span
+                    aria-hidden="true"
+                    className="grid size-10 place-items-center rounded-xl bg-sage-500/15 font-display text-xl text-sage-700"
+                  >
+                    {topic.icon}
+                  </span>
+                  {isSuggested && (
+                    <span className="rounded-full bg-sage-500/15 px-2.5 py-0.5 text-xs font-semibold text-olive-900">
+                      {t.tasksSuggested}
+                    </span>
+                  )}
+                </div>
                 <h3 className="font-display text-xl font-semibold text-olive-950">
                   <Link
                     to={`/tasks/${id}`}

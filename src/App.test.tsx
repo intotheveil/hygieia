@@ -157,3 +157,93 @@ describe('basenameFrom', () => {
     expect(basenameFrom('')).toBe('/')
   })
 })
+
+describe('App (home) — first-visit preferences and of the day (2026-10-06)', () => {
+  beforeEach(() => window.localStorage.clear())
+
+  const onboarding = () => screen.findByRole('region', { name: en.prefsTitle })
+  const select = (label: string) => screen.getByRole('combobox', { name: label })
+  const stored = () => JSON.parse(window.localStorage.getItem('hygieia:prefs') ?? 'null') as unknown
+
+  // The skeleton → card swap is pinned in src/home/skeleton.test.tsx (a fresh module graph: here the
+  // lazy chunk is already cached after the first test).
+  it('a first visit shows the onboarding card', async () => {
+    renderAt('/', 'en')
+    expect(await onboarding()).toBeInTheDocument()
+    // Never blocks content: the hero and the modules are there alongside it.
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(en.heroTitle)
+    expect(cards()).toHaveLength(8)
+    expect(screen.getByTestId('recipe-of-the-day')).toBeInTheDocument()
+    expect(screen.getByTestId('tip-of-the-day')).toBeInTheDocument()
+  })
+
+  it('Skip persists: the card goes and does not come back on the next visit', async () => {
+    const first = renderAt('/', 'en')
+    await onboarding()
+    fireEvent.click(screen.getByRole('button', { name: en.prefsSkip }))
+    expect(screen.queryByRole('region', { name: en.prefsTitle })).toBeNull()
+    expect(stored()).toEqual({ goal: null, diet: null, activity: null, skipped: true })
+    first.unmount()
+
+    renderAt('/', 'en')
+    // A returning visitor's skeleton reserves only the of-the-day row.
+    await screen.findByTestId('recipe-of-the-day')
+    expect(screen.queryByRole('region', { name: en.prefsTitle })).toBeNull()
+  })
+
+  it('saved answers reorder the modules: the goal module comes first', async () => {
+    renderAt('/', 'en')
+    await onboarding()
+    expect(within(cards()[0]!).getByRole('heading')).toHaveTextContent(en.modules.tips.title)
+    fireEvent.change(select(en.prefsGoalLabel), { target: { value: 'build-strength' } })
+    fireEvent.click(screen.getByRole('button', { name: en.prefsSave }))
+    expect(screen.queryByRole('region', { name: en.prefsTitle })).toBeNull()
+    expect(within(cards()[0]!).getByRole('heading')).toHaveTextContent(en.modules.workouts.title)
+    expect(cards()).toHaveLength(8)
+  })
+
+  it('answers apply to the recipes default filter', async () => {
+    renderAt('/', 'en')
+    await onboarding()
+    fireEvent.change(select(en.prefsDietLabel), { target: { value: 'vegetarian' } })
+    fireEvent.click(screen.getByRole('button', { name: en.prefsSave }))
+    fireEvent.click(
+      card(en.modules.recipes.title).getByRole('link', { name: en.modules.recipes.title }),
+    )
+    await screen.findByRole('list', { name: en.recipesTitle })
+    expect(
+      await screen.findByRole('button', { name: 'Vegetarian diet', pressed: true }),
+    ).toBeInTheDocument()
+  })
+
+  it('"Change preferences" in the footer reopens the card with the saved answers', async () => {
+    window.localStorage.setItem(
+      'hygieia:prefs',
+      JSON.stringify({ goal: 'skin', diet: null, activity: 'high', skipped: false }),
+    )
+    renderAt('/tips', 'en')
+    await screen.findByRole('heading', { level: 1 })
+    const link = screen.getByRole('link', { name: en.changePrefs })
+    expect(link).toHaveAttribute('href', '/?prefs=edit')
+    fireEvent.click(link)
+    await onboarding()
+    expect(select(en.prefsGoalLabel)).toHaveValue('skin')
+    expect(select(en.prefsActivityLabel)).toHaveValue('high')
+    fireEvent.change(select(en.prefsGoalLabel), { target: { value: 'feel-calmer' } })
+    fireEvent.click(screen.getByRole('button', { name: en.prefsSave }))
+    expect(screen.queryByRole('region', { name: en.prefsTitle })).toBeNull()
+    expect(stored()).toEqual({ goal: 'feel-calmer', diet: null, activity: 'high', skipped: false })
+    expect(within(cards()[0]!).getByRole('heading')).toHaveTextContent(en.modules.tips.title)
+  })
+
+  it('Cancel on "Change preferences" keeps the saved answers', async () => {
+    const saved = { goal: 'skin', diet: 'vegan', activity: null, skipped: false }
+    window.localStorage.setItem('hygieia:prefs', JSON.stringify(saved))
+    renderAt('/?prefs=edit', 'en')
+    await onboarding()
+    fireEvent.click(screen.getByRole('button', { name: en.prefsCancel }))
+    expect(screen.queryByRole('region', { name: en.prefsTitle })).toBeNull()
+    expect(stored()).toEqual(saved)
+    expect(within(cards()[0]!).getByRole('heading')).toHaveTextContent(en.modules.skincare.title)
+  })
+})

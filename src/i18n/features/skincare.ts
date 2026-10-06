@@ -76,6 +76,10 @@ export interface SkincareDictionary {
   skincareTipsEmpty: string
   skincareLoadFailed: string
   skincareDisclaimer: string
+  /** Note when the visitor's goal (home preferences card, src/prefs) is skin care. */
+  skincareGoalNote: string
+  /** Its link to the skincare task plan (/tasks/skincare-habit). */
+  skincareGoalHabit: string
 }
 
 export const skincareEn: SkincareDictionary = {
@@ -170,6 +174,9 @@ export const skincareEn: SkincareDictionary = {
     'The skincare content could not be loaded. Check your connection and try again.',
   skincareDisclaimer:
     'This is general information about skin and nail care, not dermatological advice. For anything persistent, painful or spreading, see a dermatologist.',
+  skincareGoalNote:
+    'Your goal is looking after your skin: start with a routine for your skin type below.',
+  skincareGoalHabit: 'Make it a daily habit',
 }
 
 export const skincareEl: SkincareDictionary = {
@@ -264,6 +271,9 @@ export const skincareEl: SkincareDictionary = {
     'Το περιεχόμενο περιποίησης δεν φορτώθηκε. Έλεγξε τη σύνδεσή σου και δοκίμασε ξανά.',
   skincareDisclaimer:
     'Πρόκειται για γενικές πληροφορίες περιποίησης δέρματος και νυχιών, όχι για δερματολογικές συμβουλές. Για οτιδήποτε επίμονο, επώδυνο ή που εξαπλώνεται, επισκέψου δερματολόγο.',
+  skincareGoalNote:
+    'Στόχος σου είναι η φροντίδα της επιδερμίδας: ξεκίνα από μια ρουτίνα για τον τύπο δέρματός σου παρακάτω.',
+  skincareGoalHabit: 'Κάν’ το καθημερινή συνήθεια',
 }
 
 /** Both literals, for `useLang(skincareCopy)` on the `/skincare` route. */

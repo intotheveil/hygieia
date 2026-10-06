@@ -76,6 +76,8 @@ export interface BaseDictionary {
   /** Note on the cost + calories cards: their panels live on every recipe page (P4.3), so they route to /recipes. */
   panelsNote: string
   notMedicalAdvice: string
+  /** Footer link that reopens the home page's preferences card (`/?prefs=edit`). */
+  changePrefs: string
   notFoundTitle: string
   notFoundBody: string
   backHome: string
@@ -183,6 +185,7 @@ const baseEn: BaseDictionary = {
   panelsNote: 'Shown on every recipe page.',
   notMedicalAdvice:
     'Hygieia offers general information, not medical advice. Talk to a doctor or dietitian before changing your diet or training.',
+  changePrefs: 'Change preferences',
   notFoundTitle: 'Page not found',
   notFoundBody: 'There is nothing at this address.',
   backHome: 'Back to the start',
@@ -295,6 +298,7 @@ const baseEl: BaseDictionary = {
   panelsNote: 'Εμφανίζεται σε κάθε σελίδα συνταγής.',
   notMedicalAdvice:
     'Η Υγίεια προσφέρει γενικές πληροφορίες, όχι ιατρικές συμβουλές. Μίλησε με γιατρό ή διαιτολόγο πριν αλλάξεις διατροφή ή προπόνηση.',
+  changePrefs: 'Αλλαγή προτιμήσεων',
   notFoundTitle: 'Η σελίδα δεν βρέθηκε',
   notFoundBody: 'Δεν υπάρχει τίποτα σε αυτή τη διεύθυνση.',
   backHome: 'Πίσω στην αρχή',
