@@ -331,6 +331,7 @@ describe('generatePlan on every bundled topic × every answer combination', () =
         topic.id,
       ).toEqual([])
     }
-    expect(plans).toBeGreaterThan(15000)
+    // 19 topics: 17 424 plans for the first 11 + 6 120 for the eight added on 2026-10-06.
+    expect(plans).toBe(23544)
   }, 60_000)
 })

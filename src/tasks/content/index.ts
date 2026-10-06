@@ -17,6 +17,14 @@ export const TOPIC_LOADERS: Readonly<Record<TopicId, () => Promise<Topic>>> = {
   'morning-routine': () => import('./morning-routine.ts').then((m) => m.morningRoutine),
   'budget-groceries': () => import('./budget-groceries.ts').then((m) => m.budgetGroceries),
   'study-focus': () => import('./study-focus.ts').then((m) => m.studyFocus),
+  'newborn-routine': () => import('./newborn-routine.ts').then((m) => m.newbornRoutine),
+  'pet-care': () => import('./pet-care.ts').then((m) => m.petCare),
+  'plants-garden': () => import('./plants-garden.ts').then((m) => m.plantsGarden),
+  'car-care': () => import('./car-care.ts').then((m) => m.carCare),
+  'moving-house': () => import('./moving-house.ts').then((m) => m.movingHouse),
+  'exam-season': () => import('./exam-season.ts').then((m) => m.examSeason),
+  'summer-prep': () => import('./summer-prep.ts').then((m) => m.summerPrep),
+  'quit-smoking': () => import('./quit-smoking.ts').then((m) => m.quitSmoking),
 }
 
 export function loadTopic(id: TopicId): Promise<Topic> {

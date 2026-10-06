@@ -3,6 +3,51 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+### TASKS ADVISOR +8 topics — 2026-10-06 — DONE
+
+- **Request (operator approved):** eight more Tasks Advisor topics on the P9 model, lane `wt/d` from `main` `61e36a8`. Bundled content
+  only — **no database, no migration, no route change** (all topics share `/tasks/:topic`; Lighthouse route list untouched).
+- **Topics · questions · combos · tasks** (each 5 questions except car-care 6; a single-choice time budget, a `gentle` option, kick-off
+  tasks, ≥ 1 empty-`when` task, el + en on every string): **newborn-routine** 5 q · 864 · **42** (age 0–3 m / 3–12 m / 1–3 y; feeds,
+  safe sleep, bath, laundry, parent meal/rest; medicine, fever and solids → paediatrician or pharmacist, low mood > 2 weeks → doctor or
+  midwife; no doses) · **pet-care** 5 · 1152 · **41** (dog / cat / small pet; walks, litter, cage, grooming, ticks, vet calendar;
+  parasite protection "as your vet advised") · **plants-garden** 5 · 1536 · **35** (indoor / balcony / garden × Greek season; daily
+  early/late watering in summer, finger test, winter "only if dry", frost/wind, mosquitoes in saucers) · **car-care** 6 · 648 · **34**
+  (walk-around, tyres, oil, pressure, seasonal A/C · coolant / battery · wipers / tread · lights, **KTEO** due date and first KTEO at 4
+  years, road tax, legal safety kit) · **moving-house** 5 · 192 · **40** (countdown 6–8 / 3–5 / 1–2 weeks / just moved; movers vs
+  DIY; **electricity / water / internet provider** generic, meter photos, mail forwarding, address change: tax office, bank, employer,
+  insurance, doctor) · **exam-season** 5 · 432 · **41** (Panhellenics / university / **parent**; 50-min blocks as anchors, past papers,
+  timed essay, monthly mock, sleep, half-day off, exam bag; parent: listen-don't-quiz, quiet house, cook ahead; heavy worry → counsellor
+  or doctor) · **summer-prep** 5 · 432 · **39** (water bottle as anchor, sunscreen, shade 12:00–17:00, older relative check, never a child
+  or pet in a parked car, 112 alerts and fire-risk days, EHIC, home-before-leaving, regular medicines → doctor or pharmacist) ·
+  **quit-smoking** 5 · 864 · **37** (thinking / quit date / stopped; trigger diary, delay, craving plan as anchor, coffee/stress/social/
+  alcohol triggers, **"the national quit-smoking helpline"** named generically, nicotine replacement and quit medicines ONLY as "ask a
+  pharmacist or doctor", a slip "is not failure — carry on today, no guilt").
+- **Totals:** 19 topics, **788 tasks (479 + 309), 41.5 per topic** (floor ≥ 40 avg holds; new minimum 34). **All-combinations test: 23 544
+  plans (17 424 + 6 120): 0 empty, 0 over-budget days, every one of the 788 tasks reachable.** First draft left 14 tasks unreachable in 6
+  topics (newborn 7, pet 2, car 2, summer 2, quit 3, exam 1); fixed by weight/minutes/condition tuning measured with a throwaway
+  all-combos diagnostic, then a sample-plan pass found core tasks dropped on the tightest gentle budgets (cat litter, pet meals, parent
+  meal, quit-date clear-out) → made them anchors / shorter (DECISIONS same date).
+- **Files:** new `src/tasks/content/{newborn-routine,pet-care,plants-garden,car-care,moving-house,exam-season,summer-prep,quit-smoking}.ts`;
+  edited `src/tasks/content/{topics,index}.ts` (8 metas + 8 lazy loaders), `src/tasks/content/content.test.ts` (19 topics pinned, the
+  requested-ids list +9, **+2 tests "health-sensitive wording"**: every task about taking/giving medicine — a dose, any/regular/quit
+  medicines, nicotine replacement, solids — names a paediatrician / pharmacist / doctor / midwife; quit-smoking has no shaming words,
+  says "is not failure", names the helpline — **both proven red by sabotage** ("Halve them in the heat", "Smoking at home is lazy") and
+  green on restore), `src/tasks/generate.test.ts` (plan count pinned `toBe(23544)`, was `> 15000`). BRAIN.md not edited (lead reconciles).
+- **Gates (worktree `D:/projects/hygieia-wt/d`):** lint 0 errors (23 pre-existing warnings, unchanged) · typecheck clean · **`npm test`
+  3764 passed / 88 files** (baseline 3762; +2 content tests) — two default-parallel runs hit the KNOWN PGlite load flake
+  `scripts/gen-seed-sql.test.ts › byte-identical uuids` (5 s timeout; 35/35 alone; already recorded once in this log), green with
+  `--maxWorkers=4` while other lanes loaded the machine · `npm run build` OK (rebuilt after `npm test`, BRAIN §5), entry `index-*.js`
+  229.27 kB / 71.64 kB gzip; each new topic its own lazy chunk 8.6–10.9 kB (3.8–4.7 kB gzip) · `check:pwa` OK · `check:bundle` OK (69
+  files) · **`E2E_PREBUILT=1 npm run e2e` 99 passed** (tasks.spec's grid assertion now counts 19 cards).
+- **Exercised (observable):** Chromium on the production `dist/` (pages-server), each of the 8 deep links `/hygieia/tasks/<id>` walked
+  through its questionnaire in Greek (5 steps; car-care 6) to "Δες το πλάνο μου": H1 = the Greek title, a "Σήμερα" list of 3–10 items
+  (e.g. quit-smoking "Όταν έρθει η λαχτάρα: περίμενε, ανάσανε, πιες νερό…", pet-care "Φρέσκο νερό… / Φαγητό… / Πρωινή βόλτα / Βραδινή
+  βόλτα"); no page errors — the only console line is the expected 404 status of the GitHub-Pages `404.html` deep-link fallback on the
+  first cold deep link (pages-server emulates Pages on purpose).
+- **Lighthouse:** not re-run — no route added, the `/tasks` page chunk only gains 8 small metas; the 16-route list is unchanged.
+- **Next:** reviewer on this lane; the lead merges `wt/d` and reconciles BRAIN (§3 topic count 11 → 19, §6).
+
 ### PERF — restore Lighthouse margin after P7–P9 (CI diet 84) — 2026-10-06 — PARTIAL (16/17 routes ≥ 88 in all three runs; `recipe` 86–87 — residual is the webfonts, a design call for the lead)
 
 - **Incident:** CI run 37478306863 (`main` `c1d5929`) red on the cold gate, `/hygieia/diets/keto (diet): performance 84 < 85`.

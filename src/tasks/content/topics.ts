@@ -17,6 +17,14 @@ export const TOPIC_IDS = [
   'morning-routine',
   'budget-groceries',
   'study-focus',
+  'newborn-routine',
+  'pet-care',
+  'plants-garden',
+  'car-care',
+  'moving-house',
+  'exam-season',
+  'summer-prep',
+  'quit-smoking',
 ] as const
 export type TopicId = (typeof TOPIC_IDS)[number]
 
@@ -122,6 +130,78 @@ export const TOPICS: Readonly<Record<TopicId, TopicMeta>> = {
     blurb: {
       en: 'Focused sessions, regular reviews and a desk that works for you, not against you.',
       el: 'Συγκεντρωμένες ώρες μελέτης, τακτικές επαναλήψεις και ένα γραφείο που σε βοηθά αντί να σε αποσπά.',
+    },
+  },
+  'newborn-routine': {
+    id: 'newborn-routine',
+    icon: '♡',
+    title: { en: 'Newborn and toddler routine', el: 'Ρουτίνα με μωρό ή νήπιο' },
+    blurb: {
+      en: 'Feeds, naps, baths and laundry in a steady rhythm — with room for the grown-ups to rest too.',
+      el: 'Τάισμα, ύπνοι, μπάνιο και πλυντήρια σε έναν σταθερό ρυθμό — με χώρο να ξεκουραστούν και οι μεγάλοι.',
+    },
+  },
+  'pet-care': {
+    id: 'pet-care',
+    icon: '✤',
+    title: { en: 'Pet care routine', el: 'Φροντίδα κατοικιδίου' },
+    blurb: {
+      en: 'Walks, meals, grooming and the vet calendar, so nothing slips in a busy week.',
+      el: 'Βόλτες, φαγητό, περιποίηση και το ημερολόγιο του κτηνιάτρου, για να μην ξεχνιέται τίποτα στις φορτωμένες εβδομάδες.',
+    },
+  },
+  'plants-garden': {
+    id: 'plants-garden',
+    icon: '☘',
+    title: { en: 'Plants and balcony garden', el: 'Φυτά, μπαλκόνι και κήπος' },
+    blurb: {
+      en: 'Watering by season, feeding and small jobs for houseplants, a balcony or a garden — in a Greek climate.',
+      el: 'Πότισμα ανά εποχή, λίπανση και μικρές δουλειές για φυτά εσωτερικού χώρου, μπαλκόνι ή κήπο — για το ελληνικό κλίμα.',
+    },
+  },
+  'car-care': {
+    id: 'car-care',
+    icon: '⚙',
+    title: { en: 'Car maintenance', el: 'Συντήρηση αυτοκινήτου' },
+    blurb: {
+      en: 'Quick checks, seasonal jobs, tyres and the KTEO date — a few minutes now instead of a breakdown later.',
+      el: 'Γρήγοροι έλεγχοι, εποχικές δουλειές, ελαστικά και η ημερομηνία του ΚΤΕΟ — λίγα λεπτά τώρα αντί για βλάβη αργότερα.',
+    },
+  },
+  'moving-house': {
+    id: 'moving-house',
+    icon: '⇄',
+    title: { en: 'Moving house', el: 'Μετακόμιση' },
+    blurb: {
+      en: 'An eight-week countdown: sort, pack, move the utilities and change your address — one step at a time.',
+      el: 'Αντίστροφη μέτρηση οκτώ εβδομάδων: ξεσκαρτάρισμα, πακετάρισμα, μεταφορά λογαριασμών και αλλαγή διεύθυνσης — ένα βήμα τη φορά.',
+    },
+  },
+  'exam-season': {
+    id: 'exam-season',
+    icon: '◷',
+    title: { en: 'Exam season', el: 'Περίοδος εξετάσεων' },
+    blurb: {
+      en: 'Study blocks, real breaks and enough sleep through the Panhellenics or university exams — with a part for parents too.',
+      el: 'Ώρες μελέτης, πραγματικά διαλείμματα και αρκετός ύπνος στις Πανελλαδικές ή στην εξεταστική — και ρόλος για τους γονείς.',
+    },
+  },
+  'summer-prep': {
+    id: 'summer-prep',
+    icon: '☼',
+    title: { en: 'Ready for summer', el: 'Έτοιμοι για το καλοκαίρι' },
+    blurb: {
+      en: 'Sun safety, water in the heatwaves, packing for the trip and a home that is ready to be left.',
+      el: 'Προστασία από τον ήλιο, νερό στους καύσωνες, βαλίτσα για τις διακοπές και ένα σπίτι έτοιμο να μείνει άδειο.',
+    },
+  },
+  'quit-smoking': {
+    id: 'quit-smoking',
+    icon: '⊘',
+    title: { en: 'Quit smoking', el: 'Κόβω το κάπνισμα' },
+    blurb: {
+      en: 'Set a date, know your triggers and get support — one smoke-free day at a time, without guilt.',
+      el: 'Όρισε ημερομηνία, γνώρισε τις αφορμές σου και ζήτα στήριξη — μία μέρα χωρίς τσιγάρο τη φορά, χωρίς ενοχές.',
     },
   },
 }
