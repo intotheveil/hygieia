@@ -200,3 +200,26 @@ describe('<RecipesPage>', () => {
     expect(screen.queryByRole('button', { pressed: true })).not.toBeInTheDocument()
   })
 })
+
+describe('<RecipesPage> async states (P5.1)', () => {
+  it('renders the list skeleton first while a slow source has not answered', () => {
+    const slow: ContentSource = { ...contentSource, listRecipes: () => new Promise(() => {}) }
+    renderPage('/recipes', 'el', slow)
+    const status = screen.getByRole('status')
+    expect(status).toHaveAttribute('aria-busy', 'true')
+    expect(status).toHaveAttribute('data-skeleton', 'list')
+    expect(status).toHaveTextContent(el.loading)
+    expect(screen.queryByRole('list', { name: el.recipesTitle })).toBeNull()
+    expect(screen.queryByRole('alert')).toBeNull()
+    // The header (title, intro, ribbon) is there from the first paint; only the catalogue waits.
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(el.recipesTitle)
+  })
+
+  it('renders the shared empty state for a filter nothing matches, keeping the results count line', async () => {
+    renderPage('/recipes?diet=keto&q=zzzz', 'en')
+    expect(await screen.findByText(en.noRecipesMatch)).toBeInTheDocument()
+    expect(screen.getByText(en.noRecipesMatch).closest('[data-empty-state]')).not.toBeNull()
+    expect(screen.getByRole('status')).toHaveTextContent(plural(en.resultsCount, 0))
+    expect(screen.queryByRole('list', { name: en.recipesTitle })).toBeNull()
+  })
+})

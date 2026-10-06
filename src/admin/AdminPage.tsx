@@ -12,6 +12,7 @@ import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 import { useProfile } from '../auth/profile'
+import { ErrorState, Loading } from '../components/AsyncState'
 import { CONTENT_TABLES, type ContentStatus, type ContentTable } from '../content/enums.ts'
 import { useLang } from '../i18n/LangProvider'
 import { useAsync, useAsyncResult } from '../lib/useAsync.ts'
@@ -67,9 +68,7 @@ export function AdminPage() {
   if (profile.status === 'idle' || profile.status === 'loading') {
     return (
       <Shell>
-        <p role="status" className="text-olive-700">
-          {t.loading}
-        </p>
+        <Loading variant="panel" />
       </Shell>
     )
   }
@@ -177,13 +176,9 @@ function Workbench({ source }: { source: AdminContentSource }) {
     else if (filtered.status === 'error') rows = null
     else rows = filtered.data ?? undefined
     if (rows === undefined) {
-      panel = (
-        <p role="status" className="text-olive-700">
-          {t.loading}
-        </p>
-      )
+      panel = <Loading variant="panel" />
     } else if (rows === null) {
-      panel = <p role="alert">{t.adminLoadFailed}</p>
+      panel = <ErrorState message={t.adminLoadFailed} onRetry={refresh} />
     } else {
       panel = (
         <PendingList

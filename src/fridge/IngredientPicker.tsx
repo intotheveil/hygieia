@@ -142,7 +142,7 @@ export function IngredientPicker({
         onFocus={() => setOpen(true)}
         onBlur={() => setOpen(false)}
         onKeyDown={onKeyDown}
-        className="w-full rounded-xl border border-olive-900/20 bg-paper-50 px-4 py-2.5 text-olive-950 shadow-sm placeholder:text-olive-700/60 focus:border-sage-600 focus:ring-2 focus:ring-sage-500/40 focus:outline-none"
+        className="w-full rounded-xl border border-olive-900/20 bg-paper-50 px-4 py-2.5 text-olive-950 shadow-sm placeholder:text-olive-700 focus:border-sage-600 focus:ring-2 focus:ring-sage-500/40 focus:outline-none"
       />
       <ul
         id={listId}

@@ -7,6 +7,8 @@
 # --- Node / build ---
 node_modules
 dist
+# the dead-backend e2e build (npm run build:dead, PLAN P5.1)
+dist-dead/
 *.tsbuildinfo
 *.log
 

@@ -374,6 +374,7 @@ effect`) and asserts A's rows unchanged — instead of adding new checks — bec
   so the two `exhaustive-deps` disables that the "new identity forces a re-read" trick needed are gone too. The one behaviour change is
   deliberate: a REJECTED read renders `adminLoadFailed` instead of hanging on the loading line (asserted by one new test per page, each
   through a source that bypasses the adapter, because `adminSource`'s `run` catches every throw and a real client can never reject).
+
 ## 2026-10-06 — P3.5 navigation + Layout (builder, worktree `wt/c`)
 
 - **`NotFound` lifted to `src/routes/NotFound.tsx`, re-exported from `routes.tsx`.** `RecipePage` and `DietPage` render it for an
@@ -516,3 +517,29 @@ otherwise. Named in `.claude/CLAUDE.project.md` §2 "Deviations".
 - **`clay-500` is never TEXT; `clay-700` (`#9c5530`, 5.0:1 on cream) is the text shade.** `clay-500` (3.0:1) stays for borders, tints,
   bars and the wash. The tips eyebrow was the one shipped instance in a matrix-visible state; the alert lines still on `text-clay-500`
   are in markup the AsyncState lane owns and are listed in BUILD_LOG for it.
+
+## 2026-10-06 — P5.1 shared async states, dead-backend e2e project, reserved-space skeletons
+
+- **2026-10-06 (P5.1) — ONE shared `Loading` / `ErrorState` / `EmptyState` (`src/components/AsyncState.tsx`) replaces nine
+  per-page renderings; each page KEEPS its own dictionary key** (`loadFailed`, `fridgeLoadFailed`, `workoutsLoadFailed`,
+  `tipsLoadFailed`, `adminLoadFailed`; `noRecipesMatch`, `fridgeEmpty`, `tipsEmpty`, `noSession`, `noPending`, `nothingSavedYet`,
+  new `dietsEmpty` / `noRecipesForDiet`) and passes it in — the component owns markup, role and the Retry label (`t.retry`),
+  never the copy. `ErrorState` is `role="alert"` and ALWAYS offers Retry when the state has a `reload` (fridge, workouts, tips
+  and admin had none before); `EmptyState` carries no live-region role (an empty result is content; the pages that announce
+  counts keep their own `role="status"` line). Error copy is `text-clay-700` (5.0:1), not `clay-500` (3.0:1) — the a11y lane's
+  contrast finding, applied to every alert the kit touched and to the seven sites it listed.
+- **2026-10-06 (P5.1) — `Loading` is a SKELETON WITH RESERVED HEIGHT, sized to push everything below it off a phone viewport**
+  (`list`: 6 × h-44 cards in the page's own grid; `detail`: header lines + 3 × h-40 blocks; `panel`: 3 × h-11 rows). Lighthouse
+  measured CLS 0.876 / 0.339 / 0.289 / 0.190 / 0.161 / 0.152 / 0.122 on diet / diets / recipes / tips / workouts / recipe / fridge
+  with the one-line "Loading…": the bundled source settles on a macrotask, so the one-liner PAINTS and the content then shoves the
+  footer a screen down. The skeleton is `role="status" aria-busy aria-live="polite"` with `t.loading` sr-only (tests and AT read
+  the same text as before) and the bones `aria-hidden`.
+- **2026-10-06 (P5.1) — A SECOND Playwright project `dead-backend` runs the production artifact CONFIGURED against
+  `http://127.0.0.1:9/`** (`npm run build:dead` → `scripts/build-dead.mjs` → `dist-dead/`, served on 4174 with Pages semantics).
+  The values are set by the script, not a `.env.*` (gitignored by policy) nor a CI variable: public dummies, reproducible from the
+  checkout. The console watchdog variant (`e2e/support/dead-backend.ts`) filters ONLY `Failed to load resource: net::ERR_*` whose
+  URL is on the dead origin. Measured, not assumed: Chromium refuses port 9 as an UNSAFE PORT (`net::ERR_UNSAFE_PORT`, no socket —
+  dead all the same), and supabase-js 2.117 RETRIES a failed PostgREST request 4× with 1/2/4 s back-off before the `Result`
+  settles (~7.2 s), so the project carries `expect: 20 s`, `timeout: 90 s`, and the spec arms `requestfailed` for the Retry proof
+  only AFTER the alert has settled (a dead-host request after that can only be the click's). CI builds dist-dead/ once more
+  before `npm run e2e` (E2E_PREBUILT=1 serves both directories; the configured Pages build stays LAST).

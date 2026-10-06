@@ -3,6 +3,84 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+## 2026-10-06 — P5.1 Error, loading and empty states — EXERCISED against a dead backend, not just written — DONE (builder, worktree `wt/d`; not committed — the lead merges)
+
+**Delivered.**
+
+- **`src/components/AsyncState.tsx` (+ `AsyncState.test.tsx`, 12 tests)** — the ONE `Loading` / `ErrorState` / `EmptyState`. `Loading` is a
+  skeleton with RESERVED height (`list`: 6 × h-44 cards in the page's grid · `detail`: header lines + 3 × h-40 blocks · `panel`: 3 × h-11
+  rows), `role="status" aria-busy aria-live="polite"`, `t.loading` sr-only, bones `aria-hidden`, `data-skeleton=<variant>`. `ErrorState`
+  is `role="alert"` + the page's own copy + a Retry (`t.retry`) wired to the state's `reload`; error text `text-clay-700` (a11y lane's
+  contrast finding, 5.0:1). `EmptyState` = icon + title + optional hint/action, no live-region role, `data-empty-state`.
+- **Adopted in every page listed** — `RecipesPage`, `RecipePage`, `FridgePage`, `DietsPage`, `DietPage`, `WorkoutsPage`, `TipsPage`,
+  `AdminPage` (+ `PendingList`), `AccountPage` — each keeping its own key (`loadFailed` / `fridgeLoadFailed` / `workoutsLoadFailed` /
+  `tipsLoadFailed` / `adminLoadFailed`; `noRecipesMatch` / `fridgeEmpty`+hint / `tipsEmpty` / `noSession` / `noPending` / `noRowsForStatus` /
+  `nothingSavedYet`). Retry now exists where it did not (fridge, workouts, tips, admin). `FridgePage` gained an injectable `source` prop and
+  a `Result`-based load (so Retry can re-run it) like the other pages. Two new diets keys for states that had none: `dietsEmpty`,
+  `noRecipesForDiet` (`src/i18n/features/diets.ts`, both languages). `AccountPage`'s private `LoadFailed` removed.
+- **A11y addendum (from the lead, a11y lane now on `main`)** — merged `main` (token `--color-clay-700`); error copy is `text-clay-700`
+  at every listed site: FridgePage 370 (save-list alert), RecipePage 242 (favourite alert), PlanView 164, AccountPage 130 (remove alert)
+  and 237 (Remove button text), SignInPage 118, PriceTable 248, ReviewForm 37 (`DANGER` text); `text-olive-700/70 italic` → `text-olive-700`
+  in PlanView 280; `placeholder:text-olive-700/60` → `placeholder:text-olive-700` in IngredientPicker 145. `clay-500` stays on borders/
+  tints/bars only. (Left as found, not in the list: `text-olive-700/80` in App.tsx 64 and IngredientPicker 175 — small secondary text.)
+- **Dead-backend e2e project** — `npm run build:dead` → `scripts/build-dead.mjs` spawns `vite build --outDir dist-dead` with
+  `VITE_SUPABASE_URL=http://127.0.0.1:9/`, `VITE_SUPABASE_ANON_KEY=dead-anon`, fleet names blanked (set by the script: no `.env.*`, no CI
+  variable; wins over a developer's `.env`). `playwright.config.ts`: project `dead-backend` (testDir `e2e/dead-backend`, baseURL
+  `http://127.0.0.1:4174/hygieia/`, `expect 20 s` / `timeout 90 s` — see measurement below) + a second `webServer` entry
+  (`pages-server --port 4174 --root dist-dead --base /hygieia`; `E2E_PREBUILT=1` serves without building). `npm run e2e` runs BOTH
+  projects. `e2e/support/dead-backend.ts`: the house watchdog plus ONE filter — `Failed to load resource: net::ERR_*` whose URL is on
+  `http://127.0.0.1:9` — everything else still fails the test. `.gitignore` + `.prettierignore`: `dist-dead/`. `vite.config.ts` NOT edited:
+  `spaFallback` already reads the resolved `build.outDir`, and `dist-dead/404.html == index.html` was verified (`cmp`).
+- **`e2e/dead-backend/error-states.spec.ts` (9 tests)** — on `/recipes`, `/diets`, `/workouts`, `/tips`, `/recipes/<slug>`,
+  `/diets/keto`, `/fridge`: the skeleton shows first, then the bilingual ErrorState (Greek, then English after the toggle) with Retry;
+  the FIRST dead-host failure is observed on load, Retry is clicked only after the alert has SETTLED, and a FURTHER `requestfailed` to
+  the dead host is awaited — then the page is still in error, no draft ribbon, no skeleton left behind. The header/nav test walks
+  recipes → diets → tips (each in error) → home (renders `statusBodyConfigured`: the build IS the configured one). `/auth` shows the
+  sign-in form; a magic-link submit → `requestfailed` on `/auth/v1/` → `signInFailed`, form still usable.
+- **`e2e/local/empty-states.spec.ts` (2 tests)** — `/recipes?diet=keto&q=zzzz` DEEP LINK → `noRecipesMatch`, count 0, keto chip pressed,
+  box `zzzz`, clear restores all; empty fridge → `fridgeEmpty` + hint, no progressbar/list.
+- **Unit tests** — every page has a slow-source skeleton test (`new Promise(() => {})`, asserts `aria-busy` + variant) and an empty-state
+  test; Retry-calls-the-source-again added for fridge, workouts, tips; admin's error test asserts Retry. Only markup assertions changed,
+  never intent. **`npm test`: 63 files, 3191 tests** (P4 count was 3123).
+- **CI (`.github/workflows/deploy.yml`)** — new step `Build, dead-backend mode (test build)` (`npm run build:dead`) right after
+  `check:pwa`, before the Playwright steps; the e2e step's comment and name updated; the configured Pages build stays LAST. Cost: one
+  extra ~15 s Vite build + ~25 s of e2e.
+
+**Measured on the artifact, not assumed (two things the plan's wording did not know).**
+
+1. Chromium refuses port 9 as an UNSAFE PORT: every request to `http://127.0.0.1:9/` fails with `net::ERR_UNSAFE_PORT` without opening a
+   socket. Dead all the same (and faster than a refused connection); the watchdog filter keys on `net::ERR_*`, so either error text passes.
+2. **supabase-js 2.117 RETRIES a failed PostgREST request four times with 1 / 2 / 4 s back-off** before the promise settles: failures at
+   +0.12 s, +1.13 s, +3.14 s, +7.15 s after load (probe over `dist-dead/`). The ErrorState therefore appears ~7.2 s after navigation, well
+   past the house 5 s expect budget — the first run failed 8/9 dead-backend tests on exactly that (`alert` not found in 5 s; screenshot
+   showed the skeleton). Fixed by budget, not by weakening: project-level `expect: 20 s`, `timeout: 90 s`, and the spec arms the
+   Retry-proof `requestfailed` only after the alert has settled, so supabase-js's own retries cannot be mistaken for the click. Each dead
+   test takes ~15 s (two rounds); 9 tests run in parallel in ~25 s.
+
+**CLS (you own this line; the perf lane owns the performance score).** `npm run check:lighthouse`, mobile, same machine, before → after:
+`diet 0.876 → 0.130` · `diets 0.339 → 0.001` · `recipes 0.289 → 0.000` · `tips 0.190 → 0.036` · `workouts 0.161 → 0.001` ·
+`recipe 0.152 → 0.000` · `fridge 0.122 → 0.001` · home/auth/account/admin/not-found ≤ 0.021 → ≤ 0.002. Accessibility 100 on all 12
+routes (was 100). The two residuals are attributed with a `PerformanceObserver` probe at the Moto G viewport and are NOT the skeleton:
+**tips 0.036 = web-font swap on the H1** (Lighthouse names the cause); **diet 0.130 = the same font swap reflowing the dense above-the-fold
+lists** — at the shift instant the loaded diet is already on screen (document 4 926 px, H1 set, no `aria-busy`) and the header `nav` text
+shifts in the same frame; the identical `detail` skeleton on the recipe route measures 0.000. Hand-off to the perf lane (P5.3,
+`src/index.css` / `index.html`, not P5.1 files): fallback-font metric overrides (`size-adjust` / `ascent-override`) or preloading the two
+Greek woff2 subsets would close it. Performance scores (78–86) are below the 90 gate on every route before and after — the perf lane's
+1.26 MB main chunk; `check:lighthouse` therefore still exits 1 here, as it did before this task.
+
+**Gates (worktree `wt/d`, after `git merge main`):** `npm run lint` → 0 errors (21 pre-existing react-refresh warnings) · `npm run typecheck`
+→ clean · `tsc -p e2e/support/tsconfig.json` → clean · `npm test` → 63 files, **3191 passed** · `npm run build` → OK · `npm run build:dead`
+→ `dist-dead/` (42 precache entries, `404.html == index.html`, dead URL inlined in `dist-dead/assets/index-*.js`, absent from `dist/`) ·
+`npm run check:pwa` → OK · `npm run e2e` (E2E_PREBUILT=1) → **66 passed (57 `[local]` incl. the merged a11y matrix + 9 `[dead-backend]`),
+0 unexpected console errors, 39.7 s** · `npm run check:lighthouse` → CLS as above; exits 1 on performance only (pre-existing).
+
+**Scope notes for the lead.** Beyond the declared files: `src/i18n/features/diets.ts` (two empty-state keys — the bilingual rule makes
+them mandatory for the two new EmptyStates), `scripts/build-dead.mjs` (the `build:dead` implementation; a `.env.dead` would be a tracked
+`.env.*` file, which policy forbids), `e2e/support/dead-backend.ts` (the fixture variant the brief asked for), `e2e/local/empty-states.spec.ts`
+(the brief's local-project empty-state checks), `.prettierignore` (`dist-dead`), and the a11y addendum's seven sites (`PlanView`,
+`SignInPage`, `PriceTable`, `ReviewForm`, `IngredientPicker`, plus the two alerts in `FridgePage`/`RecipePage`) at the lead's instruction.
+`src/routes/routes.tsx` and `src/content/bundled.ts` untouched. `BRAIN.md` left to the lead (not `merge=union`).
+
 ## 2026-10-06 — P5.2 a11y matrix: axe on every route × both languages, contrast made decidable, tips eyebrow fixed — DONE (builder, worktree `wt/b`; not committed — the lead merges)
 
 **Delivered.** `e2e/local/a11y-matrix.spec.ts` — 12 routes (`e2e/support/routes.ts`) × `['el','en']` = **24 cells** on the PRODUCTION

@@ -9,6 +9,8 @@ import { el, en, type Lang } from '../i18n/dictionary'
 import { fill } from '../i18n/fill'
 import { disabledSource } from '../user/disabled'
 import { ok, type FridgeList, type UserDataSource } from '../user/source'
+import { bundledSource } from '../content/bundled.ts'
+import { fail, type ContentSource } from '../content/source.ts'
 import { FridgePage } from './FridgePage'
 import { indexBySlug, matchRecipes } from './match'
 import { FRIDGE_STORAGE_KEY, serializeFridgeState } from './storage'
@@ -367,5 +369,55 @@ describe('<FridgePage> — save list', () => {
     expect(screen.getByText(en.fridgeEmpty)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: en.loadList }))
     expect(chips().map((c) => c.textContent)).toEqual(['Tomato×', 'Feta×'])
+  })
+})
+
+describe('<FridgePage> async states (P5.1)', () => {
+  function renderWithSource(source: ContentSource, lang: Lang = 'en') {
+    return render(
+      <LangProvider initial={lang}>
+        <MemoryRouter initialEntries={['/fridge']}>
+          <FridgePage source={source} />
+        </MemoryRouter>
+      </LangProvider>,
+    )
+  }
+
+  it('renders the skeleton first while a slow source has not answered', () => {
+    const slow: ContentSource = { ...bundledSource, listIngredients: () => new Promise(() => {}) }
+    renderWithSource(slow, 'el')
+    const status = screen.getByRole('status')
+    expect(status).toHaveAttribute('aria-busy', 'true')
+    expect(status).toHaveTextContent(el.loading)
+    expect(screen.queryByRole('combobox')).toBeNull()
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(el.fridgeTitle)
+  })
+
+  it('shows the fridge error copy with a Retry that re-reads the catalogue', async () => {
+    const listRecipes = vi
+      .fn<ContentSource['listRecipes']>()
+      .mockResolvedValueOnce(fail('network'))
+      .mockImplementation(bundledSource.listRecipes)
+    renderWithSource({ ...bundledSource, listRecipes }, 'el')
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent(el.fridgeLoadFailed)
+    expect(screen.queryByRole('combobox')).toBeNull()
+    expect(listRecipes).toHaveBeenCalledTimes(1)
+
+    fireEvent.click(within(alert).getByRole('button', { name: el.retry }))
+    await ready()
+    expect(listRecipes).toHaveBeenCalledTimes(2)
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.getByText(el.fridgeEmpty)).toBeInTheDocument()
+  })
+
+  it('renders the empty fridge through the shared EmptyState with its hint', async () => {
+    renderWithSource(bundledSource, 'en')
+    await ready()
+    const title = screen.getByText(en.fridgeEmpty)
+    const box = title.closest('[data-empty-state]')
+    expect(box).not.toBeNull()
+    expect(box).toHaveTextContent(en.fridgeEmptyHint)
   })
 })

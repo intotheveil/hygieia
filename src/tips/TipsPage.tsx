@@ -7,6 +7,7 @@
 
 import { useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { EmptyState, ErrorState, Loading } from '../components/AsyncState'
 import { DraftRibbon } from '../components/DraftRibbon'
 import { contentSource } from '../content'
 import type { ContentSource, HealthTip } from '../content'
@@ -135,20 +136,11 @@ export function TipsPage({ source = contentSource }: TipsPageProps) {
       </div>
 
       {state.status === 'loading' ? (
-        <p role="status" className="text-olive-700">
-          {t.loading}
-        </p>
+        <Loading variant="list" />
       ) : state.status === 'error' ? (
-        <p
-          role="alert"
-          className="rounded-md border border-clay-500/30 bg-clay-500/10 px-3 py-2 text-olive-900"
-        >
-          {t.tipsLoadFailed}
-        </p>
+        <ErrorState message={t.tipsLoadFailed} onRetry={state.reload} />
       ) : visible.length === 0 ? (
-        <p role="status" className="text-olive-700">
-          {t.tipsEmpty}
-        </p>
+        <EmptyState title={t.tipsEmpty} icon="☀" />
       ) : (
         visible.map((group) => (
           <section

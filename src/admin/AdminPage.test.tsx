@@ -158,7 +158,10 @@ describe('AdminPage — guards', () => {
       select: () => ({ eq: () => ({ maybeSingle: () => new Promise(() => {}) }) }),
     }))
     renderPage(fake.client, lang)
-    expect(screen.getByRole('status')).toHaveTextContent(t.loading)
+    const status = screen.getByRole('status')
+    expect(status).toHaveTextContent(t.loading)
+    expect(status).toHaveAttribute('aria-busy', 'true')
+    expect(status).toHaveAttribute('data-skeleton', 'panel')
   })
 })
 
@@ -414,7 +417,10 @@ describe('AdminPage — a rejecting read', () => {
       listPending: () => Promise.reject(new Error('transport')),
     }
     renderPage(fake.client)
-    expect(await screen.findByRole('alert')).toHaveTextContent(en.adminLoadFailed)
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent(en.adminLoadFailed)
+    // The shared ErrorState (P5.1) offers a Retry that re-reads the pending counts.
+    expect(within(alert).getByRole('button', { name: en.retry })).toBeInTheDocument()
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
     for (const table of CONTENT_TABLES)
       expect(screen.getByRole('tab', { name: en.kinds[table] })).toBeInTheDocument()

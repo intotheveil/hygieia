@@ -183,14 +183,29 @@ describe('<TipsPage> states', () => {
   it('shows the loading state until the source answers', () => {
     const pending: ContentSource = { ...bundledSource, listTips: () => new Promise(() => {}) }
     renderAt('/tips', 'en', pending)
-    expect(screen.getByRole('status')).toHaveTextContent(en.loading)
+    const status = screen.getByRole('status')
+    expect(status).toHaveTextContent(en.loading)
+    // The shared skeleton (P5.1): busy, with reserved space, under the topic chips.
+    expect(status).toHaveAttribute('aria-busy', 'true')
+    expect(status).toHaveAttribute('data-skeleton', 'list')
+    expect(screen.getByRole('radiogroup')).toBeInTheDocument()
     expect(screen.queryAllByRole('article')).toHaveLength(0)
   })
 
-  it('shows the error state when the source fails', async () => {
-    const broken: ContentSource = { ...bundledSource, listTips: async () => fail('unknown') }
-    renderAt('/tips', 'el', broken)
-    expect(await screen.findByRole('alert')).toHaveTextContent(el.tipsLoadFailed)
+  it('shows the error state when the source fails, and Retry asks the source again', async () => {
+    const listTips = vi
+      .fn<ContentSource['listTips']>()
+      .mockResolvedValueOnce(fail('unknown'))
+      .mockImplementation(bundledSource.listTips)
+    renderAt('/tips', 'el', { ...bundledSource, listTips })
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent(el.tipsLoadFailed)
+    expect(listTips).toHaveBeenCalledTimes(1)
+
+    fireEvent.click(within(alert).getByRole('button', { name: el.retry }))
+    await screen.findAllByRole('article')
+    expect(listTips).toHaveBeenCalledTimes(2)
+    expect(screen.queryByRole('alert')).toBeNull()
   })
 
   it('shows the empty state when there are no visible tips, or none for the chosen topic', async () => {
