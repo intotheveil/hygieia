@@ -5,11 +5,12 @@
 > intent; rewritten 2026-10-06 to the P1–P6 state (P1/P2 review item 1). Genuine unknowns are
 > marked **❓ needs human input**.
 
-**Last updated:** 2026-10-06 (late) by the lead (Claude Code, Fable 5.1) — P5/P6 QA VALIDATED on the cold gate, seeds LIVE in the shared
-project (10/10 ledger), full app DEPLOYED in local-only mode; previous: the gate-correctness builder (ADR-0006), same day.
-**Status:** in-development — P1–P6 built on `main` (`9295637`); P1/P2 and P3/P4 QA VALIDATED and re-reviewed PASS; P5/P6 QA
-**FAILURES** on one criterion (the Lighthouse gate's non-determinism) — answered by ADR-0006 in `wt/g`, re-QA owed. The full app
-is live on Pages in local-only mode (deployed from `a9efff9` by CI run 37416889242).
+**Last updated:** 2026-10-06 (night) by the lead (Claude Code, Fable 5.1) — P6.5 release notes DONE, offline spec proves content routes,
+P5/P6 re-review on records; previous: same day (late), seeds LIVE + P5/P6 QA VALIDATED + full app deployed.
+**Status:** built — P1–P6 on `main` (`b82d024`, CI run 37420337752 green + deployed); P1/P2 and P3/P4 QA VALIDATED + REVIEW PASS;
+P5/P6 QA VALIDATED (cold gate, re-run) and REVIEW: re-review REVISE on RECORDS only (code lines all 2) — this commit answers it; the
+PASS flip and the human CHECKPOINT P5/P6 are the next two lines of BUILD_LOG. The full app is live on Pages in local-only mode (first
+deployed from `a9efff9` by CI run 37416889242, now `b82d024` by 37420337752; `smoke:live` 13/13).
 **Repo:** `intotheveil/hygieia` (public) · `D:\projects\hygieia` (lane worktrees `D:\projects\hygieia-wt\a..g`, branches `wt/a..g`) ·
 **Deployed:** https://intotheveil.github.io/hygieia/ (GitHub Pages, from `main` via CI — the FULL APP since 2026-10-06, local-only mode until the operator steps in §3)
 
@@ -166,7 +167,7 @@ pending|approved|rejected` stamped by `stamp_review()` BEFORE UPDATE · per-user
   db:live-check` PASSED. (2) **OP2.a** Google OAuth client + redirect URLs (`https://intotheveil.github.io/hygieia/auth/callback`,
   localhost) · first sign-in · **OP2.b** admin flag per `docs/ops/admin.md` · **OP4.b** approve content in `/admin`. (3) **OP2.c** repo
   variables `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` and **OP6.a** the fleet trio → next `main` deploy is configured →
-  `smoke:live` reports rows. (4) P6.5 release notes once P5/P6 review is PASS. Backlog: cold perf 87 → 90 on content routes (render the
+  `smoke:live` reports rows. (4) P6.5 release notes DONE (`dea5730`) → P5/P6 review PASS flip (records) → **human CHECKPOINT P5/P6** → P6.QA operator items (needs OP6.a). Backlog: cold perf 87 → 90 on content routes (render the
   above-the-fold frame before the seed `import()`), RecipeCard chips as links, cross-OS byte-identical dist, seed-floor constants,
   `db-types.ts` profiles.Insert tightening, bundle-secret test under `NODE_ENV=production`.
 
@@ -340,7 +341,15 @@ table (14)` is right; P1.QA.2's `(13)` is the typo.
   empty configured catalogue. Did NOT set `pgrst.db_schemas` on `authenticator`: no existing value to extend, and an in-DB value
   would override whatever Alyssos exposes from the Dashboard.
 - Resolved: PERF (closed → backlog 87 vs 90), REVIEW-P12 and REVIEW-P34 (PASS), OP4.a. Reopened nothing.
-- Left off: P5/P6 REVIEW running (verdict at the top of BUILD_LOG); then P6.5 release notes. Operator: O1 → OP2.a/b → OP4.b → OP2.c + OP6.a.
+- Then (same night, `dea5730` → `b0307e1` → `b82d024`): P5/P6 REVIEW came back REVISE (P6.5 not done; offline spec never visited a
+  content route; BRAIN stale). Landed: P6.5 release notes + README/CLAUDE §8 (`gates:`/`smoke:`/`telemetry:`) + constitution recompose
+  (`verify-kit`: hygieia PASS on CHECK 1 + CHECK 3; CHECK 2 lists hygieia with enodia/themis/mnemosyne on the newer-kit hook/agent variant —
+  fleet-wide, pre-existing, zeus B9); DECISIONS P5.3 → superseded-by-ADR-0006 pointer; lane `wt/d` rewrote `offline.spec.ts` to click the
+  real recipes nav link (152 items) and hard-load `/diets` from the SW (16 diets), green ×3 + RED ×3, and found that `page.route` cannot
+  block a SW (§5). **G6 at `b82d024`:** lint 0 errors · typecheck clean · 3206 tests · build 235 kB entry / precache 69 · check:pwa OK ·
+  db:check 10 · gate 227 · seed:check OK · e2e 66 passed · check:bundle OK (37 files). Pushed → CI run 37420337752 green, deployed, smoke 13/13.
+  Scoped re-review: REVISE on records only → fixed by the records commit after this line (status, next, this entry, FLEET row).
+- Left off: reviewer flips P5/P6 to PASS on the records → human CHECKPOINT P5/P6. Operator: O1 → OP2.a/b → OP4.b → OP2.c + OP6.a.
 
 ### 2026-10-06 — Lighthouse gate correctness: cold first visit, deterministic, 85/90/90 (builder, Fable 5.1, worktree `wt/g`; detail: BUILD_LOG entry of the same name, DECISIONS ADR-0006)
 
