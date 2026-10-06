@@ -31,8 +31,9 @@
 // ~300 ms); this boundary now catches only lazyPage's failure path (a retried `React.lazy`).
 
 import { Suspense } from 'react'
-import { Outlet } from 'react-router-dom'
+import { Link, Outlet } from 'react-router-dom'
 import { useLang } from '../i18n/LangProvider'
+import { PREFS_EDIT_HREF } from '../prefs/prefs.ts'
 import { PageLoading } from './PageLoading'
 import { SiteHeader } from './SiteHeader'
 
@@ -46,8 +47,17 @@ export function Layout() {
           <Outlet />
         </Suspense>
       </div>
-      <footer className="border-t border-olive-900/10 py-6 text-xs leading-relaxed text-olive-700">
+      <footer className="flex flex-col gap-2 border-t border-olive-900/10 py-6 text-xs leading-relaxed text-olive-700">
         <p>{t.notMedicalAdvice}</p>
+        {/* Reopens the home page's preferences card (src/prefs, 2026-10-06) from any page. */}
+        <p>
+          <Link
+            to={PREFS_EDIT_HREF}
+            className="font-medium text-olive-900 underline underline-offset-2"
+          >
+            {t.changePrefs}
+          </Link>
+        </p>
       </footer>
     </div>
   )

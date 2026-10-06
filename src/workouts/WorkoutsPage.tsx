@@ -10,8 +10,12 @@
 // template's `slots` already carry the resolved exercise rows. `blocksOf` applies the same
 // whole-or-nothing rule as `resolveSession`: a slot whose exercise is not visible (pending under
 // RLS) makes the whole session unavailable rather than rendering a block with a hole.
+//
+// PREFERENCES (2026-10-06): with no `?level=` in the URL, the level defaults to the one the
+// visitor's activity answer maps to (src/prefs/apply.ts: low → beginner, moderate → intermediate,
+// high → advanced) instead of beginner. An explicit `?level=` always wins.
 
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { EmptyState, ErrorState, Loading } from '../components/AsyncState'
 import { DraftRibbon } from '../components/DraftRibbon'
@@ -25,6 +29,8 @@ import { useLang } from '../i18n/LangProvider'
 import { fill } from '../i18n/fill'
 import type { AppDictionary, Lang } from '../i18n/app'
 import { useAsyncResult } from '../lib/useAsync'
+import { applyPrefsToWorkoutParams } from '../prefs/apply.ts'
+import { readPrefs } from '../prefs/prefs.ts'
 import type { UserDataSource } from '../user/source'
 import { useUserData } from '../user/useUserData'
 import { ChipGroup } from './ChipGroup'
@@ -233,7 +239,8 @@ export function WorkoutsPage({ source = contentSource, userData }: WorkoutsPageP
   const fromHook = useUserData()
   const canPlan = (userData ?? fromHook).kind !== 'disabled'
   const [params, setParams] = useSearchParams()
-  const selection = parseWorkoutSelection(params)
+  const [prefs] = useState(readPrefs)
+  const selection = parseWorkoutSelection(applyPrefsToWorkoutParams(params, prefs))
   const { type, level, intensity } = selection
 
   const load = useCallback(

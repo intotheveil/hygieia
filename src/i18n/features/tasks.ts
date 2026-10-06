@@ -74,6 +74,8 @@ export interface TasksDictionary {
   tasksRoutineLoadFailed: string
   /** Above a questionnaire pre-filled from a /skincare routine. */
   tasksPrefilled: string
+  /** Badge on a topic the visitor's goal suggests (home preferences card, src/prefs). */
+  tasksSuggested: string
 }
 
 export const tasksEn: TasksDictionary = {
@@ -134,6 +136,7 @@ export const tasksEn: TasksDictionary = {
   tasksRoutineLoadFailed: 'This routine could not be loaded.',
   tasksPrefilled:
     'We filled in what your skincare routine already tells us — change anything you like.',
+  tasksSuggested: 'Suggested for you',
 }
 
 export const tasksEl: TasksDictionary = {
@@ -195,6 +198,7 @@ export const tasksEl: TasksDictionary = {
   tasksRoutineRemove: 'Αφαίρεση της ρουτίνας',
   tasksRoutineLoadFailed: 'Δεν ήταν δυνατή η φόρτωση της ρουτίνας.',
   tasksPrefilled: 'Συμπληρώσαμε ό,τι ήδη λέει η ρουτίνα περιποίησής σου — άλλαξε ό,τι θέλεις.',
+  tasksSuggested: 'Προτείνεται για σένα',
 }
 
 /** Both literals, for `useLang(tasksCopy)` on the `/tasks` pages. */

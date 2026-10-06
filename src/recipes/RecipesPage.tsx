@@ -4,8 +4,13 @@
 // button walks filter history. Loading / error (+retry) / empty states from day one; the draft
 // ribbon whenever the source is bundled. `source` is a prop (default: the app's `contentSource`)
 // so tests can inject a failing one.
+//
+// PREFERENCES (2026-10-06): arriving with NO filter in the URL, a visitor who chose a diet on the
+// home page's onboarding card gets the list filtered by it — the URL is replaced once with
+// `?diet=<slug>` (src/prefs/apply.ts), so the chip shows pressed and "Clear filters" clears it for
+// good. Any explicit filter in the URL wins and is left untouched.
 
-import { useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { EmptyState, ErrorState, Loading } from '../components/AsyncState'
 import { DraftRibbon } from '../components/DraftRibbon'
@@ -22,6 +27,8 @@ import {
 import { useLang } from '../i18n/LangProvider'
 import { plural } from '../i18n/fill.ts'
 import { useAsyncResult } from '../lib/useAsync.ts'
+import { applyPrefsToRecipeParams } from '../prefs/apply.ts'
+import { readPrefs } from '../prefs/prefs.ts'
 import { RecipeCard } from './RecipeCard.tsx'
 import { dietName } from './format.ts'
 import {
@@ -82,6 +89,15 @@ export function RecipesPage({ source = contentSource }: RecipesPageProps) {
   const load = useCallback(() => loadCatalogue(source), [source])
   const state = useAsyncResult(load)
   const [searchParams, setSearchParams] = useSearchParams()
+
+  // Once per arrival: the preferred diet fills an EMPTY filter (an explicit URL always wins).
+  const prefsApplied = useRef(false)
+  useEffect(() => {
+    if (prefsApplied.current) return
+    prefsApplied.current = true
+    const next = applyPrefsToRecipeParams(searchParams, readPrefs())
+    if (next !== null) setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams])
 
   const catalogue = state.status === 'ready' ? state.data : null
   const failed = state.status === 'error'

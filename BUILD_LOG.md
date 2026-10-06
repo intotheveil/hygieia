@@ -136,6 +136,77 @@ Operator: "connect the features" (lane `wt/e`, builder). No DB change, no migrat
   with /profile); TasksPage 9.91 → 8.46 kB gzip + shared 5.35 kB. Lighthouse unchanged on the tasks rows.
 - **Left off:** merge `wt/e`; a signed-in manual check of a tick → /profile history on the live configured build (not exercised here:
   no sign-in flows in e2e by brief).
+### ONBOARDING + OF-THE-DAY — 2026-10-06 — DONE
+
+- **What:** (1) **First-visit preferences**: a skippable, non-modal card on the home page with three optional questions (goal: eat
+  healthier / lose weight / build strength / feel calmer / look after skin · diet: none / Mediterranean / vegetarian / vegan / keto /
+  low-carb, no Lent fasting because the catalogue has none · activity: low / moderate / high), stored in localStorage `hygieia:prefs`
+  (every access wrapped in try/catch). "Skip" stores `skipped`. The footer's "Change preferences" (`/?prefs=edit`, every page,
+  local-only mode included, where the account menu does not exist) reopens it with the saved answers plus Cancel. What the
+  preferences change: /recipes arrives with `?diet=<slug>` (URL replaced once, so "Clear filters" clears it) · /workouts defaults
+  `level` (low → beginner, moderate → intermediate, high → advanced) · /diets puts a ring and a "Your diet" badge on the chosen diet ·
+  /tasks puts a "Suggested for you" badge on the goal's topics · /skincare shows a note and a link to the skincare habit plan when the
+  goal is skin · the home grid puts the goal's module first. **An explicit URL parameter always wins.** (2) **Recipe of the day + tip of
+  the day**: `pickOfTheDay(items, date, seed, keep?)` is deterministic per Europe/Athens calendar day. It sorts by slug, then walks a
+  seeded permutation per cycle of n days, so there are no repeats inside a cycle and consecutive days always differ. The recipe follows the
+  diet preference. Both cards read through `contentSource` (approved rows when configured, bundled seeds when local-only), have a fixed height in every state
+  (loading bones / error + Retry / pick / "nothing today") and link to `/recipes/<slug>` and `/tips?topic=<topic>`.
+- **Performance design:** the onboarding card and both cards are ONE lazy chunk (`src/home/HomeExtras.tsx`, 10.0 kB / 3.8 kB gzip,
+  strings in the new ROUTE feature `prefs` → `useLang(prefsCopy)`). `App.tsx` imports it only after the window `load` event + one frame (inline
+  `afterPageLoad`: lib/afterPaint.ts would have added ~0.5 kB gzip to the entry, measured). Until then a skeleton draws the SAME boxes
+  (`src/home/layout.ts`). The onboarding min-height depends on the language: Greek 37rem / English 30rem on phones, 19rem at sm+. Card
+  and skeleton heights were measured equal at 360/412/640/768/1024/1280 px × el/en with a throwaway Playwright probe. Eager additions:
+  `prefs/prefs.ts` (read + module order), the slot, one footer string `changePrefs`. The highlight badges belong to their pages'
+  features (`dietsYourDiet`, `tasksSuggested`, `skincareGoal*`), so they add no shared chunk.
+- **Entry size (production build):** `index-*.js` **229.27 kB / 71.64 kB gzip → 232.40 kB / 72.75 kB gzip (+1.11 kB gzip)**;
+  `LangProvider-*.js` 82.85 / 29.25 → 83.01 / 29.30 (+0.05). Eager total +1.16 kB gzip, under the 1.5 kB budget.
+- **Verification**, run in a CLEAN clone (`git clone --branch wt/g` + only this task's files, `npm ci`) because of the stash incident
+  below: `npm run lint` → 0 errors (23 warnings, unchanged) · `npm run typecheck` → clean · `npm test` → **94 files / 3837 tests
+  passed** (was 88 / 3762; new: `prefs/{prefs,apply,ofTheDay}.test.ts`, `prefs/pages.test.tsx`, `home/{HomeExtras,skeleton}.test.tsx`,
+  6 App cases, dictionary composition) · `npm run build` (after the tests) → entry `index-CtMkj_TK.js` · `build:dead` OK ·
+  `E2E_PREBUILT=1 npm run e2e` → **104 passed** (was 99; new `e2e/local/onboarding.spec.ts` ×5: onboarding → /recipes pre-filtered
+  + /workouts level + reload keeps prefs; Skip persists + footer reopens; URL filter wins; of-the-day cards render the node-computed
+  picks under `page.clock` and cause zero layout shift in the extras slot or the module grid, at 1280 and 360 px) · `check:pwa` OK ·
+  `check:bundle` OK (64 files) · `check:lighthouse` ×3 on the same `dist/`, every run OK (17 routes):
+
+  | route | run 1 | run 2 | run 3 |
+  | --- | --- | --- | --- |
+  | **home** | **91** | **91** | **91** |
+  | recipes | 89 | 92 | 91 |
+  | recipe | 86 | 86 | 86 |
+  | fridge | 90 | 90 | 89 |
+  | diets | 89 | 90 | 89 |
+  | diet | 88 | 89 | 89 |
+  | workouts | 91 | 92 | 91 |
+  | plans | 93 | 90 | 90 |
+  | tips | 91 | 88 | 89 |
+  | skincare | 95 | 91 | 92 |
+  | tasks | 91 | 91 | 91 |
+  | task-topic | 90 | 90 | 90 |
+  | auth | 93 | 93 | 93 |
+  | account | 94 | 94 | 94 |
+  | profile | 90 | 89 | 90 |
+  | admin | 94 | 98 | 94 |
+  | not-found | 94 | 95 | 94 |
+
+  home in all three runs: a11y / best-practices / SEO 100. Last run: FCP 2.4 s, LCP 3.0 s, TBT 0 ms, **CLS 0**. Home was 92/94/92
+  before this task, now 91 ×3. Lowest route: `recipe` 86, the known font residual from the PERF entry, unchanged.
+- **Noted, not changed:** at 412 px in Greek the webfont swap wraps the header (one 0.2 shift in a desktop-context probe; the Lighthouse
+  audit runs in English and its CLS is 0). This shift is older than this task and its source is the header, not the new slot. It belongs to the font decision the PERF entry left for the lead.
+- **Incident — shared stash, tree cleaned:** `git stash` is shared by ALL worktrees of a repo (`refs/stash`). While this lane used
+  `git stash -u` / `pop` for a baseline measurement, the wt/a lane did the same. This tree received wt/a's work in progress
+  (overlays: `docs/ops/migrations.md`, `scripts/db-gate*.mjs`, `scripts/gen-seed-sql*`, `src/content/bundled.ts`,
+  `src/content/seed/overlays/`, `supabase/migrations/20261007000100_*`, …), and this lane's stash commit had to be re-applied by sha. Before stripping them, every one of those
+  files was checked byte-identical (LF) to wt/a's commit `5c57af6`. They were then reverted / deleted here on the lead's instruction. The
+  commit below carries only this task's files. **Never use `git stash` in this repo**; measure a baseline in a separate clone.
+- **Files:** `src/prefs/{prefs,apply,ofTheDay}.ts` (+ tests, `pages.test.tsx`) · `src/home/{HomeExtras,Onboarding,OfTheDay}.tsx`,
+  `src/home/layout.ts` (+ `HomeExtras.test.tsx`, `skeleton.test.tsx`) · `src/App.tsx` (+ test) · `src/components/Layout.tsx` ·
+  `src/recipes/RecipesPage.tsx` · `src/workouts/WorkoutsPage.tsx` · `src/diets/DietsPage.tsx` · `src/tasks/TasksPage.tsx` ·
+  `src/skincare/SkincarePage.tsx` · `src/i18n/{app.ts,dictionary.test.ts}` · `src/i18n/features/{prefs.ts (new route feature),routeFeatures.ts,diets.ts,tasks.ts,skincare.ts}`
+  · `e2e/local/onboarding.spec.ts`. No migration, no dependency, no gate/threshold change.
+- **For the lead's BRAIN pass (not edited here):** §2: `src/prefs/` (`hygieia:prefs`; URL wins), `src/home/` lazy extras + `layout.ts` geometry,
+  `/?prefs=edit`, route feature `prefs`, the new e2e count of 104. §5: `refs/stash` is shared across worktrees. Also: a component got from a hook and rendered
+  (`const X = useHook(); <X/>`) fails `react-hooks` "Cannot create components during render", so keep it in `useState` inside the rendering component, as `lazyPage` does.
 
 ### PERF — restore Lighthouse margin after P7–P9 (CI diet 84) — 2026-10-06 — PARTIAL (16/17 routes ≥ 88 in all three runs; `recipe` 86–87 — residual is the webfonts, a design call for the lead)
 

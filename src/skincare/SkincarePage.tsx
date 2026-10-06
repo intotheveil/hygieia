@@ -10,9 +10,12 @@
 // Performance: the page chunk is small and renders its frame (header, toolbar, skeleton) before
 // the ~200 kB seed chunk resolves (bundled mode imports it lazily from the ContentSource), the
 // same shape as the other content routes (BRAIN §5, cold Lighthouse gate).
+//
+// PREFERENCES (2026-10-06): when the visitor's goal on the home page's preferences card is skin
+// care (src/prefs), the header carries a short "for your goal" note linking to the skincare task plan.
 
-import { useCallback, type ReactNode } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useCallback, useState, type ReactNode } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { EmptyState, ErrorState, Loading } from '../components/AsyncState'
 import { DraftRibbon } from '../components/DraftRibbon'
 import { SavedItemsScope } from '../components/SaveButton'
@@ -23,6 +26,8 @@ import { useLang } from '../i18n/LangProvider'
 import { skincareCopy } from '../i18n/features/skincare.ts'
 import { plural, type PluralForms } from '../i18n/fill'
 import { useAsyncResult } from '../lib/useAsync'
+import { prefersSkincare } from '../prefs/apply.ts'
+import { readPrefs } from '../prefs/prefs.ts'
 import { ProductTypeCard, RoutineCard, SkincareTipCard } from './cards'
 import { Filters } from './Filters'
 import {
@@ -92,6 +97,7 @@ function Section({
 export function SkincarePage({ source = contentSource }: SkincarePageProps) {
   const { t } = useLang(skincareCopy)
   const [params, setParams] = useSearchParams()
+  const [forYourGoal] = useState(() => prefersSkincare(readPrefs()))
   const selection = parseSelection(params)
 
   const load = useCallback(() => loadAll(source), [source])
@@ -111,6 +117,17 @@ export function SkincarePage({ source = contentSource }: SkincarePageProps) {
           <p role="note" className="max-w-3xl text-sm leading-relaxed text-olive-700">
             {t.skincareDisclaimer}
           </p>
+          {forYourGoal && (
+            <p
+              data-testid="skincare-goal-note"
+              className="max-w-3xl rounded-2xl bg-sage-500/15 px-4 py-3 text-sm leading-relaxed text-olive-900"
+            >
+              {t.skincareGoalNote}{' '}
+              <Link to="/tasks/skincare-habit" className="font-medium underline underline-offset-2">
+                {t.skincareGoalHabit} →
+              </Link>
+            </p>
+          )}
         </header>
 
         <DraftRibbon kind={source.kind} />
