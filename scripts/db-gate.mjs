@@ -655,8 +655,8 @@ async function runGate(db) {
     },
   )
 
-  // P7.1 — skincare_routines.steps is jsonb, so no FK can hold it: every step must be an object with
-  // exactly the contract's keys, `order` = its 1-based position, and a `product_type_slug` that
+  // P7.1 — skincare_routines.steps is jsonb, so no FK can hold it: every step must be an object that
+  // contains the contract's keys (`?&` checks presence, extra keys pass), `order` = its 1-based position, and a `product_type_slug` that
   // resolves to a skincare_product_types row. Runs over seed AND fixture rows.
   await guarded(
     'skincare_routines: every jsonb step references an existing skincare_product_types slug and has the step shape',
