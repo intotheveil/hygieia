@@ -5,13 +5,11 @@
 > intent; rewritten 2026-10-06 to the P1–P6 state (P1/P2 review item 1). Genuine unknowns are
 > marked **❓ needs human input**.
 
-**Last updated:** 2026-10-06 (morning after) by the lead (Claude Code, Fable 5.1) — **CONFIGURED MODE LIVE**: O1 verified, content
-approved, OP2.c variables set, deploy run 37436089418 green, `smoke:live` 16/16 incl. backend probes; previous: same day (night), P5/P6 PASS + CHECKPOINT.
-**Status:** built — P1–P6 + four cosmetic themes on `main` (`b18f56d`, CI run 37441451272 green + deployed); P1/P2 and P3/P4 QA VALIDATED + REVIEW PASS;
-P5/P6 QA VALIDATED (cold gate, re-run) + REVIEW PASS (flip, 2026-10-06). **Every §9 phase is claimed; the crew is stopped at CHECKPOINT P5/P6
-(BUILD_LOG top) waiting for the operator chain O1 → OP2 → OP4.b → OP2.c/OP6.a.** **The full app is live on Pages in CONFIGURED mode** since run 37436089418 (2026-10-06): approved content from
-schema `hygieia`, sign-in in the account menu, no draft ribbon; `smoke:live` 16/16 incl. backend probes (earlier: local-only from
-`a9efff9`/37416889242 and `b82d024`/37420337752).
+**Last updated:** 2026-10-06 (evening, session saved by the operator) by the lead (Claude Code, Opus 5.5) — live: skincare + nails (P7,
+approved), /profile (P8.1/P8.2), workout plans (P8.3), six themes incl. Rose + Lavender; Tasks Advisor (P9) IN FLIGHT, uncommitted in `wt/d`.
+**Status:** LIVE in configured mode at https://intotheveil.github.io/hygieia/ — `main` `5b832ab` (CI green + deployed). P1–P6 claimed;
+P7 skincare + nails QA VALIDATED + REVIEW PASS, content live and ALL approved; P8 profile (entries, goals, achievements, saved items) +
+workout plans (builder, session logger, PRs) deployed, P8 QA/REVIEW NOT YET RUN; P9 Tasks Advisor being built in `wt/d` (see §3).
 **Repo:** `intotheveil/hygieia` (public) · `D:\projects\hygieia` (lane worktrees `D:\projects\hygieia-wt\a..g`, branches `wt/a..g`) ·
 **Deployed:** https://intotheveil.github.io/hygieia/ (GitHub Pages, from `main` via CI — the FULL APP since 2026-10-06, local-only mode until the operator steps in §3)
 
@@ -145,6 +143,23 @@ pending|approved|rejected` stamped by `stamp_review()` BEFORE UPDATE · per-user
   Adding a theme = one CSS block + one `THEME_COLOR` entry + one dictionary row + one hero set (`npm run brand`).
 
 ## 3. CURRENT STATE (what's true RIGHT NOW — the thing a resuming session reads)
+
+- **RESUME HERE (2026-10-06 evening, operator closed the session to test):**
+  - **Live** (`main` `5b832ab`, CI runs 37461084866 / 37468983515 / 37471474005 / 37472191945 all green): `/skincare` (face + nails, 52 product
+    types / 28 routines / 65 tips, all approved), `/profile` (signed-in: quick add, weight sparkline, history, goals, 16 achievements, saved
+    items; save buttons on workouts / diets / tips / skincare), `/workouts/plans` (plan builder, session logger with sets/reps/kg/RPE, Epley
+    est-1RM chart, weekly volume, PRs), six themes (Kitchen, Dark, Athletic, Gamer, Rose, Lavender; heroes from the operator's ComfyUI), Google
+    button hidden behind `VITE_AUTH_GOOGLE` (operator deferred Google).
+  - **Live DB:** ledger 13/13 (… 001100 skincare, 001200 seed_skincare, 001300 profile — 5 user tables, RLS per verb). Every content row
+    approved on the operator's "aprove all" (incl. unsourced tips, labelled "source pending" on the page). Alyssos ledger 8.
+  - **Gates at `c3d16b9`/`5b832ab`:** tests ~3675+ / 81 files, e2e 88, db:gate 357, prove-red 28/28, Lighthouse 15 routes ≥ 85/90/90.
+  - **IN FLIGHT — P9 Tasks Advisor** (lane `D:/projects/hygieia-wt/d`, branch `wt/d` at `7bacf64`, 13 files UNCOMMITTED when the session was
+    saved; a builder agent may have been cut off): topics → questionnaire → generated daily / weekly / monthly task lists, bundled content,
+    deterministic `src/tasks/generate.ts`, ticks in localStorage, `/tasks` + `/tasks/:topic`, eighth home card. Next session: inspect
+    `git -C D:/projects/hygieia-wt/d status`, finish + verify (lint, typecheck, test, build, e2e, Lighthouse), commit, merge, push.
+  - **Owed:** P8.QA + P8.REVIEW (profile + plans), P9.QA + REVIEW; BRAIN §2 reconciliation for P7/P8 (routes, modules, counts — see BUILD_LOG
+    P7 REVIEW entry for the list); the fridge-list rename grant finding from P8.1 (`fridge_lists` UPDATE grant lacks `id` for upsert — needs a
+    new migration or an `update().eq('id')` path); operator: sign in once → admin flag (OP2.b), OP6.a telemetry, Google later.
 
 - **Built on `main` `b18f56d` (2026-10-06, themes merged; CI run 37441451272 green + deployed), every local gate green:** lint 0 errors
   (23 pre-existing `react-refresh` warnings) · typecheck clean · **tests 3246** (66 files) · **e2e 74** (65 local incl. 24 a11y language
@@ -332,6 +347,16 @@ table (14)` is right; P1.QA.2's `(13)` is the typo.
 - **`page.route('**/sw.js', r => r.abort())` does NOT block a service worker in Playwright/Chromium (2026-10-06, review fix 2).** The SW script is fetched outside page interception, so that sabotage stays GREEN and proves nothing. The only valid "no SW" sabotage is `test.use({ serviceWorkers: 'block' })` — then the offline spec fails at step 1 (no controller), as it should. Treat any earlier "blocked sw.js → test went red" claim with suspicion unless it says how.
 
 ## 6. CHANGELOG (append-only — what happened, newest first)
+
+### 2026-10-06 (afternoon → evening) — skincare + nails, profile, workout plans, six themes live; Tasks Advisor in flight
+
+- Did: P7 skincare + nails (data spine wt/a, page wt/c, admin json-field tests wt/d; QA VALIDATED, review PASS after one test fix), live apply
+  001100 / 001200 (the first apply agent and the lead both hit a transient MCP "Invalid or expired requestState" — a read-only check showed
+  nothing had landed; retry succeeded) and approval of everything on the operator's word. P8.1 profile spine (5 user tables incl. workout plans
+  and sessions), P8.2 /profile (merge conflict on the page lane's placeholder contract — kept P8.1's real code, removed the duplicate block,
+  extended the in-memory double), P8.3 workout plans UI; 001300 applied live. Rose + Lavender themes (ComfyUI heroes). Google button gated.
+- Decided: approve-all includes unsourced tips (operator); Tasks Advisor is bundled content with a deterministic generator, no DB.
+- Left off: see §3 RESUME HERE.
 
 ### 2026-10-06 (afternoon) — Google button gated behind `VITE_AUTH_GOOGLE` (lane `wt/d`; BUILD_LOG `OP2.a FOLLOW-UP`)
 
