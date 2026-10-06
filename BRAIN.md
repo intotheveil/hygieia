@@ -8,8 +8,8 @@
 **Last updated:** 2026-10-06 (night) by the lead (Claude Code, Fable 5.1) — P6.5 release notes DONE, offline spec proves content routes,
 P5/P6 re-review on records; previous: same day (late), seeds LIVE + P5/P6 QA VALIDATED + full app deployed.
 **Status:** built — P1–P6 on `main` (`b82d024`, CI run 37420337752 green + deployed); P1/P2 and P3/P4 QA VALIDATED + REVIEW PASS;
-P5/P6 QA VALIDATED (cold gate, re-run) and REVIEW: re-review REVISE on RECORDS only (code lines all 2) — this commit answers it; the
-PASS flip and the human CHECKPOINT P5/P6 are the next two lines of BUILD_LOG. The full app is live on Pages in local-only mode (first
+P5/P6 QA VALIDATED (cold gate, re-run) + REVIEW PASS (flip, 2026-10-06). **Every §9 phase is claimed; the crew is stopped at CHECKPOINT P5/P6
+(BUILD_LOG top) waiting for the operator chain O1 → OP2 → OP4.b → OP2.c/OP6.a.** The full app is live on Pages in local-only mode (first
 deployed from `a9efff9` by CI run 37416889242, now `b82d024` by 37420337752; `smoke:live` 13/13).
 **Repo:** `intotheveil/hygieia` (public) · `D:\projects\hygieia` (lane worktrees `D:\projects\hygieia-wt\a..g`, branches `wt/a..g`) ·
 **Deployed:** https://intotheveil.github.io/hygieia/ (GitHub Pages, from `main` via CI — the FULL APP since 2026-10-06, local-only mode until the operator steps in §3)
@@ -167,7 +167,7 @@ pending|approved|rejected` stamped by `stamp_review()` BEFORE UPDATE · per-user
   db:live-check` PASSED. (2) **OP2.a** Google OAuth client + redirect URLs (`https://intotheveil.github.io/hygieia/auth/callback`,
   localhost) · first sign-in · **OP2.b** admin flag per `docs/ops/admin.md` · **OP4.b** approve content in `/admin`. (3) **OP2.c** repo
   variables `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` and **OP6.a** the fleet trio → next `main` deploy is configured →
-  `smoke:live` reports rows. (4) P6.5 release notes DONE (`dea5730`) → P5/P6 review PASS flip (records) → **human CHECKPOINT P5/P6** → P6.QA operator items (needs OP6.a). Backlog: cold perf 87 → 90 on content routes (render the
+  `smoke:live` reports rows. (4) P6.5 DONE (`dea5730`); P5/P6 review PASS (flip); **CHECKPOINT P5/P6 written — crew stopped; operator chain next**, then the operator-side QA items (need OP6.a). Backlog: cold perf 87 → 90 on content routes (render the
   above-the-fold frame before the seed `import()`), RecipeCard chips as links, cross-OS byte-identical dist, seed-floor constants,
   `db-types.ts` profiles.Insert tightening, bundle-secret test under `NODE_ENV=production`.
 
@@ -349,7 +349,7 @@ table (14)` is right; P1.QA.2's `(13)` is the typo.
   block a SW (§5). **G6 at `b82d024`:** lint 0 errors · typecheck clean · 3206 tests · build 235 kB entry / precache 69 · check:pwa OK ·
   db:check 10 · gate 227 · seed:check OK · e2e 66 passed · check:bundle OK (37 files). Pushed → CI run 37420337752 green, deployed, smoke 13/13.
   Scoped re-review: REVISE on records only → fixed by the records commit after this line (status, next, this entry, FLEET row).
-- Left off: reviewer flips P5/P6 to PASS on the records → human CHECKPOINT P5/P6. Operator: O1 → OP2.a/b → OP4.b → OP2.c + OP6.a.
+- Left off: P5/P6 PASS (flip) → CHECKPOINT P5/P6 written at the top of BUILD_LOG; every phase claimed; crew stopped at the human gate. Operator: O1 → OP2.a/b → OP4.b → OP2.c + OP6.a.
 
 ### 2026-10-06 — Lighthouse gate correctness: cold first visit, deterministic, 85/90/90 (builder, Fable 5.1, worktree `wt/g`; detail: BUILD_LOG entry of the same name, DECISIONS ADR-0006)
 

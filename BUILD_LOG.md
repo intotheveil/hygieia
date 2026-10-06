@@ -3,6 +3,42 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+### CHECKPOINT P5/P6 — 2026-10-06 — HUMAN GATE (the crew stops here; CLAUDE.md §7)
+
+**Claimed:** P5 Hardening + P6 Deploy — qa VALIDATED (re-run on the cold gate) · reviewer PASS (flip, all seven rubric lines 2) · G6 green at
+`b82d024` · CI run 37420337752 green on both jobs · live: https://intotheveil.github.io/hygieia/ in LOCAL-ONLY mode (`smoke:live` 13/13).
+With P1/P2 and P3/P4 already PASS, **every phase of the §9 arc is claimed.** Live DB: schema `hygieia` 10/10 migrations incl. all seeds,
+Alyssos untouched.
+
+**For the operator to decide / do, in order (nothing below is a crew task):**
+1. **O1** — Supabase Dashboard → Project Settings → Data API → Exposed schemas → add `hygieia`. Then `npm run db:live-check` → PASSED.
+2. **OP2.a** — Google OAuth client on the shared project; redirect URLs `https://intotheveil.github.io/hygieia/auth/callback` and the
+   localhost one. **OP2.b** — sign in once, then the admin flag per `docs/ops/admin.md`.
+3. **OP4.b** — review and approve content in `/admin` (152 recipes, 16 diets, 136 exercises, 63 workouts, 75 tips are `pending`).
+4. **OP2.c** — repository variables `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY`; **OP6.a** — register Hygieia on the Zeus dashboard and
+   set the three `VITE_FLEET_*` variables. The next `main` push deploys in configured mode; `smoke:live` then reports backend rows.
+5. Then the operator-side QA items (P2.QA.3b/4b/5/6, P4.QA.5, P6.QA.2 backend probes, P6.QA.3, P6.QA.4) can be run — NOT claimed today.
+6. **O2** — Alyssos's `public.spatial_ref_sys` RLS advisory: Alyssos's call.
+
+**Accepted backlog (not blocking):** cold perf 87 vs target 90 on content routes (1-point CI margin — the next red is a regression, never a
+bar move) · RecipeCard chips as links · cross-OS byte-identical dist · bundle-secret test under `NODE_ENV=production` · seed-floor
+constants · `db-types.ts` profiles.Insert tightening.
+
+### P5+P6 RE-REVIEW (flip) — 2026-10-06 — PASS (all seven rubric lines at 2; P5 and P6 are CLAIMED — human CHECKPOINT P5/P6 is next)
+
+**Independent reviewer (agent `reviewer`), on `main` `1a2909e` (records-only: `git diff --stat b82d024..1a2909e` → `BRAIN.md | 23`, `BUILD_LOG.md | 41`, nothing else) and zeus `29d25be`. Scoped exactly as the REVISE entry above said: read only the lines named there; nothing executed in `D:/projects/hygieia`.**
+
+- **Fix 1 — `BRAIN.md:8-13`:** Last updated "2026-10-06 (night) … P6.5 release notes DONE"; **Status** now "built — P1–P6 on `main` (`b82d024`, CI run 37420337752 green + deployed); P1/P2 and P3/P4 QA VALIDATED + REVIEW PASS; P5/P6 QA VALIDATED (cold gate, re-run) and REVIEW: re-review REVISE on RECORDS only … live on Pages in local-only mode (first deployed from `a9efff9` by CI run 37416889242, now `b82d024` by 37420337752; `smoke:live` 13/13)". `grep "9295637|re-QA owed|QA FAILURES" BRAIN.md` → no hits outside the append-only §6 history. ✓
+- **Fix 2 — `BRAIN.md:170`:** "(4) P6.5 release notes DONE (`dea5730`) → P5/P6 review PASS flip (records) → **human CHECKPOINT P5/P6** → P6.QA operator items (needs OP6.a)". `BRAIN.md:344-352`: the "Then (same night, `dea5730` → `b0307e1` → `b82d024`)" block names the release notes + §8 recompose, `verify-kit` hygieia PASS on CHECK 1 + 3 (CHECK 2 fleet-wide, zeus B9), the offline-spec rewrite (152 recipes / 16 diets, green ×3 + RED ×3, `page.route` cannot block a SW → §5), the G6 counts at `b82d024` and CI 37420337752; `:352` Left off → "reviewer flips P5/P6 to PASS on the records → human CHECKPOINT P5/P6". (`:388` "P6.5 release notes" is the older Lighthouse-gate entry’s historical Left off — append-only, correct to leave.) ✓
+- **Fix 3 — P6.5 entry "Records touched" line (`BUILD_LOG.md`, the P6.5 entry below):** carries the real `verify-kit` reading (hygieia PASS CHECK 1 + CHECK 3; CHECK 2 newer-kit variant shared with enodia/themis/mnemosyne, pre-existing) and **G6 at `b82d024`**: lint 0 errors (21 pre-existing warnings) · typecheck clean · tests 3206/3206 (63 files) · build `index-BfBCudBw.js` 235.37 kB, precache 69 · check:pwa OK · db:check 10 · db:gate 227 · seed:check OK · e2e 66 passed (38.9 s) · check:bundle OK (37 files) · CI run 37420337752 green on both jobs → deployed, `smoke:live` 13/13. Matches what I measured in `wt/d` (precache 69, offline spec green, 56 gate tests) and my own `verify-kit` reading. ✓
+- **Fix 4 — Zeus-side, commit `29d25be`:** `D:/projects/zeus/FLEET.md:48` Hygieia row → "**live ✅ (FULL APP deployed 2026-10-06** … 75 health tips, 16 diets + generated meal plans, 152 recipes … **LOCAL-ONLY MODE live** … until the operator: exposes schema `hygieia` (O1), approves content in `/admin` (OP4.b), sets the two Supabase repo variables (OP2.c) · DB = … schema `hygieia`, 10/10 migrations LIVE incl. all seeds, Alyssos untouched"; `D:/projects/zeus/BRAIN.md:9-11` header → "Hygieia BUILT P1–P6 AND DEPLOYED AS THE FULL APP … seeds LIVE (10/10 ledger); P1–P4 QA+review PASS, P5/P6 QA VALIDATED, P5/P6 review re-review REVISE on RECORDS only, PASS flip owed". The P6.5 claim is now true. ✓
+
+**SCORES (CLAUDE.md §6):** Acceptance criteria met exactly **2** · Tests meaningful and pass **2** · RLS/isolation **2 (n/a)** · Migration applies cleanly **2 (n/a)** · No secrets / no out-of-scope writes / TS strict **2** · Runnable artifact exercised, observable recorded **2** · `BUILD_LOG.md`, `DECISIONS.md`, `BRAIN.md` updated **2**. Code-line scores carried from the two entries above (nothing under `src/`, `e2e/`, `scripts/`, `public/`, config or CI changed since `b82d024`, which is the deployed artifact).
+
+**Claimed:** P5 Hardening and P6 Deploy — qa VALIDATED (`P5.QA + P6.QA RE-RUN`) + reviewer PASS (this entry) + hooks/G6 green at `b82d024`. Carried as accepted backlog, not misses: cold perf 87 vs target 90 on `recipes`/`recipe`/`fridge`/`diet` (CI margin 1 point — the next red is a regression finding, never a bar move), RecipeCard chips as links, cross-OS byte-identical dist hashes, bundle-secret test under `NODE_ENV=production`, seed-floor constants, `db-types.ts` profiles.Insert tightening. Operator-side QA (P2.QA.3b/4b/5/6, P4.QA.5, P6.QA.2 backend probes, P6.QA.3, P6.QA.4) remains NOT RUN until O1 → OP2 → OP4.b → OP2.c/OP6.a — not claimed.
+
+**Hand-off:** lead writes the human CHECKPOINT P5/P6 (CLAUDE.md §7) as the next BUILD_LOG line and stops at the gate.
+
 ### P5+P6 RE-REVIEW — 2026-10-06 — REVISE (scoped re-review; fix 1(a)(b)(c) in hygieia and fix 2 LANDED and VERIFIED → tests line flips to 2; TWO lines stay at 1, both records-only: BRAIN.md Status `:10-11` still reads `main` `9295637` / "P5/P6 QA FAILURES … re-QA owed"; the `verify-kit`/`G6` results the P6.5 entry promises were never recorded; §3/§6 still list P6.5 as pending; and the Zeus-side FLEET.md row + Zeus BRAIN pointer the P6.5 entry claims updated still say "P0 shell". Four small edits, then PASS without re-reading code)
 
 **Independent reviewer (agent `reviewer`, not a builder, not QA), on `main` `b82d024` (`dea5730` records/P6.5 · `80eb3fc`→`b0307e1` offline spec · `b82d024` playwright comment + BRAIN gotcha). Scope exactly as the REVISE entry allowed: fix 1(b)(c), fix 2, BRAIN `:8-14`/`:34`, DECISIONS pointer.** Nothing was executed in `D:/projects/hygieia` (the lead’s G6 chain was in flight); everything below that ran, ran in `D:/projects/hygieia-wt/d` reset to `b82d024`, on ports 4273/4274 so it could not collide.
