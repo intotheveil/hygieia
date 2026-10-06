@@ -14,7 +14,10 @@
 // loaded (one <main>/<header> for every state: no layout shift, no remount). Under the supabase
 // source the ribbon depends on the row's status, so it appears with the data (admins only).
 //
-// A recipe with an `image_path` gets a 4:3 hero photo at the top of the body (srcset 480w/960w).
+// HERO PHOTO (2026-10-07): a recipe with an `image_path` gets a 4:3 hero between the ribbon and the
+// title. It is the route's LCP element, so it starts in the FIRST frame: the slug comes from the
+// route and overlay 0005 says whether it has a photo (./photoSlugs.ts); the loaded row then takes
+// over (`recipe.image_path`). Phones always get the 480w file; from 48rem up the srcset picks.
 
 import { useCallback, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
@@ -43,6 +46,7 @@ import { recipeTitle } from './filter.ts'
 import { dietName, formatRecipeLine } from './format.ts'
 import { NutritionPanel } from './NutritionPanel'
 import { photoHeight, recipePhotoSrc, recipePhotoSrcSet } from './photo.ts'
+import { framePhotoPath } from './photoSlugs.ts'
 import type { Scope } from './panelFormat.ts'
 
 export interface RecipePageProps {
@@ -66,12 +70,13 @@ const BUTTON = 'rounded-full px-5 py-2 text-sm font-medium transition'
 
 export function RecipePage({ source = contentSource }: RecipePageProps) {
   const { slug = '' } = useParams<{ slug: string }>()
-  const { t } = useLang()
+  const { lang, t } = useLang()
   const load = useCallback(() => loadRecipe(source, slug), [source, slug])
   const state = useAsyncResult(load)
 
   if (state.status === 'ready' && state.data.recipe === null) return <NotFound />
   const recipe = state.status === 'ready' ? state.data.recipe : null
+  const imagePath = recipe !== null ? recipe.image_path : framePhotoPath(slug)
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-3xl flex-col gap-8 px-4 py-10 sm:px-6">
@@ -80,6 +85,15 @@ export function RecipePage({ source = contentSource }: RecipePageProps) {
           ← {t.recipesTitle}
         </Link>
         <DraftRibbon kind={source.kind} status={recipe?.status} />
+        {imagePath !== null && (
+          <RecipeHero
+            imagePath={imagePath}
+            // Empty (decorative) until the title arrives; then the localized "<title> — photo".
+            alt={
+              recipe !== null ? fill(t.recipePhotoAlt, { title: recipeTitle(recipe, lang) }) : ''
+            }
+          />
+        )}
         {recipe !== null && <RecipeHeading recipe={recipe} />}
       </header>
       {state.status === 'loading' && <Loading variant="detail" />}
@@ -88,6 +102,25 @@ export function RecipePage({ source = contentSource }: RecipePageProps) {
         <RecipeBody recipe={recipe} diets={state.data.diets} />
       )}
     </main>
+  )
+}
+
+/** The 4:3 hero; width/height reserve its box from the first frame (no layout shift). */
+function RecipeHero({ imagePath, alt }: { imagePath: string; alt: string }) {
+  return (
+    <picture>
+      <source media="(max-width: 47.99rem)" srcSet={recipePhotoSrc(imagePath, 480)} />
+      <img
+        src={recipePhotoSrc(imagePath, 960)}
+        srcSet={recipePhotoSrcSet(imagePath)}
+        sizes="720px"
+        width={960}
+        height={photoHeight(960)}
+        fetchPriority="high"
+        alt={alt}
+        className="aspect-[4/3] w-full rounded-2xl bg-paper-100 object-cover shadow-sm"
+      />
+    </picture>
   )
 }
 
@@ -138,26 +171,6 @@ function RecipeBody({ recipe, diets }: { recipe: Recipe; diets: Diet[] }) {
 
   return (
     <>
-      {recipe.image_path && (
-        // The hero is this route's LCP element and its URL is known only once the recipe loads, so
-        // phones get the 480w file whatever their DPR (Lighthouse mobile: 960w cost ~0.65 s of LCP
-        // load time and the route fell to 82); from 48rem up the srcset picks 480w or 960w.
-        <picture>
-          <source media="(max-width: 47.99rem)" srcSet={recipePhotoSrc(recipe.image_path, 480)} />
-          <img
-            src={recipePhotoSrc(recipe.image_path, 960)}
-            srcSet={recipePhotoSrcSet(recipe.image_path)}
-            sizes="720px"
-            width={960}
-            height={photoHeight(960)}
-            decoding="async"
-            fetchPriority="high"
-            alt={fill(t.recipePhotoAlt, { title: recipeTitle(recipe, lang) })}
-            className="aspect-[4/3] w-full rounded-2xl bg-paper-100 object-cover shadow-sm"
-          />
-        </picture>
-      )}
-
       {recipe.diet_slugs.length > 0 && (
         <section aria-labelledby="recipe-diets" className="flex flex-col gap-3">
           <h2 id="recipe-diets" className="font-display text-xl font-semibold text-olive-950">

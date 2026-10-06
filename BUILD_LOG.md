@@ -3,6 +3,25 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+### RECIPE PHOTOS — follow-up: merged main 6fa292a, frame-first hero (recipe ≥ 87) — 2026-10-07 — DONE
+
+- **Merge:** local `main` `6fa292a` (per-table overlays, frame-first RecipePage, the 6 stale e2e and HomeExtras fixes) → `3cf9778`.
+  One conflict, `src/home/HomeExtras.test.tsx`, resolved to main's version (same fix, done more completely). Overlays index is
+  [0001…0005] and 0005 is imported whole in `by-table/recipes.ts`. `seed:check` OK; no migration EOL flips.
+- **Problem:** after the merge, Lighthouse `recipe` read **84** (FAIL). The LCP was the hero, mounted only in `RecipeBody` after
+  the data: load delay 2.9 s.
+- **Fix (measured):** the hero now renders in the FIRST frame, between the draft ribbon and the title. The route slug plus overlay
+  0005 give its URL before any seed byte arrives (`src/recipes/photoSlugs.ts`: overlay 0005 → slug → image_path; imported only
+  by RecipePage). After load, `recipe.image_path` takes over. width/height reserve the 4:3 box (CLS 0); alt is `""` until the
+  title arrives, then `recipePhotoAlt`. Phones get 480w via `<picture>`. Load delay 2.9 s → 1.7 s, LCP 3.9 s → 3.2 s.
+  Speculative preloading was rejected (it would 404 for slugs without a photo); a slug without a photo starts no hero.
+- **Lighthouse ×3 (cold, mobile, sequential):** recipes **91 / 91 / 92**, recipe **90 / 91 / 88**; all 17 routes OK every run
+  (run-3 minimum: diet 88, recipe 88).
+- **Precache:** main `6fa292a` 158 / 4047.21 KiB → **159 / 4066.26 KiB**. The +1 entry is overlay 0005's JS chunk, now shared by
+  RecipePage and the recipes loader; still 0 photos.
+- **Gates:** lint 0 errors · typecheck app + e2e ✓ · `vitest --maxWorkers=2` **4449 / 114** ✓ · build ✓ · build:dead ✓ ·
+  check:pwa ✓ · check:bundle ✓ · seed:check ✓ · db:gate 368 ✓ · **e2e 109 / 109** ✓.
+
 ### RECIPE PHOTOS — 182 ComfyUI renders, vision-QA'd — 2026-10-07 — DONE
 
 - **Scope:** a photo for every served recipe, all **182** (152 base + the 30 of overlay 0003). The brief said 152; the lead

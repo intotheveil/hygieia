@@ -140,3 +140,33 @@ describe('<RecipePage> hero', () => {
     expect(document.querySelector('img')).toBeNull()
   })
 })
+
+describe('<RecipePage> frame-first hero', () => {
+  it('starts the hero in the first frame from the route slug, before the recipe loads', () => {
+    const pending: ContentSource = {
+      ...contentSource,
+      getRecipe: () => new Promise(() => {}),
+    }
+    renderPage(pending, 'en')
+    // Still loading: no title yet, but the hero (decorative until the title arrives) is there.
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull()
+    const img = document.querySelector('img')
+    expect(img).toHaveAttribute('src', `${BASE}recipes/${SLUG}-960.webp`)
+    expect(img).toHaveAttribute('alt', '')
+    expect(img).toHaveAttribute('fetchpriority', 'high')
+  })
+
+  it('starts no hero for a slug overlay 0005 gives no photo', () => {
+    const pending: ContentSource = { ...contentSource, getRecipe: () => new Promise(() => {}) }
+    render(
+      <LangProvider initial="en">
+        <MemoryRouter initialEntries={['/recipes/no-such-recipe']}>
+          <Routes>
+            <Route path="/recipes/:slug" element={<RecipePage source={pending} />} />
+          </Routes>
+        </MemoryRouter>
+      </LangProvider>,
+    )
+    expect(document.querySelector('img')).toBeNull()
+  })
+})
