@@ -4,31 +4,20 @@
 //     ten-minute meal" — the pronoun did not agree with its plural subject.
 //   * skincare_tips/face-all-sunscreen-every-day-clouds-included (EL): «Κάνε το το τελευταίο βήμα»
 //     — the doubled «το το» reads as a typo; rephrased as «Βάλ’ το ως τελευταίο βήμα».
+//
+// The patches live in ./0001-fix-typos/<table>.ts, one module per bundled table loader (perf,
+// 2026-10-06 — ./by-table/ re-exports each table's slice); this module assembles the overlay.
 
 import type { Overlay } from './types.ts'
+import { HEALTH_TIPS } from './0001-fix-typos/health_tips.ts'
+import { SKINCARE_TIPS } from './0001-fix-typos/skincare_tips.ts'
 
 export const OVERLAY: Overlay = {
   id: '0001-fix-typos',
   summary:
     'two copy corrections: a pronoun (EN health tip) and a doubled «το το» (EL skincare tip)',
   patches: {
-    health_tips: [
-      {
-        slug: 'nutrition-fish-twice-a-week',
-        set: {
-          body_en:
-            'Two portions of fish a week, one of them oily — sardines, anchovies, mackerel, salmon — supply omega-3 fats and vitamin D. Small fish are cheap, local and lower in mercury than large ones. Grilled or baked with lemon and oregano, they make a ten-minute meal.',
-        },
-      },
-    ],
-    skincare_tips: [
-      {
-        slug: 'face-all-sunscreen-every-day-clouds-included',
-        set: {
-          body_el:
-            'Έως και το 80 % της υπεριώδους ακτινοβολίας περνά μέσα από τα σύννεφα, και η UVA, που γερνά το δέρμα, περνά και από τα τζάμια του αυτοκινήτου και του γραφείου. Το αντηλιακό είναι το μόνο «αντιγηραντικό» με αδιαμφισβήτητα στοιχεία. Βάλ’ το ως τελευταίο βήμα της πρωινής ρουτίνας, όπως το βούρτσισμα των δοντιών.',
-        },
-      },
-    ],
+    health_tips: HEALTH_TIPS,
+    skincare_tips: SKINCARE_TIPS,
   },
 }

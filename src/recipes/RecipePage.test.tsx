@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { contentSource } from '../content/index'
-import { fail, type ContentSource, type Recipe } from '../content/source'
+import { fail, ok, type ContentSource, type Recipe } from '../content/source'
 import { computeCost } from '../cost/compute'
 import { indexBySlug } from '../fridge/match'
 import { LangProvider } from '../i18n/LangProvider'
@@ -251,5 +251,48 @@ describe('<RecipePage> async states (P5.1)', () => {
     expect(status).toHaveTextContent(el.loading)
     expect(screen.queryByRole('heading', { level: 1 })).toBeNull()
     expect(screen.queryByRole('alert')).toBeNull()
+  })
+})
+
+describe('<RecipePage> frame first (perf, 2026-10-06)', () => {
+  it('paints the back link and the draft ribbon before the recipe has loaded (bundled source)', () => {
+    const slow: ContentSource = { ...contentSource, getRecipe: () => new Promise(() => {}) }
+    renderAt(SLUG, 'en', slow)
+    expect(screen.getByRole('link', { name: `← ${en.recipesTitle}` })).toBeInTheDocument()
+    expect(screen.getByRole('note')).toHaveTextContent(en.draftRibbon)
+    expect(screen.getByRole('status')).toHaveAttribute('data-skeleton', 'detail')
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull()
+  })
+
+  it('keeps the SAME ribbon node from loading to loaded, above the title (no remount, no shift)', async () => {
+    renderAt(SLUG, 'en')
+    const early = screen.getByRole('note')
+    const heading = await screen.findByRole('heading', { level: 1 })
+    expect(screen.getByRole('note')).toBe(early)
+    expect(early.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.queryByRole('status')).toBeNull()
+  })
+
+  it('keeps the ribbon above the error state (bundled source)', async () => {
+    const broken: ContentSource = {
+      ...contentSource,
+      getRecipe: () => Promise.resolve(fail('network')),
+    }
+    renderAt(SLUG, 'en', broken)
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    expect(screen.getByRole('note')).toHaveTextContent(en.draftRibbon)
+  })
+
+  it('shows no ribbon under the supabase source for an approved row, before or after loading', async () => {
+    const approved = { ...(await seeded(SLUG)), status: 'approved' as const }
+    const configured: ContentSource = {
+      ...contentSource,
+      kind: 'supabase',
+      getRecipe: () => Promise.resolve(ok(approved)),
+    }
+    renderAt(SLUG, 'el', configured)
+    expect(screen.queryByRole('note')).toBeNull()
+    expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument()
+    expect(screen.queryByRole('note')).toBeNull()
   })
 })

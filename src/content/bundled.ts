@@ -23,11 +23,15 @@
 //
 // CONTENT OVERLAYS (2026-10-06). The base seed modules are frozen (their migrations are applied
 // live); later edits and additions live in ./seed/overlays/ (see types.ts there). Each real loader
-// imports its table AND the overlay list side by side and returns base → overlay 0001 → 0002 …
-// (`overlayTable`, the same pure function the seed generator validates with), so the bundled
-// source serves exactly what the DB holds after the overlay migrations. The overlay chunk carries
-// its own applier; a table no overlay touches comes back as the same array. Fixture tables are not
-// overlaid.
+// imports its table AND that table's overlay index side by side and returns base → overlay 0001 →
+// 0002 … (`overlayTable`, the same pure function the seed generator validates with), so the bundled
+// source serves exactly what the DB holds after the overlay migrations. A table no overlay touches
+// comes back as the same array. Fixture tables are not overlaid.
+//
+// PER TABLE (perf, 2026-10-06). The overlay index a loader imports is ./seed/overlays/by-table/<key>.ts
+// — only the overlay rows of THAT table (a recipe's lines and diet tags travel with recipes) — not the
+// full list: with overlay 0003 the single shared overlay chunk was 21.8 kB gzip and every page paid
+// for all of it. The applier (overlays/apply.ts) is a small chunk the indexes share.
 
 import {
   CONTENT_STATUSES,
@@ -56,7 +60,8 @@ import {
   type SkincareTip,
   type WorkoutTemplate,
 } from './source.ts'
-import type { SeedBase } from './seed/overlays/types.ts'
+import type { overlayTable } from './seed/overlays/apply.ts'
+import type { OverlaySlice, SeedBase } from './seed/overlays/types.ts'
 import type {
   DietSeed,
   ExerciseSeed,
@@ -105,18 +110,23 @@ const afterPaint =
   (): Promise<T> =>
     afterNextPaint().then(load)
 
+/** A per-table overlay index (./seed/overlays/by-table/<key>.ts): that table's overlay slices + the applier. */
+interface TableOverlays {
+  OVERLAYS: readonly OverlaySlice[]
+  overlayTable: typeof overlayTable
+}
+
 /**
- * Load one base seed table and the overlay list in parallel, then apply every overlay to the table.
- * The overlay module brings the applier with it (one small chunk, shared by every table).
+ * Load one base seed table and its per-table overlay index in parallel, then apply the overlays to
+ * the table. The index carries only this table's overlay rows (see the header: PER TABLE).
  */
 function overlaid<K extends keyof SeedBase>(
   table: K,
   load: () => Promise<SeedBase[K]>,
+  overlays: () => Promise<TableOverlays>,
 ): () => Promise<SeedBase[K]> {
   return () =>
-    Promise.all([load(), import('./seed/overlays/index.ts')]).then(([rows, o]) =>
-      o.overlayTable(table, rows, o.OVERLAYS),
-    )
+    Promise.all([load(), overlays()]).then(([rows, o]) => o.overlayTable(table, rows, o.OVERLAYS))
 }
 
 /**
@@ -125,35 +135,67 @@ function overlaid<K extends keyof SeedBase>(
  */
 export const BUNDLED_SEEDS: BundledSeeds = {
   ingredients: afterPaint(
-    overlaid('ingredients', () => import('./seed/ingredients.ts').then((m) => m.INGREDIENTS)),
+    overlaid(
+      'ingredients',
+      () => import('./seed/ingredients.ts').then((m) => m.INGREDIENTS),
+      () => import('./seed/overlays/by-table/ingredients.ts'),
+    ),
   ),
-  diets: afterPaint(overlaid('diets', () => import('./seed/diets.ts').then((m) => m.DIETS))),
+  diets: afterPaint(
+    overlaid(
+      'diets',
+      () => import('./seed/diets.ts').then((m) => m.DIETS),
+      () => import('./seed/overlays/by-table/diets.ts'),
+    ),
+  ),
   recipes: afterPaint(
-    overlaid('recipes', () => import('./seed/recipes.ts').then((m) => m.RECIPES)),
+    overlaid(
+      'recipes',
+      () => import('./seed/recipes.ts').then((m) => m.RECIPES),
+      () => import('./seed/overlays/by-table/recipes.ts'),
+    ),
   ),
   exercises: afterPaint(
-    overlaid('exercises', () => import('./seed/exercises.ts').then((m) => m.EXERCISES)),
+    overlaid(
+      'exercises',
+      () => import('./seed/exercises.ts').then((m) => m.EXERCISES),
+      () => import('./seed/overlays/by-table/exercises.ts'),
+    ),
   ),
   workoutTemplates: afterPaint(
-    overlaid('workout_templates', () =>
-      import('./seed/workouts.ts').then((m) => m.WORKOUT_TEMPLATES),
+    overlaid(
+      'workout_templates',
+      () => import('./seed/workouts.ts').then((m) => m.WORKOUT_TEMPLATES),
+      () => import('./seed/overlays/by-table/workout_templates.ts'),
     ),
   ),
   tips: afterPaint(
-    overlaid('health_tips', () => import('./seed/tips.ts').then((m) => m.HEALTH_TIPS)),
+    overlaid(
+      'health_tips',
+      () => import('./seed/tips.ts').then((m) => m.HEALTH_TIPS),
+      () => import('./seed/overlays/by-table/health_tips.ts'),
+    ),
   ),
   skincareProductTypes: afterPaint(
-    overlaid('skincare_product_types', () =>
-      import('./seed/skincare.ts').then((m) => m.SKINCARE_PRODUCT_TYPES),
+    overlaid(
+      'skincare_product_types',
+      () => import('./seed/skincare.ts').then((m) => m.SKINCARE_PRODUCT_TYPES),
+      () => import('./seed/overlays/by-table/skincare_product_types.ts'),
     ),
   ),
   skincareRoutines: afterPaint(
-    overlaid('skincare_routines', () =>
-      import('./seed/skincare.ts').then((m) => m.SKINCARE_ROUTINES),
+    overlaid(
+      'skincare_routines',
+      () => import('./seed/skincare.ts').then((m) => m.SKINCARE_ROUTINES),
+      () => import('./seed/overlays/by-table/skincare_routines.ts'),
     ),
   ),
   skincareTips: afterPaint(
-    overlaid('skincare_tips', () => import('./seed/skincare.ts').then((m) => m.SKINCARE_TIPS)),
+    overlaid(
+      'skincare_tips',
+      () => import('./seed/skincare.ts').then((m) => m.SKINCARE_TIPS),
+      () => import('./seed/overlays/by-table/skincare_tips.ts'),
+    ),
   ),
 }
 
