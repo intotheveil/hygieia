@@ -912,7 +912,7 @@ seed → ContentSource → page), gated like every other phase (ADR-0005 cadence
 - **Acceptance (met):** lint 0 errors · typecheck · `npm test` green · `db:check` 12 · `db:gate` 289 · prove-red 27/27 ·
   `seed:check` OK · build code-split (skincare seed = its own chunk) · `check:bundle` OK.
 
-### P7.2 `/skincare` page (agent: builder) ∥ with P7.1 review
+### P7.2 `/skincare` page — DONE 2026-10-06 (lane `wt/c`)
 
 - **Files:** `src/skincare/{SkincarePage.tsx, filter.ts, …}` + tests, `src/routes/routes.tsx` (lazy `/skincare`),
   `e2e/support/routes.ts` (a11y matrix + Lighthouse cell), `src/i18n/features/skincare.ts` (+ `features/index.ts`),

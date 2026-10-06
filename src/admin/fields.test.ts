@@ -1,4 +1,11 @@
-import { CONTENT_TABLES } from '../content/enums.ts'
+import {
+  CARE_AREAS,
+  CONTENT_TABLES,
+  ROUTINE_TIMES,
+  SKINCARE_CATEGORIES,
+  STEP_TIMES,
+  UNITS,
+} from '../content/enums.ts'
 import { EDITABLE_COLUMNS, type AdminRow } from './adminSource.ts'
 import {
   diffDraft,
@@ -10,6 +17,7 @@ import {
   headingOf,
   initialDraft,
   kindOf,
+  selectOptions,
   toEdit,
   type Field,
 } from './fields.ts'
@@ -199,5 +207,211 @@ describe('field model — diff', () => {
     const fields = fieldsOf(fieldGroups('diets', diet))
     const draft = { ...initialDraft(fields, diet), allowed_el: ['Λαχανικά', 'Όσπρια'] }
     expect(diffDraft(fields, { ...diet }, draft).patch).toEqual({})
+  })
+})
+
+// --- P7.1 skincare: the json kind, per-table select options, deep sameValue, heading columns ------
+
+const steps = [
+  {
+    order: 1,
+    product_type_slug: 'gel-cleanser',
+    note_el: 'Καθάρισε με χλιαρό νερό.',
+    note_en: 'Cleanse with lukewarm water.',
+    optional: false,
+  },
+  {
+    order: 2,
+    product_type_slug: 'light-moisturiser',
+    note_el: 'Λεπτό στρώμα.',
+    note_en: 'A thin layer.',
+    optional: false,
+  },
+  {
+    order: 3,
+    product_type_slug: 'spf-fluid',
+    note_el: 'Δύο δάχτυλα SPF.',
+    note_en: 'Two fingers of SPF.',
+    optional: true,
+  },
+]
+
+const routine: AdminRow<'skincare_routines'> = {
+  ...review,
+  slug: 'men-oily-am-eu',
+  area: 'face',
+  name_el: 'Πρωινή ρουτίνα για λιπαρό δέρμα',
+  name_en: 'Morning routine for oily skin',
+  audience: 'men',
+  skin_type: 'oily',
+  region: 'eu',
+  time: 'am',
+  intro_el: 'Τρία βήματα, πέντε λεπτά.',
+  intro_en: 'Three steps, five minutes.',
+  steps,
+  duration_min: 5,
+}
+
+describe('field model — P7.1 kinds: json steps and the per-table enums', () => {
+  const json: Field = { column: 'steps', kind: 'json', nullable: false }
+
+  it('`steps` is json by column NAME — with or without the table, whatever the loaded value', () => {
+    expect(kindOf('steps', steps, 'skincare_routines')).toBe('json')
+    expect(kindOf('steps', steps)).toBe('json')
+    // Name wins over the value: a string-typed jsonb (as a fake or a bad row might hand over) is
+    // still edited as JSON, not as a text input.
+    expect(kindOf('steps', '[{"order":1}]')).toBe('json')
+    expect(kindOf('steps_el', ['a'], 'recipes')).toBe('lines')
+  })
+
+  it('`time` and `category` are table-aware: enums where the CHECK says so, free text elsewhere', () => {
+    expect(kindOf('time', 'am', 'skincare_routines')).toBe('select')
+    expect(kindOf('time', 'both', 'skincare_product_types')).toBe('select')
+    expect(kindOf('category', 'cleanser', 'skincare_product_types')).toBe('select')
+    expect(kindOf('category', 'dairy', 'ingredients')).toBe('text')
+    // Without a table the shared map still applies to `time`; `category` has no shared entry.
+    expect(kindOf('time', 'am')).toBe('select')
+    expect(kindOf('category', 'dairy')).toBe('text')
+  })
+
+  it('selectOptions: the table override first, then the shared enum map, else undefined', () => {
+    const routineTime = selectOptions('skincare_routines', 'time')
+    const typeTime = selectOptions('skincare_product_types', 'time')
+    expect(routineTime).toEqual(ROUTINE_TIMES)
+    expect(routineTime).toContain('weekly')
+    expect(routineTime).not.toContain('both')
+    expect(typeTime).toEqual(STEP_TIMES)
+    expect(typeTime).toContain('both')
+    expect(typeTime).not.toContain('weekly')
+    expect(selectOptions('skincare_product_types', 'category')).toEqual(SKINCARE_CATEGORIES)
+    expect(selectOptions('ingredients', 'category')).toBeUndefined()
+    expect(selectOptions('ingredients', 'unit')).toEqual(UNITS)
+    expect(selectOptions('skincare_routines', 'name_el')).toBeUndefined()
+  })
+
+  it('the routine form offers am | pm | weekly for `time`, so a nail routine can be saved as weekly', () => {
+    const fields = fieldsOf(fieldGroups('skincare_routines', routine))
+    const time = fields.find((f) => f.column === 'time')
+    expect(time).toEqual({ column: 'time', kind: 'select', nullable: false, options: ROUTINE_TIMES })
+    expect(fromEdit(time as Field, 'weekly')).toEqual({ ok: true, value: 'weekly' })
+    expect(fromEdit(time as Field, 'both')).toEqual({ ok: false })
+    expect(fields.find((f) => f.column === 'steps')).toEqual({
+      column: 'steps',
+      kind: 'json',
+      nullable: false,
+    })
+    expect(fields.find((f) => f.column === 'area')?.options).toEqual(CARE_AREAS)
+  })
+
+  it('the product-type form offers the category enum (the DB CHECK) instead of free text', () => {
+    const raw: Record<string, unknown> = { ...review, slug: 's' }
+    for (const column of EDITABLE_COLUMNS.skincare_product_types) raw[column] = ''
+    raw.category = 'serum'
+    raw.time = 'pm'
+    // reason: a synthetic row for the kind detector; only `category` and `time` matter here.
+    const fields = fieldsOf(fieldGroups('skincare_product_types', raw as AdminRow))
+    expect(fields.find((f) => f.column === 'category')).toEqual({
+      column: 'category',
+      kind: 'select',
+      nullable: false,
+      options: SKINCARE_CATEGORIES,
+    })
+    expect(fields.find((f) => f.column === 'time')?.options).toEqual(STEP_TIMES)
+  })
+
+  it('toEdit renders json as pretty-printed text; undefined is an empty editor', () => {
+    expect(toEdit(json, steps)).toBe(JSON.stringify(steps, null, 2))
+    expect(toEdit(json, undefined)).toBe('')
+    // `steps` is NOT NULL in the DB, so null never arrives; if it did, the editor would show the
+    // literal `null` and fromEdit would refuse to save it back (not an array) — pinned as a pair.
+    expect(toEdit(json, null)).toBe('null')
+    expect(fromEdit(json, 'null')).toEqual({ ok: false })
+  })
+
+  it('fromEdit json: a non-empty array round-trips; everything else is unsaveable', () => {
+    const pretty = JSON.stringify(steps, null, 2)
+    const converted = fromEdit(json, pretty)
+    expect(converted).toEqual({ ok: true, value: steps })
+    expect(converted.ok && converted.value).not.toBe(steps) // parsed, not the same reference
+    expect(fromEdit(json, '[{"order": 1}]')).toEqual({ ok: true, value: [{ order: 1 }] })
+
+    expect(fromEdit(json, '')).toEqual({ ok: false })
+    expect(fromEdit(json, '   \n\t')).toEqual({ ok: false })
+    expect(fromEdit(json, '[{"order": 1,')).toEqual({ ok: false })
+    expect(fromEdit(json, 'not json')).toEqual({ ok: false })
+    expect(fromEdit(json, '{}')).toEqual({ ok: false })
+    expect(fromEdit(json, '{"order": 1}')).toEqual({ ok: false })
+    expect(fromEdit(json, '[]')).toEqual({ ok: false })
+    expect(fromEdit(json, '"[]"')).toEqual({ ok: false })
+    expect(fromEdit(json, '1')).toEqual({ ok: false })
+    expect(fromEdit(json, ['a', 'b'])).toEqual({ ok: false })
+    expect(fromEdit(json, true)).toEqual({ ok: false })
+  })
+
+  it('headingColumn: title_* for skincare_tips, name_* for routines and product types', () => {
+    expect(headingColumn('skincare_tips')).toBe('title')
+    expect(headingColumn('skincare_routines')).toBe('name')
+    expect(headingColumn('skincare_product_types')).toBe('name')
+    expect(headingOf('skincare_routines', routine, 'el')).toBe('Πρωινή ρουτίνα για λιπαρό δέρμα')
+    expect(headingOf('skincare_routines', routine, 'en')).toBe('Morning routine for oily skin')
+  })
+})
+
+describe('field model — diff over json (deep sameValue)', () => {
+  const fields = fieldsOf(fieldGroups('skincare_routines', routine))
+
+  it('the initial draft of a routine is no change and nothing is invalid', () => {
+    expect(diffDraft(fields, { ...routine }, initialDraft(fields, routine))).toEqual({
+      patch: {},
+      invalid: [],
+    })
+  })
+
+  it('re-serialised identical steps (compact, re-indented) are NOT a change', () => {
+    const base = initialDraft(fields, routine)
+    expect(base.steps).toBe(JSON.stringify(steps, null, 2))
+    for (const text of [
+      JSON.stringify(steps),
+      JSON.stringify(steps, null, 8),
+      `\n  ${JSON.stringify(steps, null, 2).replace(/\n/g, '\n  ')}\n`,
+    ])
+      expect(diffDraft(fields, { ...routine }, { ...base, steps: text })).toEqual({
+        patch: {},
+        invalid: [],
+      })
+  })
+
+  it('a one-note edit inside a step is a change carrying the WHOLE parsed array', () => {
+    const edited = steps.map((s, i) =>
+      i === 1 ? { ...s, note_en: 'A thin layer, neck included.' } : s,
+    )
+    const draft = { ...initialDraft(fields, routine), steps: JSON.stringify(edited, null, 2) }
+    const { patch, invalid } = diffDraft(fields, { ...routine }, draft)
+    expect(invalid).toEqual([])
+    expect(patch).toEqual({ steps: edited })
+    expect(Object.keys(patch)).toEqual(['steps'])
+  })
+
+  it('a removed or re-ordered step is a change; broken JSON is invalid, not a patch', () => {
+    const base = initialDraft(fields, routine)
+    const dropped = diffDraft(fields, { ...routine }, {
+      ...base,
+      steps: JSON.stringify(steps.slice(0, 2)),
+    })
+    expect(dropped.patch).toEqual({ steps: steps.slice(0, 2) })
+    const reordered = diffDraft(fields, { ...routine }, {
+      ...base,
+      steps: JSON.stringify([steps[1], steps[0], steps[2]]),
+    })
+    expect(reordered.patch).toEqual({ steps: [steps[1], steps[0], steps[2]] })
+
+    const broken = diffDraft(fields, { ...routine }, {
+      ...base,
+      steps: '[{"order": 1,',
+      duration_min: '7',
+    })
+    expect(broken.invalid).toEqual(['steps'])
+    expect(broken.patch).toEqual({ duration_min: 7 })
+    expect(diffDraft(fields, { ...routine }, { ...base, steps: '[]' }).invalid).toEqual(['steps'])
   })
 })

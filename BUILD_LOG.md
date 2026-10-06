@@ -196,6 +196,19 @@ The human reads this first on return (CLAUDE.md §5).
 - **Left for P7.2 / operator:** the page (`/skincare`, filters, Face/Nails switch, nav + home card, i18n module, e2e +
   a11y route); live apply of 001100 + 001200 and approval in `/admin` (P7.3, operator). BRAIN.md §2/§3 are the lead's
   to reconcile at merge (lanes append records, the lead owns the brain — ADR-0005).
+- **Admin field-model tests (review fix 1, lane `wt/d`, 2026-10-06):** `src/admin/fields.test.ts` +12 cases (20 → 32:
+  `kindOf` json by NAME with/without table, table-aware `time`/`category`, `selectOptions` override → shared map → undefined,
+  routine `time` field = `ROUTINE_TIMES` so `weekly` saves and `both` is refused, product-type `category` = `SKINCARE_CATEGORIES`,
+  `toEdit`/`fromEdit` json incl. `''` / whitespace / broken / `{}` / `[]` / non-string, deep `sameValue` — re-serialised steps =
+  no change, one-note edit / drop / re-order = change, broken JSON = invalid not patch, `headingColumn` ×3) + NEW
+  `src/admin/ReviewForm.test.tsx` 13 cases (a `skincare_routines` row renders `steps` as a monospace `<textarea>` labelled
+  `steps` whose text parses back to the row, `time` `<select>` lists exactly am|pm|weekly, broken JSON → `aria-invalid="true"` +
+  Save disabled + `fireEvent.submit` still sends nothing, `''`/whitespace/`[]`/object/string blocked, compact re-serialisation
+  = Save disabled, a valid edited array → `update('skincare_routines', id, { steps: parsed })` once and the new baseline, an
+  invalid `steps` blocks Save even with a valid `duration_min` change, el/en chrome). Proven to bite: three sabotages of
+  `fields.ts` (no routine `time` override / shallow `sameValue` / json accepts `[]`) → 5 / 5 / 4 red, restored. `npx vitest run
+  src/admin` **113 / 5 files** (was 88 / 4); lint 0 errors; typecheck clean. Review notes: PLAN P7.2 heading marked DONE;
+  `scripts/db-gate.mjs` jsonb-step comment reworded to "contains the contract's keys" (comment only — gate logic untouched).
 
 ### P4.x THEMES — four cosmetic themes + per-theme hero (operator request) — 2026-10-06 — DONE (builder lane `wt/b`, finished by the lead after the builder hit the usage limit)
 
