@@ -863,3 +863,88 @@ Parallel lanes are safe only in separate worktrees (CLAUDE.md §4 "one writer pe
 - On Pages (and `pages-server`) a deep link is a 404 DOCUMENT; assert the rendered app, never `response.ok()`; the console watchdog filters only the document's own 404.
 - `spaFallback` and `VitePWA` both write `dist/` at `writeBundle`; keep the plugin order and check `404.html` equals `index.html` after every build-affecting change (BRAIN §5).
 - `vite preview` rewrites every path to `index.html` with 200 — never use it for e2e; use `pages-server --base /hygieia`.
+
+---
+
+## P7 Skincare (operator request 2026-10-06)
+
+Operator, verbatim: _"Add also skin care for men / women category with tips products and whatever from EU, US,
+Korea etc etc."_ — and, mid-task: _"And nails xD"_. A seventh module on the proven P3/P4 pattern (schema →
+seed → ContentSource → page), gated like every other phase (ADR-0005 cadence: QA + review after merge).
+
+**Data model (schema `hygieia`, migration `20261006001100_hygieia_skincare.sql`, forward-only; enums mirrored in
+`src/content/enums.ts`):**
+
+- Enums (text + CHECK, asserted by the gate and `db-schema-contract.test.ts`): `AUDIENCES` men | women | all ·
+  `SKIN_TYPES` normal | dry | oily | combination | sensitive | all · `SKIN_CONCERNS` acne | aging | hydration | sun |
+  pigmentation | redness | shaving | beard | pores | texture | nails | hands | general · `REGIONS` eu | us | kr | jp |
+  global (regulatory / routine STYLE, never a shop) · `STEP_TIMES` am | pm | both (product types) · `ROUTINE_TIMES`
+  am | pm | weekly (routines; nail routines are weekly) · `CARE_AREAS` face | nails · `SKINCARE_CATEGORIES`
+  cleanser | toner | essence | serum | moisturizer | sunscreen | exfoliant | mask | eye | treatment | shaving | beard |
+  lip | cuticle_oil | nail_treatment | hand_cream | base_coat | nail_file | nail_remover · `PRICE_BANDS` low | mid | high.
+- `skincare_product_types` — generic product TYPES, never brands: `slug`, `name_el/en`, `description_el/en`,
+  `category`, `key_ingredients text[]`, `avoid_with text[]`, `regions text[]`, `audiences text[]`, `skin_types text[]`,
+  `concerns text[]` (array enums: `cardinality ≥ 1 and x <@ array[…]`), `time` (step time), `price_band_eur`,
+  `notes_el/en` (regulatory notes), review columns.
+- `skincare_routines` — `slug`, `area` (default `face`), `name_el/en`, `audience`, `skin_type`, `region`, `time`
+  (routine time), `intro_el/en`, `steps jsonb` = ordered array of `{ order, product_type_slug, note_el, note_en,
+  optional }` (CHECK `jsonb_typeof = 'array'`, 1–10 elements; the gate's jsonb scan proves every
+  `product_type_slug` resolves and `order` = position), `duration_min`, review columns.
+- `skincare_tips` — `slug`, `area` (default `face`), `title_el/en`, `body_el/en`, `audiences[]`, `skin_types[]`,
+  `concerns[]`, `regions[]`, `sources text[]`, `needs_source` (CHECK `cardinality(sources) ≥ 1 or needs_source`),
+  review columns.
+- Same RLS / grant / revoke discipline as `health_tips`: per-role policies (`_select_anon` approved, `_select_auth`
+  approved or `is_admin()`, `_update_admin`), column-limited UPDATE grants (= `EDITABLE_COLUMNS`), no client
+  INSERT/DELETE, service_role full DML, `touch_updated_at` + `stamp_review` triggers.
+
+### P7.1 Data spine + seed content — DONE 2026-10-06 (lane `wt/a`)
+
+- **Files:** `supabase/migrations/20261006001100_hygieia_skincare.sql`, `20261006001200_hygieia_seed_skincare.sql`
+  (generated), `src/content/{enums,types,db-types,source,bundled,supabase,index}.ts`, `src/content/seed/skincare.ts`
+  (+ `seed/skincare/{product-types,routines,tips}.ts`, one lazy chunk) + `skincare.test.ts`, `scripts/gen-seed-sql.mjs`
+  (`kind: 'skincare'`, multi-export, jsonb), `scripts/db-gate/catalogue.mjs` (3 content entries, fixture, enum
+  columns, floors 36 / 28 / 55), `scripts/db-gate.mjs` (jsonb step scan), `scripts/db-gate-prove-red.mjs` (2 new
+  sabotages, pinned counts 17 / 9 / 18), `scripts/db-schema-contract.test.ts`, `src/admin/{adminSource,fields}.ts` +
+  `ReviewForm.tsx` (`json` kind for `steps`), `src/i18n/features/admin.ts`, `docs/ops/migrations.md`.
+- **Contract for P7.2:** `ContentSource.listSkincareProductTypes() / listSkincareRoutines() / listSkincareTips()` →
+  `Result<SkincareProductType[] | SkincareRoutine[] | SkincareTip[]>` (types exported from `src/content`), approved-only
+  in supabase mode; seed exports `SKINCARE_PRODUCT_TYPES`, `SKINCARE_ROUTINES`, `SKINCARE_TIPS`.
+- **Acceptance (met):** lint 0 errors · typecheck · `npm test` green · `db:check` 12 · `db:gate` 289 · prove-red 27/27 ·
+  `seed:check` OK · build code-split (skincare seed = its own chunk) · `check:bundle` OK.
+
+### P7.2 `/skincare` page (agent: builder) ∥ with P7.1 review
+
+- **Files:** `src/skincare/{SkincarePage.tsx, filter.ts, …}` + tests, `src/routes/routes.tsx` (lazy `/skincare`),
+  `e2e/support/routes.ts` (a11y matrix + Lighthouse cell), `src/i18n/features/skincare.ts` (+ `features/index.ts`),
+  `src/components/SiteHeader.tsx` (nav), `src/App.tsx` (home card), `src/i18n/dictionary.ts` (`MODULE_IDS` + card copy),
+  `e2e/local/skincare.spec.ts`.
+- **Approach:** read the three lists through `contentSource` (P4.8/P4.9 pattern, `useAsync` + `AsyncState`); a Face /
+  Nails switch on `area`; filters audience / skin type / concern / region in the URL (`?area=&audience=&skin=&concern=
+  &region=`); routines grouped AM / PM (and Weekly for nails) with their steps resolved against the product-type list
+  (a step whose type is not visible renders its slug muted, like a hidden `RecipeLine`); a product-type guide grouped by
+  category with key ingredients / avoid-with / regions chips and the regulatory note; tips as cards with "Source pending
+  review" when `needs_source`. Disclaimer line: informational, not dermatological advice. Bundled mode shows the draft ribbon.
+- **Acceptance:** route in `routes.tsx` AND `e2e/support/routes.ts`; both languages complete (type-checked); unit tests
+  for the filter + page states (loading / error / empty / hidden step); e2e: switch Face → Nails, filter by region = kr
+  shows only kr routines; a11y matrix cells green; Lighthouse cold ≥ 85 / 90 / 90 on `/skincare`; `G0` green.
+- **Depends on:** P7.1 (types + seed exports).
+
+### P7.3 Live apply + approval (OPERATOR)
+
+- `npm run db:apply` (dry-run, then `-- --apply`) for `20261006001100` + `20261006001200` from the operator's shell
+  (`docs/ops/migrations.md`); `db:live-check` ledger 12/12; review and approve the three skincare tables in `/admin`
+  (every row lands `pending`; unsourced tips stay the operator's call). Not a crew task.
+
+### P7.QA — QA & Validation (agent: qa)
+
+- Fresh clone: `G0` + `db:check` + `db:gate` (289, every skincare check present) + `prove-red` (27/27 incl.
+  `skincare-step-dangling-slug`, `skincare-area-enum-mismatch`) + `seed:check` + e2e both projects + `check:lighthouse`
+  with `/skincare`; isolation: anon reads 0 pending skincare rows through the gate AND (after P7.3) through the live
+  REST (`Accept-Profile: hygieia`); content audit: no brand names in product types, every tip with a condition word
+  points to a professional, Greek natural (spot-check 10 rows per table).
+
+### P7.REVIEW — Quality review (agent: reviewer)
+
+- **Depends on:** P7.QA (VALIDATED). **Rubric:** CLAUDE.md §6.
+
+### CHECKPOINT P7 — surface summary to human, wait for gate approval

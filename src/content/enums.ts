@@ -49,6 +49,76 @@ export const TIP_TOPICS = [
 ] as const
 export type TipTopic = (typeof TIP_TOPICS)[number]
 
+// --- skincare (P7, operator request 2026-10-06: skin care for men / women + nails) -----------------
+// Product TYPES, never brands; `regions` are regulatory / routine STYLES, not shops (DECISIONS P7.1).
+
+/** Who a product type, routine or tip is written for. */
+export const AUDIENCES = ['men', 'women', 'all'] as const
+export type Audience = (typeof AUDIENCES)[number]
+
+export const SKIN_TYPES = ['normal', 'dry', 'oily', 'combination', 'sensitive', 'all'] as const
+export type SkinType = (typeof SKIN_TYPES)[number]
+
+export const SKIN_CONCERNS = [
+  'acne',
+  'aging',
+  'hydration',
+  'sun',
+  'pigmentation',
+  'redness',
+  'shaving',
+  'beard',
+  'pores',
+  'texture',
+  'nails',
+  'hands',
+  'general',
+] as const
+export type SkinConcern = (typeof SKIN_CONCERNS)[number]
+
+/** Regional STYLE / regulation: kr layering, eu minimal + EU filters, us OTC actives, jp lightweight. */
+export const REGIONS = ['eu', 'us', 'kr', 'jp', 'global'] as const
+export type Region = (typeof REGIONS)[number]
+
+/** When a product type is used in a day (`skincare_product_types.time`). */
+export const STEP_TIMES = ['am', 'pm', 'both'] as const
+export type StepTime = (typeof STEP_TIMES)[number]
+
+/** When a routine is done (`skincare_routines.time`); nail routines are weekly. */
+export const ROUTINE_TIMES = ['am', 'pm', 'weekly'] as const
+export type RoutineTime = (typeof ROUTINE_TIMES)[number]
+
+/** Face / nails switch on the skincare page (`area` on routines and tips). */
+export const CARE_AREAS = ['face', 'nails'] as const
+export type CareArea = (typeof CARE_AREAS)[number]
+
+export const SKINCARE_CATEGORIES = [
+  'cleanser',
+  'toner',
+  'essence',
+  'serum',
+  'moisturizer',
+  'sunscreen',
+  'exfoliant',
+  'mask',
+  'eye',
+  'treatment',
+  'shaving',
+  'beard',
+  'lip',
+  'cuticle_oil',
+  'nail_treatment',
+  'hand_cream',
+  'base_coat',
+  'nail_file',
+  'nail_remover',
+] as const
+export type SkincareCategory = (typeof SKINCARE_CATEGORIES)[number]
+
+/** Typical EUR price band of a product TYPE (informational, no brand, no shop). */
+export const PRICE_BANDS = ['low', 'mid', 'high'] as const
+export type PriceBand = (typeof PRICE_BANDS)[number]
+
 /** Review state of every content row; seeds land `pending`, an admin flips them (PLAN.md §1.3). */
 export const CONTENT_STATUSES = ['pending', 'approved', 'rejected'] as const
 export type ContentStatus = (typeof CONTENT_STATUSES)[number]
@@ -68,6 +138,9 @@ export const CONTENT_TABLES = [
   'exercises',
   'workout_templates',
   'health_tips',
+  'skincare_product_types',
+  'skincare_routines',
+  'skincare_tips',
 ] as const
 export type ContentTable = (typeof CONTENT_TABLES)[number]
 

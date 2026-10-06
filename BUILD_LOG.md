@@ -29,6 +29,52 @@ The human reads this first on return (CLAUDE.md §5).
   until the provider is enabled in the Supabase console.
 - **Found on the way:** the formatter race (BRAIN §5) dropped the third of three `Edit`s to `env.ts` made in one turn — `git diff -U0 |
   grep ^@@` caught it (typecheck: `isGoogleSignInEnabled` does not exist); re-applied alone.
+### P7.1 SKINCARE data spine + seed — 2026-10-06 — DONE (builder, lane `wt/a`)
+
+- **Operator:** "Add also skin care for men / women category with tips products and whatever from EU, US, Korea etc
+  etc." — and mid-task: "And nails xD". This task is the data spine + seed; P7.2 (the `/skincare` page) builds on it
+  (PLAN.md `## P7 Skincare`).
+- **Schema (`supabase/migrations/20261006001100_hygieia_skincare.sql`, forward-only, inside `hygieia`):** three
+  status-bearing content tables on the `health_tips` pattern — `skincare_product_types` (generic TYPES, never brands:
+  category, key_ingredients[], avoid_with[], regions[], audiences[], skin_types[], concerns[], time, price_band_eur,
+  bilingual name/description/notes), `skincare_routines` (`area` face|nails default face, audience, skin_type, region,
+  time am|pm|weekly, bilingual name/intro, `steps jsonb` ordered `{ order, product_type_slug, note_el, note_en,
+  optional }` with CHECK array 1–10, duration_min), `skincare_tips` (`area`, bilingual title/body, audiences[],
+  skin_types[], concerns[], regions[], `sources text[]`, `needs_source`; CHECK sourced-or-flagged). Nine enum CHECKs
+  mirrored in `src/content/enums.ts` (`AUDIENCES`, `SKIN_TYPES`, `SKIN_CONCERNS` incl. nails/hands, `REGIONS`,
+  `STEP_TIMES`, `ROUTINE_TIMES`, `CARE_AREAS`, `SKINCARE_CATEGORIES` incl. cuticle_oil / nail_treatment / hand_cream /
+  base_coat / nail_file / nail_remover, `PRICE_BANDS`); `CONTENT_TABLES` is now nine. Per-role policies, column-limited
+  UPDATE grants (= `EDITABLE_COLUMNS`), no client INSERT/DELETE, service_role DML, touch + stamp triggers, indexes.
+- **Seed (`src/content/seed/skincare.ts` → `seed/skincare/{product-types,routines,tips}.ts`, one lazy chunk):**
+  **52 product types** (45 face + 7 nails/hands), **28 routines** (24 face: every men|women × 5 skin types × am|pm cell
+  + 4 "everyone" — kr 7, eu 7, us 6, jp 4 — and 4 nail routines: men weekly, women weekly, brittle 4-week, post-gel),
+  **65 tips** (51 face: men shaving/beard/razor burn/post-gym, women make-up/double cleanse/hormonal acne/pregnancy,
+  everyone SPF/retinol/patch test/barrier/Mediterranean sun/Greek humidity/winter heating/dermatologist; 14 nails).
+  Bilingual EL/EN, informational tone, 37 of 65 tips sourced (NHS, WHO, CDC, FDA, NIH/MedlinePlus, Mayo, AAD, EUR-Lex),
+  28 `needs_source` for the operator in `/admin`. Generated `20261006001200_hygieia_seed_skincare.sql` (`kind:
+  'skincare'`, multi-export `KindSpec.exports`, `sqlJsonb` with fixed key order).
+- **Gate coverage:** `catalogue.mjs` 3 content entries + fixture rows (incl. a nails routine whose jsonb steps
+  reference the fixture types) + 19 enum-column rows + floors 36/28/55; `db-gate.mjs` new structural check
+  `skincare_routines: every jsonb step references an existing skincare_product_types slug and has the step shape`
+  (151 steps clean); prove-red pinned counts 14→17 tables, 6→9 stamp triggers, 15→18 catalogue entries, **+2 sabotages**
+  `skincare-step-dangling-slug` and `skincare-area-enum-mismatch`; `db-schema-contract.test.ts` has the three column
+  lists + row-level CHECKs.
+- **App layer:** `ContentSource.listSkincareProductTypes() / listSkincareRoutines() / listSkincareTips()` (bundled +
+  supabase approved-only + deferred), types `SkincareProductType / SkincareRoutine / SkincareTip` exported from
+  `src/content`, `db-types.ts` three tables, supabase `Spec` with a `steps` kind. Admin: three new tabs (labels el/en),
+  `EDITABLE_COLUMNS` = grants (test reads both migration files), table-aware select options (`category` is free text
+  on ingredients, an enum on product types; routine `time` is am|pm|weekly), `json` field kind for `steps` (monospace
+  textarea; Save blocked until it parses to a non-empty array).
+- **Verified (worktree, after `npm ci` — node_modules were stale, BRAIN §5):** lint 0 errors (23 pre-existing warnings)
+  · typecheck clean · **unit 3292 tests / 67 files** (was 3229; skincare seed suite 31 cases) · `db:check` 12 ·
+  **`db:gate` 289** (was 227) · **prove-red 27/27** (control 290 PASS) · `seed:check` OK (7 files) · build: entry
+  237 kB / 74 kB gzip, **`skincare-*.js` 199 kB / 57 kB gzip as its own lazy chunk** · `check:bundle` OK (38 files) ·
+  `check:pwa` OK.
+- **Decisions:** DECISIONS.md 2026-10-06 P7.1 (types not brands; regions as styles; jsonb steps + triple integrity
+  check; `area` switch; `sources[]`; one chunk; `listX` method names).
+- **Left for P7.2 / operator:** the page (`/skincare`, filters, Face/Nails switch, nav + home card, i18n module, e2e +
+  a11y route); live apply of 001100 + 001200 and approval in `/admin` (P7.3, operator). BRAIN.md §2/§3 are the lead's
+  to reconcile at merge (lanes append records, the lead owns the brain — ADR-0005).
 
 ### P4.x THEMES — four cosmetic themes + per-theme hero (operator request) — 2026-10-06 — DONE (builder lane `wt/b`, finished by the lead after the builder hit the usage limit)
 

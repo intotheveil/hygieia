@@ -20,6 +20,9 @@ import type {
   IngredientSeed,
   RecipeLineSeed,
   RecipeSeed,
+  SkincareProductTypeSeed,
+  SkincareRoutineSeed,
+  SkincareTipSeed,
   WorkoutBlockSeed,
   WorkoutTemplateSeed,
 } from './types.ts'
@@ -43,6 +46,13 @@ export type Ingredient = IngredientSeed & ContentMeta
 export type Diet = DietSeed & ContentMeta
 export type Exercise = ExerciseSeed & ContentMeta
 export type HealthTip = HealthTipSeed & ContentMeta
+
+// Skincare (P7.1): three flat tables, no children. A routine's `steps` reference product types by
+// slug inside jsonb; the page resolves them against `listSkincareProductTypes()` (a step whose type
+// is not visible — pending in supabase mode — simply has no match, like a hidden `RecipeLine`).
+export type SkincareProductType = SkincareProductTypeSeed & ContentMeta
+export type SkincareRoutine = SkincareRoutineSeed & ContentMeta
+export type SkincareTip = SkincareTipSeed & ContentMeta
 
 /**
  * One ingredient line with its ingredient resolved. `ingredient` is null only when the line's
@@ -88,6 +98,10 @@ export interface ContentSource {
     intensity: Intensity,
   ): Promise<Result<WorkoutTemplate | null>>
   listTips(): Promise<Result<HealthTip[]>>
+  /** P7.1 skincare — approved-only in supabase mode, like every other read. */
+  listSkincareProductTypes(): Promise<Result<SkincareProductType[]>>
+  listSkincareRoutines(): Promise<Result<SkincareRoutine[]>>
+  listSkincareTips(): Promise<Result<SkincareTip[]>>
 }
 
 /** True when `recipe` passes `filter` (see `RecipeFilter`). Shared by both implementations. */

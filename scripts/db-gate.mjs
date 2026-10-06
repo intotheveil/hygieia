@@ -655,6 +655,42 @@ async function runGate(db) {
     },
   )
 
+  // P7.1 — skincare_routines.steps is jsonb, so no FK can hold it: every step must be an object with
+  // exactly the contract's keys, `order` = its 1-based position, and a `product_type_slug` that
+  // resolves to a skincare_product_types row. Runs over seed AND fixture rows.
+  await guarded(
+    'skincare_routines: every jsonb step references an existing skincare_product_types slug and has the step shape',
+    async () => {
+      const bad = (
+        await q(
+          `select r.slug, s.n::int as n
+             from hygieia.skincare_routines r
+             cross join lateral jsonb_array_elements(r.steps) with ordinality as s(step, n)
+            where jsonb_typeof(s.step) <> 'object'
+               or not (s.step ?& array['order', 'product_type_slug', 'note_el', 'note_en', 'optional'])
+               or jsonb_typeof(s.step -> 'order') <> 'number'
+               or (case when jsonb_typeof(s.step -> 'order') = 'number'
+                        then (s.step ->> 'order')::numeric else -1 end) <> s.n
+               or jsonb_typeof(s.step -> 'optional') <> 'boolean'
+               or jsonb_typeof(s.step -> 'note_el') <> 'string'
+               or jsonb_typeof(s.step -> 'note_en') <> 'string'
+               or not exists (select 1 from hygieia.skincare_product_types p
+                               where p.slug = s.step ->> 'product_type_slug')
+            order by 1, 2`,
+        )
+      ).rows.map((x) => `${x.slug}#${x.n}`)
+      const total = Number(
+        (
+          await q(
+            `select count(*)::int as n from hygieia.skincare_routines r
+              cross join lateral jsonb_array_elements(r.steps)`,
+          )
+        ).rows[0].n,
+      )
+      return [total > 0 && bad.length === 0, bad.length ? list(bad) : `${total} steps clean`]
+    },
+  )
+
   // =================================================================================================
   // P1.8 — THE CATALOGUE MATRIX: per table, the checks its kind demands
   // =================================================================================================

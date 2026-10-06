@@ -117,7 +117,7 @@ create policy recipe_ingredients_select_anon on hygieia.recipe_ingredients
     what: 'alter table hygieia.favourites disable row level security',
     sql: `alter table hygieia.favourites disable row level security;`,
     expect: [
-      /^FAIL {2}RLS is enabled on every hygieia table \(14\) — favourites$/,
+      /^FAIL {2}RLS is enabled on every hygieia table \(17\) — favourites$/,
       /^FAIL {2}hygieia\.favourites: UB reads ZERO rows of A — 1 rows$/,
     ],
   },
@@ -172,7 +172,7 @@ as $fn$ select true $fn$;`,
     what: 'drop trigger recipes_stamp_review: an admin review leaves reviewed_by unset',
     sql: `drop trigger if exists recipes_stamp_review on hygieia.recipes;`,
     expect: [
-      /^FAIL {2}every status-bearing table has a BEFORE UPDATE stamp_review trigger \(6\) — recipes$/,
+      /^FAIL {2}every status-bearing table has a BEFORE UPDATE stamp_review trigger \(9\) — recipes$/,
       /^FAIL {2}hygieia\.recipes: ADMIN's status update takes effect and is stamped \(reviewed_by = ADMIN, reviewed_at > fixture\) — .*"reviewed_by":null/,
     ],
   },
@@ -260,8 +260,8 @@ revoke execute on function hygieia.leak_fn() from public, anon;`,
     what: 'a new table hygieia.orphan_table with no catalogue entry (and no RLS)',
     sql: `create table if not exists hygieia.orphan_table (id int);`,
     expect: [
-      /^FAIL {2}every hygieia table has a catalogue entry \(15\) — NO ENTRY: orphan_table — add it to scripts\/db-gate\/catalogue\.mjs$/,
-      /^FAIL {2}RLS is enabled on every hygieia table \(15\) — orphan_table$/,
+      /^FAIL {2}every hygieia table has a catalogue entry \(18\) — NO ENTRY: orphan_table — add it to scripts\/db-gate\/catalogue\.mjs$/,
+      /^FAIL {2}RLS is enabled on every hygieia table \(18\) — orphan_table$/,
     ],
   },
   {
@@ -300,6 +300,31 @@ on conflict (slug) do nothing;`,
     expect: [
       // The total follows the seed corpus (P1.12); the signature is exactly ONE off-formula row.
       /^FAIL {2}hygieia\.health_tips: every row id = md5\('hygieia:health_tips:' \|\| slug\)::uuid \(seed-id rule\) — \d+ rows checked, 1 off-formula$/,
+    ],
+  },
+
+  // --- skincare (P7.1): jsonb steps have no FK; the area enum is mirrored in enums.ts -------------
+  {
+    id: 'skincare-step-dangling-slug',
+    what: 'a skincare routine whose jsonb step names a product type slug that does not exist (no FK can catch it)',
+    sql: `insert into hygieia.skincare_routines (id, slug, area, name_el, name_en, audience, skin_type, region,
+  time, intro_el, intro_en, steps, duration_min)
+values (md5('hygieia:skincare_routines:zz-dangling')::uuid, 'zz-dangling', 'face', 'zz el', 'zz en', 'all',
+  'all', 'global', 'am', 'zz el', 'zz en',
+  '[{"order":1,"product_type_slug":"zz-no-such-type","note_el":"x","note_en":"x","optional":false}]', 5)
+on conflict (id) do nothing;`,
+    expect: [
+      /^FAIL {2}skincare_routines: every jsonb step references an existing skincare_product_types slug and has the step shape — zz-dangling#1$/,
+    ],
+  },
+  {
+    id: 'skincare-area-enum-mismatch',
+    what: "skincare_tips.area CHECK admits 'body', which enums.ts CARE_AREAS does not know",
+    sql: `alter table hygieia.skincare_tips drop constraint if exists skincare_tips_area_check;
+alter table hygieia.skincare_tips add constraint skincare_tips_area_check
+  check (area in ('face', 'nails', 'body'));`,
+    expect: [
+      /^FAIL {2}skincare_tips\.area CHECK admits exactly enums\.ts CARE_AREAS — db face\|nails\|body vs ts face\|nails$/,
     ],
   },
 

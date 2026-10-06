@@ -37,14 +37,23 @@ import { createHash } from 'node:crypto'
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import path from 'node:path'
 import {
+  AUDIENCES,
   BLOCKS,
+  CARE_AREAS,
   CHILD_TABLES,
   CONTENT_STATUSES,
   CONTENT_TABLES,
   INTENSITIES,
   LEVELS,
   MEAL_TYPES,
+  PRICE_BANDS,
   PRICE_PER,
+  REGIONS,
+  ROUTINE_TIMES,
+  SKINCARE_CATEGORIES,
+  SKIN_CONCERNS,
+  SKIN_TYPES,
+  STEP_TIMES,
   TIP_TOPICS,
   UNITS,
   USER_TABLES,
@@ -89,6 +98,10 @@ export const SEED_COUNTS = Object.freeze({
   health_tips: { min: 30 },
   // P4.8 landed: the module exists, so the count BINDS (no pendingTask — zero rows is red).
   workout_templates: { exact: 63 },
+  // P7.1 skincare (+ nails): floors are the brief's minimums plus the nail items.
+  skincare_product_types: { min: 36 },
+  skincare_routines: { min: 28 },
+  skincare_tips: { min: 55 },
 })
 /** Child tables: seeded rows under NON-fixture parents (parent slug not `fx-`). */
 /** @type {Readonly<Record<string, { min: number, pendingTask?: string }>>} */
@@ -126,6 +139,9 @@ export const FX = Object.freeze({
     pending: [ADOPTED_TEMPLATE_SLUGS[1]],
   },
   health_tips: { approved: ['fx-drink-water'], pending: ['fx-sleep-early'] },
+  skincare_product_types: { approved: ['fx-gel-cleanser'], pending: ['fx-retinol-serum'] },
+  skincare_routines: { approved: ['fx-face-men-oily-am'], pending: ['fx-nails-weekly'] },
+  skincare_tips: { approved: ['fx-face-spf-daily'], pending: ['fx-nails-file-one-way'] },
 })
 export const ID = Object.freeze({
   tomato: sid('ingredients', 'fx-tomato'),
@@ -239,6 +255,37 @@ export async function seedFixture(db) {
       ('${sid('health_tips', 'fx-sleep-early')}', 'fx-sleep-early', 'sleep', 'fx sleep el', 'fx sleep en',
        'fx body el', 'fx body en', null, true, ${P}, '${OLD}');
 
+    -- skincare (P7.1): product TYPES, routines whose jsonb steps reference the fixture types, tips.
+    insert into hygieia.skincare_product_types (id, slug, name_el, name_en, description_el, description_en,
+      category, key_ingredients, avoid_with, regions, audiences, skin_types, concerns, time, price_band_eur,
+      notes_el, notes_en, status, reviewed_at, reviewed_by, updated_at) values
+      ('${sid('skincare_product_types', 'fx-gel-cleanser')}', 'fx-gel-cleanser', 'fx cleanser el',
+       'fx cleanser en', 'fx desc el', 'fx desc en', 'cleanser', '{salicylic acid}', '{}', '{eu,global}',
+       '{all}', '{oily,combination}', '{acne,pores}', 'both', 'low', 'fx notes el', 'fx notes en',
+       ${A}, '${OLD}'),
+      ('${sid('skincare_product_types', 'fx-retinol-serum')}', 'fx-retinol-serum', 'fx retinol el',
+       'fx retinol en', 'fx desc el', 'fx desc en', 'serum', '{retinol}', '{aha,bha}', '{us}', '{all}',
+       '{normal,dry}', '{aging}', 'pm', 'mid', 'fx notes el', 'fx notes en', ${P}, '${OLD}');
+    insert into hygieia.skincare_routines (id, slug, area, name_el, name_en, audience, skin_type, region,
+      time, intro_el, intro_en, steps, duration_min, status, reviewed_at, reviewed_by, updated_at) values
+      ('${sid('skincare_routines', 'fx-face-men-oily-am')}', 'fx-face-men-oily-am', 'face', 'fx routine el',
+       'fx routine en', 'men', 'oily', 'eu', 'am', 'fx intro el', 'fx intro en',
+       '[{"order":1,"product_type_slug":"fx-gel-cleanser","note_el":"fx","note_en":"fx","optional":false}]',
+       5, ${A}, '${OLD}'),
+      ('${sid('skincare_routines', 'fx-nails-weekly')}', 'fx-nails-weekly', 'nails', 'fx nails el',
+       'fx nails en', 'all', 'all', 'global', 'weekly', 'fx intro el', 'fx intro en',
+       '[{"order":1,"product_type_slug":"fx-gel-cleanser","note_el":"fx","note_en":"fx","optional":false},
+         {"order":2,"product_type_slug":"fx-retinol-serum","note_el":"fx","note_en":"fx","optional":true}]',
+       10, ${P}, '${OLD}');
+    insert into hygieia.skincare_tips (id, slug, area, title_el, title_en, body_el, body_en, audiences,
+      skin_types, concerns, regions, sources, needs_source, status, reviewed_at, reviewed_by, updated_at) values
+      ('${sid('skincare_tips', 'fx-face-spf-daily')}', 'fx-face-spf-daily', 'face', 'fx spf el', 'fx spf en',
+       'fx body el', 'fx body en', '{all}', '{all}', '{sun}', '{global}',
+       '{https://example.org/fixture/spf}', false, ${A}, '${OLD}'),
+      ('${sid('skincare_tips', 'fx-nails-file-one-way')}', 'fx-nails-file-one-way', 'nails', 'fx nails el',
+       'fx nails en', 'fx body el', 'fx body en', '{men,women}', '{all}', '{nails}', '{global}', '{}', true,
+       ${P}, '${OLD}');
+
     insert into hygieia.fridge_lists (id, user_id, name, ingredient_slugs, updated_at) values
       ('${ID.fridgeA}', '${U.UA}', 'A fridge', '{fx-tomato}', '${OLD}'),
       ('${ID.fridgeB}', '${U.UB}', 'B fridge', '{fx-feta}', '${OLD}');
@@ -310,6 +357,39 @@ export const ENUM_COLUMNS = Object.freeze([
   { table: 'workout_templates', column: 'intensity', name: 'INTENSITIES', values: INTENSITIES },
   { table: 'workout_template_exercises', column: 'block', name: 'BLOCKS', values: BLOCKS },
   { table: 'health_tips', column: 'topic', name: 'TIP_TOPICS', values: TIP_TOPICS },
+  // P7.1 skincare — scalar and array-valued (`x <@ array[…]`) enum columns alike.
+  {
+    table: 'skincare_product_types',
+    column: 'category',
+    name: 'SKINCARE_CATEGORIES',
+    values: SKINCARE_CATEGORIES,
+  },
+  { table: 'skincare_product_types', column: 'regions', name: 'REGIONS', values: REGIONS },
+  { table: 'skincare_product_types', column: 'audiences', name: 'AUDIENCES', values: AUDIENCES },
+  { table: 'skincare_product_types', column: 'skin_types', name: 'SKIN_TYPES', values: SKIN_TYPES },
+  {
+    table: 'skincare_product_types',
+    column: 'concerns',
+    name: 'SKIN_CONCERNS',
+    values: SKIN_CONCERNS,
+  },
+  { table: 'skincare_product_types', column: 'time', name: 'STEP_TIMES', values: STEP_TIMES },
+  {
+    table: 'skincare_product_types',
+    column: 'price_band_eur',
+    name: 'PRICE_BANDS',
+    values: PRICE_BANDS,
+  },
+  { table: 'skincare_routines', column: 'area', name: 'CARE_AREAS', values: CARE_AREAS },
+  { table: 'skincare_routines', column: 'audience', name: 'AUDIENCES', values: AUDIENCES },
+  { table: 'skincare_routines', column: 'skin_type', name: 'SKIN_TYPES', values: SKIN_TYPES },
+  { table: 'skincare_routines', column: 'region', name: 'REGIONS', values: REGIONS },
+  { table: 'skincare_routines', column: 'time', name: 'ROUTINE_TIMES', values: ROUTINE_TIMES },
+  { table: 'skincare_tips', column: 'area', name: 'CARE_AREAS', values: CARE_AREAS },
+  { table: 'skincare_tips', column: 'audiences', name: 'AUDIENCES', values: AUDIENCES },
+  { table: 'skincare_tips', column: 'skin_types', name: 'SKIN_TYPES', values: SKIN_TYPES },
+  { table: 'skincare_tips', column: 'concerns', name: 'SKIN_CONCERNS', values: SKIN_CONCERNS },
+  { table: 'skincare_tips', column: 'regions', name: 'REGIONS', values: REGIONS },
   ...CONTENT_TABLES.map((table) => ({
     table,
     column: 'status',
@@ -588,6 +668,24 @@ export const CATALOGUE = Object.freeze([
   },
   {
     table: 'health_tips',
+    kind: 'content',
+    probe: `title_en = 'edited by gate'`,
+    probeColumn: 'title_en',
+  },
+  {
+    table: 'skincare_product_types',
+    kind: 'content',
+    probe: `name_en = 'edited by gate'`,
+    probeColumn: 'name_en',
+  },
+  {
+    table: 'skincare_routines',
+    kind: 'content',
+    probe: `name_en = 'edited by gate'`,
+    probeColumn: 'name_en',
+  },
+  {
+    table: 'skincare_tips',
     kind: 'content',
     probe: `title_en = 'edited by gate'`,
     probeColumn: 'title_en',

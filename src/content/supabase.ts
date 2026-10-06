@@ -35,10 +35,13 @@ import {
   type RecipeFilter,
   type RecipeLine,
   type Result,
+  type SkincareProductType,
+  type SkincareRoutine,
+  type SkincareTip,
   type WorkoutSlot,
   type WorkoutTemplate,
 } from './source.ts'
-import type { RecipeLineSeed, WorkoutBlockSeed } from './types.ts'
+import type { RecipeLineSeed, SkincareRoutineStepSeed, WorkoutBlockSeed } from './types.ts'
 
 // --- the select strings (exported so tests assert them rather than re-type them) -----------------
 
@@ -117,8 +120,13 @@ async function run<T>(
 
 type Raw = Record<string, unknown>
 
-/** The JSON kinds a column may arrive as; `number` also accepts a numeric string (Postgres `numeric`). */
-type Kind = 'string' | 'number' | 'boolean' | 'string[]' | 'string|null' | 'number|null' | 'status'
+/**
+ * The JSON kinds a column may arrive as; `number` also accepts a numeric string (Postgres `numeric`).
+ * `steps` is the skincare routine's jsonb: an array of `{ order, product_type_slug, note_el, note_en,
+ * optional }` objects (P7.1).
+ */
+type Kind =
+  'string' | 'number' | 'boolean' | 'string[]' | 'string|null' | 'number|null' | 'status' | 'steps'
 
 /** One `Kind` per key of `T` — `Spec<Ingredient>` cannot miss or misspell a column. */
 type Spec<T> = { readonly [K in keyof T]-?: Kind }
@@ -131,6 +139,24 @@ function asRaw(data: unknown): Raw | null {
 
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((v) => typeof v === 'string')
+}
+
+function isRoutineStep(value: unknown): value is SkincareRoutineStepSeed {
+  const raw = asRaw(value)
+  return (
+    raw !== null &&
+    typeof raw.order === 'number' &&
+    typeof raw.product_type_slug === 'string' &&
+    typeof raw.note_el === 'string' &&
+    typeof raw.note_en === 'string' &&
+    typeof raw.optional === 'boolean'
+  )
+}
+
+/** The jsonb steps as the contract says: a non-empty array of well-formed steps in `order` order. */
+function asSteps(value: unknown): SkincareRoutineStepSeed[] | typeof INVALID {
+  if (!Array.isArray(value) || value.length === 0 || !value.every(isRoutineStep)) return INVALID
+  return [...value].sort((a, b) => a.order - b.order)
 }
 
 function asNumber(value: unknown): number | typeof INVALID {
@@ -164,6 +190,8 @@ function coerce(value: unknown, kind: Kind): unknown {
       return typeof value === 'string' && (CONTENT_STATUSES as readonly string[]).includes(value)
         ? value
         : INVALID
+    case 'steps':
+      return asSteps(value)
   }
 }
 
@@ -283,6 +311,61 @@ const TIP_SPEC: Spec<HealthTip> = {
   body_el: 'string',
   body_en: 'string',
   source_url: 'string|null',
+  needs_source: 'boolean',
+}
+
+const SKINCARE_PRODUCT_TYPE_SPEC: Spec<SkincareProductType> = {
+  id: 'string',
+  status: 'status',
+  slug: 'string',
+  name_el: 'string',
+  name_en: 'string',
+  description_el: 'string',
+  description_en: 'string',
+  category: 'string',
+  key_ingredients: 'string[]',
+  avoid_with: 'string[]',
+  regions: 'string[]',
+  audiences: 'string[]',
+  skin_types: 'string[]',
+  concerns: 'string[]',
+  time: 'string',
+  price_band_eur: 'string',
+  notes_el: 'string',
+  notes_en: 'string',
+}
+
+const SKINCARE_ROUTINE_SPEC: Spec<SkincareRoutine> = {
+  id: 'string',
+  status: 'status',
+  slug: 'string',
+  area: 'string',
+  name_el: 'string',
+  name_en: 'string',
+  audience: 'string',
+  skin_type: 'string',
+  region: 'string',
+  time: 'string',
+  intro_el: 'string',
+  intro_en: 'string',
+  steps: 'steps',
+  duration_min: 'number',
+}
+
+const SKINCARE_TIP_SPEC: Spec<SkincareTip> = {
+  id: 'string',
+  status: 'status',
+  slug: 'string',
+  area: 'string',
+  title_el: 'string',
+  title_en: 'string',
+  body_el: 'string',
+  body_en: 'string',
+  audiences: 'string[]',
+  skin_types: 'string[]',
+  concerns: 'string[]',
+  regions: 'string[]',
+  sources: 'string[]',
   needs_source: 'boolean',
 }
 
@@ -465,6 +548,12 @@ export const toIngredient = (data: unknown): Ingredient | null => parseRow(data,
 export const toDiet = (data: unknown): Diet | null => parseRow(data, DIET_SPEC)
 export const toExercise = (data: unknown): Exercise | null => parseRow(data, EXERCISE_SPEC)
 export const toHealthTip = (data: unknown): HealthTip | null => parseRow(data, TIP_SPEC)
+export const toSkincareProductType = (data: unknown): SkincareProductType | null =>
+  parseRow(data, SKINCARE_PRODUCT_TYPE_SPEC)
+export const toSkincareRoutine = (data: unknown): SkincareRoutine | null =>
+  parseRow(data, SKINCARE_ROUTINE_SPEC)
+export const toSkincareTip = (data: unknown): SkincareTip | null =>
+  parseRow(data, SKINCARE_TIP_SPEC)
 
 // --- the source -----------------------------------------------------------------------------------
 
@@ -505,6 +594,18 @@ export function supabaseSourceFor(client: ContentClient): ContentSource {
       ),
     listTips: () =>
       run(() => client.list('health_tips', PLAIN_SELECT, approved), listOf(toHealthTip)),
+    listSkincareProductTypes: () =>
+      run(
+        () => client.list('skincare_product_types', PLAIN_SELECT, approved),
+        listOf(toSkincareProductType),
+      ),
+    listSkincareRoutines: () =>
+      run(
+        () => client.list('skincare_routines', PLAIN_SELECT, approved),
+        listOf(toSkincareRoutine),
+      ),
+    listSkincareTips: () =>
+      run(() => client.list('skincare_tips', PLAIN_SELECT, approved), listOf(toSkincareTip)),
   }
 }
 

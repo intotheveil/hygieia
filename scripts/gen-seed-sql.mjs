@@ -11,6 +11,8 @@
 //   exercises    exercises.ts (EXERCISES)         20261006000800_hygieia_seed_exercises.sql    exercises
 //   workouts     workouts.ts (WORKOUT_TEMPLATES)  20261006000900_hygieia_seed_workouts.sql     workout_templates, workout_template_exercises
 //   tips         tips.ts (HEALTH_TIPS)            20261006001000_hygieia_seed_tips.sql         health_tips
+//   skincare     skincare.ts (SKINCARE_PRODUCT_TYPES, SKINCARE_ROUTINES, SKINCARE_TIPS)
+//                                                 20261006001200_hygieia_seed_skincare.sql     skincare_product_types, skincare_routines, skincare_tips
 //
 // A kind whose module does not exist yet (workouts until P4.8) is SKIPPED with a printed line; in
 // `--check` mode a missing file for a missing module is not a difference (a present file for a
@@ -26,7 +28,9 @@
 //   * Deterministic: parent rows sorted by slug (code-unit order), children by parent slug then
 //     position (array index; recipe diet tags by diet slug); integers printed as-is, decimals via
 //     toFixed(6) with trailing zeros stripped; arrays as `array['a','b']::text[]` or `'{}'::text[]`;
-//     nulls as `null`; dates as `'YYYY-MM-DD'::date`; booleans `true`/`false`; `'` doubled.
+//     nulls as `null`; dates as `'YYYY-MM-DD'::date`; booleans `true`/`false`; `'` doubled;
+//     jsonb as `'<JSON.stringify>'::jsonb` with a FIXED key order per object (skincare routine steps:
+//     order, product_type_slug, note_el, note_en, optional; `order` = index + 1).
 //   * Idempotent-safe by construction (the gate applies the archive twice): every INSERT ends in
 //     `on conflict (<pk>) do nothing`. Rows are emitted in batches of <= 200 per statement.
 //   * Each file opens with a header naming this generator, the source module and the row counts.
@@ -141,6 +145,15 @@ export function sqlBool(b) {
 /** A `uuid` literal (already formatted by seedId). @param {string} id @returns {string} */
 const sqlUuid = (id) => `'${id}'::uuid`
 
+/**
+ * A `jsonb` literal from an already-normalised JSON value (the caller fixes key order so the output
+ * is deterministic). Postgres re-serialises jsonb, so whitespace here is irrelevant; quoting is `sqlText`'s.
+ * @param {unknown} value @returns {string}
+ */
+export function sqlJsonb(value) {
+  return `${sqlText(JSON.stringify(value))}::jsonb`
+}
+
 /** Code-unit order, locale-independent. @param {string} a @param {string} b */
 const bySlug = (a, b) => (a < b ? -1 : a > b ? 1 : 0)
 
@@ -169,7 +182,9 @@ export function insertStatements(table, columns, conflictColumns, rows) {
  * @typedef {object} KindSpec
  * @property {string} kind
  * @property {string} module   file name under the seed dir
- * @property {string} exportName
+ * @property {string} exportName  the module's (first) export array
+ * @property {Record<string, string>} [exports]  multi-table kinds: data key → export name (all arrays);
+ *                                               when present, `exportName` is the first of them
  * @property {string} file     migration file name
  * @property {string[]} tables tables the file inserts into, in insert order
  * @property {string[]} [needs] other kinds whose rows the children reference by slug
@@ -221,6 +236,19 @@ export const KINDS = Object.freeze([
     file: '20261006001000_hygieia_seed_tips.sql',
     tables: ['health_tips'],
   },
+  {
+    // P7.1: one module, three tables; routines reference product types by slug inside jsonb.
+    kind: 'skincare',
+    module: 'skincare.ts',
+    exportName: 'SKINCARE_PRODUCT_TYPES',
+    exports: {
+      skincareProductTypes: 'SKINCARE_PRODUCT_TYPES',
+      skincareRoutines: 'SKINCARE_ROUTINES',
+      skincareTips: 'SKINCARE_TIPS',
+    },
+    file: '20261006001200_hygieia_seed_skincare.sql',
+    tables: ['skincare_product_types', 'skincare_routines', 'skincare_tips'],
+  },
 ])
 
 /** @param {string} kind @returns {KindSpec} */
@@ -265,6 +293,9 @@ function fk(table, known, slug, from) {
 /** @typedef {import('../src/content/types.ts').ExerciseSeed} ExerciseSeed */
 /** @typedef {import('../src/content/types.ts').WorkoutTemplateSeed} WorkoutTemplateSeed */
 /** @typedef {import('../src/content/types.ts').HealthTipSeed} HealthTipSeed */
+/** @typedef {import('../src/content/types.ts').SkincareProductTypeSeed} SkincareProductTypeSeed */
+/** @typedef {import('../src/content/types.ts').SkincareRoutineSeed} SkincareRoutineSeed */
+/** @typedef {import('../src/content/types.ts').SkincareTipSeed} SkincareTipSeed */
 
 /**
  * The export arrays a render needs: the kind's own plus its `needs`. Keys are kinds.
@@ -275,6 +306,9 @@ function fk(table, known, slug, from) {
  * @property {readonly ExerciseSeed[]} [exercises]
  * @property {readonly WorkoutTemplateSeed[]} [workouts]
  * @property {readonly HealthTipSeed[]} [tips]
+ * @property {readonly SkincareProductTypeSeed[]} [skincareProductTypes]
+ * @property {readonly SkincareRoutineSeed[]} [skincareRoutines]
+ * @property {readonly SkincareTipSeed[]} [skincareTips]
  */
 
 /**
@@ -601,6 +635,160 @@ export function renderKind(kind, data) {
       ]),
     )
     counts.health_tips = rows.length
+  } else if (kind === 'skincare') {
+    const types = sortedBySlug(
+      'skincare_product_types',
+      need(data.skincareProductTypes, 'skincareProductTypes'),
+    )
+    const typeSlugs = new Set(types.map((t) => t.slug))
+    sql += insertStatements(
+      'skincare_product_types',
+      [
+        'id',
+        'slug',
+        'name_el',
+        'name_en',
+        'description_el',
+        'description_en',
+        'category',
+        'key_ingredients',
+        'avoid_with',
+        'regions',
+        'audiences',
+        'skin_types',
+        'concerns',
+        'time',
+        'price_band_eur',
+        'notes_el',
+        'notes_en',
+      ],
+      ['id'],
+      types.map((r) => [
+        sqlUuid(seedId('skincare_product_types', r.slug)),
+        sqlText(r.slug),
+        sqlText(r.name_el),
+        sqlText(r.name_en),
+        sqlText(r.description_el),
+        sqlText(r.description_en),
+        sqlText(r.category),
+        sqlTextArray(r.key_ingredients),
+        sqlTextArray(r.avoid_with),
+        sqlTextArray(r.regions),
+        sqlTextArray(r.audiences),
+        sqlTextArray(r.skin_types),
+        sqlTextArray(r.concerns),
+        sqlText(r.time),
+        sqlText(r.price_band_eur),
+        sqlText(r.notes_el),
+        sqlText(r.notes_en),
+      ]),
+    )
+    counts.skincare_product_types = types.length
+
+    const routines = sortedBySlug(
+      'skincare_routines',
+      need(data.skincareRoutines, 'skincareRoutines'),
+    )
+    sql += insertStatements(
+      'skincare_routines',
+      [
+        'id',
+        'slug',
+        'area',
+        'name_el',
+        'name_en',
+        'audience',
+        'skin_type',
+        'region',
+        'time',
+        'intro_el',
+        'intro_en',
+        'steps',
+        'duration_min',
+      ],
+      ['id'],
+      routines.map((r) => {
+        if (!Array.isArray(r.steps) || r.steps.length === 0)
+          throw new Error(`skincare_routines/${r.slug}: steps must be a non-empty array`)
+        const steps = r.steps.map((s, i) => {
+          const where = `skincare_routines/${r.slug} step ${i + 1}`
+          if (!typeSlugs.has(s.product_type_slug))
+            throw new Error(
+              `${where}: skincare_product_types slug "${s.product_type_slug}" does not resolve`,
+            )
+          if (s.order !== i + 1) throw new Error(`${where}: order ${s.order} != ${i + 1}`)
+          if (typeof s.note_el !== 'string' || typeof s.note_en !== 'string')
+            throw new Error(`${where}: note_el and note_en must be strings`)
+          if (typeof s.optional !== 'boolean')
+            throw new Error(`${where}: optional must be a boolean`)
+          // Fixed key order → deterministic bytes.
+          return {
+            order: i + 1,
+            product_type_slug: s.product_type_slug,
+            note_el: s.note_el,
+            note_en: s.note_en,
+            optional: s.optional,
+          }
+        })
+        return [
+          sqlUuid(seedId('skincare_routines', r.slug)),
+          sqlText(r.slug),
+          sqlText(r.area),
+          sqlText(r.name_el),
+          sqlText(r.name_en),
+          sqlText(r.audience),
+          sqlText(r.skin_type),
+          sqlText(r.region),
+          sqlText(r.time),
+          sqlText(r.intro_el),
+          sqlText(r.intro_en),
+          sqlJsonb(steps),
+          sqlInt(r.duration_min),
+        ]
+      }),
+    )
+    counts.skincare_routines = routines.length
+
+    const tips = sortedBySlug('skincare_tips', need(data.skincareTips, 'skincareTips'))
+    sql += insertStatements(
+      'skincare_tips',
+      [
+        'id',
+        'slug',
+        'area',
+        'title_el',
+        'title_en',
+        'body_el',
+        'body_en',
+        'audiences',
+        'skin_types',
+        'concerns',
+        'regions',
+        'sources',
+        'needs_source',
+      ],
+      ['id'],
+      tips.map((r) => {
+        if (r.needs_source !== (r.sources.length === 0))
+          throw new Error(`skincare_tips/${r.slug}: needs_source must equal (sources is empty)`)
+        return [
+          sqlUuid(seedId('skincare_tips', r.slug)),
+          sqlText(r.slug),
+          sqlText(r.area),
+          sqlText(r.title_el),
+          sqlText(r.title_en),
+          sqlText(r.body_el),
+          sqlText(r.body_en),
+          sqlTextArray(r.audiences),
+          sqlTextArray(r.skin_types),
+          sqlTextArray(r.concerns),
+          sqlTextArray(r.regions),
+          sqlTextArray(r.sources),
+          sqlBool(r.needs_source),
+        ]
+      }),
+    )
+    counts.skincare_tips = tips.length
   } else {
     throw new Error(`renderKind: no renderer for kind ${kind}`)
   }
@@ -616,10 +804,11 @@ export function renderKind(kind, data) {
  */
 export function header(spec, counts) {
   const rows = spec.tables.map((t) => `${t} ${counts[t]}`).join(', ')
+  const exported = spec.exports ? Object.values(spec.exports).join(', ') : spec.exportName
   return (
     `-- GENERATED by scripts/gen-seed-sql.mjs (npm run seed:gen) — do not edit by hand; edit the\n` +
     `-- source module and regenerate. \`npm run seed:check\` fails on any drift (PLAN.md P1.12, §1.6).\n` +
-    `-- Source: src/content/seed/${spec.module} (${spec.exportName}). Rows: ${rows}.\n` +
+    `-- Source: src/content/seed/${spec.module} (${exported}). Rows: ${rows}.\n` +
     `-- Ids are md5('hygieia:<table>:<slug>')::uuid; status is omitted (default pending);\n` +
     `-- every statement is \`on conflict do nothing\`, so re-applying is a no-op.\n\n`
   )
@@ -628,17 +817,24 @@ export function header(spec, counts) {
 // --- loading the modules -------------------------------------------------------------------------
 
 /**
- * Import one seed module by path (node type stripping) and return its export array.
- * @param {string} seedDir @param {KindSpec} spec @returns {Promise<readonly unknown[]>}
+ * Import one seed module by path (node type stripping) and return its export arrays keyed the way
+ * `SeedData` expects: `{ [kind]: rows }` for a single-export kind, or one key per `exports` entry.
+ * @param {string} seedDir @param {KindSpec} spec @returns {Promise<Record<string, readonly unknown[]>>}
  */
 async function loadKind(seedDir, spec) {
   const file = path.join(seedDir, spec.module)
   /** @type {Record<string, unknown>} */
   const mod = await import(pathToFileURL(file).href)
-  const arr = mod[spec.exportName]
-  if (!Array.isArray(arr))
-    throw new Error(`${spec.module} does not export an array named ${spec.exportName}`)
-  return arr
+  const wanted = spec.exports ?? { [spec.kind]: spec.exportName }
+  /** @type {Record<string, readonly unknown[]>} */
+  const out = {}
+  for (const [key, exportName] of Object.entries(wanted)) {
+    const arr = mod[exportName]
+    if (!Array.isArray(arr))
+      throw new Error(`${spec.module} does not export an array named ${exportName}`)
+    out[key] = arr
+  }
+  return out
 }
 
 /**
@@ -657,11 +853,11 @@ async function loadKind(seedDir, spec) {
 export async function generate(opts = {}) {
   const seedDir = opts.seedDir ?? DEFAULT_SEED_DIR
   const wanted = opts.kinds ? opts.kinds.map(kindSpec) : KINDS
-  /** @type {Map<string, readonly unknown[]>} */
+  /** @type {Map<string, Record<string, readonly unknown[]>>} */
   const loaded = new Map()
   const load = async (/** @type {string} */ kind) => {
     if (!loaded.has(kind)) loaded.set(kind, await loadKind(seedDir, kindSpec(kind)))
-    return /** @type {readonly unknown[]} */ (loaded.get(kind))
+    return /** @type {Record<string, readonly unknown[]>} */ (loaded.get(kind))
   }
 
   /** @type {Generated} */
@@ -672,11 +868,11 @@ export async function generate(opts = {}) {
       continue
     }
     /** @type {Record<string, readonly unknown[]>} */
-    const data = { [spec.kind]: await load(spec.kind) }
+    const data = { ...(await load(spec.kind)) }
     for (const dep of spec.needs ?? []) {
       if (!existsSync(path.join(seedDir, kindSpec(dep).module)))
         throw new Error(`${spec.kind} needs ${kindSpec(dep).module}, which is absent`)
-      data[dep] = await load(dep)
+      Object.assign(data, await load(dep))
     }
     // reason: the modules are typed at their source; here they arrive as unknown[] from a dynamic import.
     const { sql, counts } = renderKind(spec.kind, /** @type {SeedData} */ (data))

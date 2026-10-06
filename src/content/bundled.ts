@@ -35,6 +35,9 @@ import {
   type Recipe,
   type RecipeFilter,
   type Result,
+  type SkincareProductType,
+  type SkincareRoutine,
+  type SkincareTip,
   type WorkoutTemplate,
 } from './source.ts'
 import type {
@@ -43,6 +46,9 @@ import type {
   HealthTipSeed,
   IngredientSeed,
   RecipeSeed,
+  SkincareProductTypeSeed,
+  SkincareRoutineSeed,
+  SkincareTipSeed,
   WorkoutTemplateSeed,
 } from './types.ts'
 
@@ -70,6 +76,10 @@ export interface BundledSeeds {
   exercises: SeedTable<ExerciseSeed>
   workoutTemplates: SeedTable<WorkoutTemplateSeed>
   tips: SeedTable<HealthTipSeed>
+  /** P7.1 — the three skincare tables share ONE module, so Vite emits one chunk for all three. */
+  skincareProductTypes: SeedTable<SkincareProductTypeSeed>
+  skincareRoutines: SeedTable<SkincareRoutineSeed>
+  skincareTips: SeedTable<SkincareTipSeed>
 }
 
 /**
@@ -83,6 +93,9 @@ export const BUNDLED_SEEDS: BundledSeeds = {
   exercises: () => import('./seed/exercises.ts').then((m) => m.EXERCISES),
   workoutTemplates: () => import('./seed/workouts.ts').then((m) => m.WORKOUT_TEMPLATES),
   tips: () => import('./seed/tips.ts').then((m) => m.HEALTH_TIPS),
+  skincareProductTypes: () => import('./seed/skincare.ts').then((m) => m.SKINCARE_PRODUCT_TYPES),
+  skincareRoutines: () => import('./seed/skincare.ts').then((m) => m.SKINCARE_ROUTINES),
+  skincareTips: () => import('./seed/skincare.ts').then((m) => m.SKINCARE_TIPS),
 }
 
 /** Resolve a `SeedTable` to its rows (an array resolves at once; a loader is called). */
@@ -131,6 +144,24 @@ export function createBundledSource(seeds: BundledSeeds): ContentSource {
   const tips = lazy<HealthTip[]>(async () =>
     (await rowsOf(seeds.tips)).map((row) => ({ ...row, ...meta('health_tips', row.slug) })),
   )
+  const skincareProductTypes = lazy<SkincareProductType[]>(async () =>
+    (await rowsOf(seeds.skincareProductTypes)).map((row) => ({
+      ...row,
+      ...meta('skincare_product_types', row.slug),
+    })),
+  )
+  const skincareRoutines = lazy<SkincareRoutine[]>(async () =>
+    (await rowsOf(seeds.skincareRoutines)).map((row) => ({
+      ...row,
+      ...meta('skincare_routines', row.slug),
+    })),
+  )
+  const skincareTips = lazy<SkincareTip[]>(async () =>
+    (await rowsOf(seeds.skincareTips)).map((row) => ({
+      ...row,
+      ...meta('skincare_tips', row.slug),
+    })),
+  )
   const recipes = lazy<Recipe[]>(async () => {
     // Both tables in parallel: the recipe chunk and the ingredient chunk download side by side.
     const [rows, ingredientRows] = await Promise.all([rowsOf(seeds.recipes), ingredients()])
@@ -176,6 +207,9 @@ export function createBundledSource(seeds: BundledSeeds): ContentSource {
           ) ?? null,
       ),
     listTips: () => attempt(async () => [...(await tips())]),
+    listSkincareProductTypes: () => attempt(async () => [...(await skincareProductTypes())]),
+    listSkincareRoutines: () => attempt(async () => [...(await skincareRoutines())]),
+    listSkincareTips: () => attempt(async () => [...(await skincareTips())]),
   }
 }
 

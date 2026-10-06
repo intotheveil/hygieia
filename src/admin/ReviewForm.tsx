@@ -104,6 +104,23 @@ function ScalarInput({ field, value, invalid, lang, onChange }: ScalarInputProps
           />
         </div>
       )
+    case 'json':
+      // jsonb (skincare routine steps, P7.1): edited as JSON text; Save is blocked until it parses
+      // to a non-empty array (fields.ts `fromEdit`).
+      return (
+        <div>
+          {label}
+          <textarea
+            id={id}
+            value={text}
+            rows={12}
+            spellCheck={false}
+            aria-invalid={invalid}
+            onChange={(e) => onChange(e.target.value)}
+            className={`${INPUT} font-mono text-xs`}
+          />
+        </div>
+      )
     default:
       return (
         <div>

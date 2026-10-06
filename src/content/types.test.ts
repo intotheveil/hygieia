@@ -86,7 +86,7 @@ describe('SLUG_RE', () => {
 })
 
 describe('table catalogue', () => {
-  it('names the six status-bearing content tables', () => {
+  it('names the nine status-bearing content tables (six + the P7.1 skincare three)', () => {
     expect(CONTENT_TABLES).toEqual([
       'ingredients',
       'diets',
@@ -94,8 +94,11 @@ describe('table catalogue', () => {
       'exercises',
       'workout_templates',
       'health_tips',
+      'skincare_product_types',
+      'skincare_routines',
+      'skincare_tips',
     ])
-    expect(CONTENT_TABLES).toHaveLength(6)
+    expect(CONTENT_TABLES).toHaveLength(9)
   })
 
   it('names the child and per-user tables, with no overlap between the three lists', () => {

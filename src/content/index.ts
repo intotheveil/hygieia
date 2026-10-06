@@ -50,6 +50,9 @@ export function deferredSource(
       s.getWorkoutTemplate(type, level, intensity),
     ),
     listTips: via((s) => s.listTips()),
+    listSkincareProductTypes: via((s) => s.listSkincareProductTypes()),
+    listSkincareRoutines: via((s) => s.listSkincareRoutines()),
+    listSkincareTips: via((s) => s.listSkincareTips()),
   }
 }
 
@@ -76,6 +79,9 @@ export type {
   RecipeFilter,
   RecipeLine,
   Result,
+  SkincareProductType,
+  SkincareRoutine,
+  SkincareTip,
   WorkoutSlot,
   WorkoutTemplate,
 } from './source.ts'

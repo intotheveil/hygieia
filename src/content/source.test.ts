@@ -116,6 +116,9 @@ const fixtureSource = createBundledSource({
   exercises: [EX('march'), EX('squat')],
   workoutTemplates: [TEMPLATE],
   tips: [],
+  skincareProductTypes: [],
+  skincareRoutines: [],
+  skincareTips: [],
 })
 
 // --- bundled ----------------------------------------------------------------------------------------
