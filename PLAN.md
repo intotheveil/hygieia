@@ -74,6 +74,11 @@ using (status = 'approved')` and `for select to authenticated using (status = 'a
    therefore interpreted as "e2e is a _standing gate_ from P5"; `npm run e2e` exists from P3.6.
 10. **Lighthouse (P5.3):** Lighthouse 12 removed the PWA category, so "PWA/perf ≥ 90" is encoded as
     mobile **performance ≥ 90 and accessibility ≥ 90 and best-practices ≥ 90**; installability stays `check:pwa`.
+    **Amended 2026-10-06 (ADR-0006, after P5/P6 QA):** the gate is a **cold-visit gate 85/90/90** — every
+    audit blocks the service worker so the measurement is deterministic and a function of the artifact
+    alone; performance ≥ 85 locally AND in CI (no CI tolerance), accessibility ≥ 90, best-practices ≥ 90.
+    **90 performance is the target**, not the gate (backlog; levers: seed bytes behind LCP on content
+    routes, server-side content once configured mode ships).
 11. **Fleet telemetry env names** stay as reserved in `.env.example`: `VITE_FLEET_URL`, `VITE_FLEET_KEY`,
     `VITE_FLEET_PRODUCT_ID` (Enodia's donor uses `VITE_FLEET_TELEMETRY_*`; names are remapped at init, nothing else).
 

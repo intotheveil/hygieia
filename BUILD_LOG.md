@@ -3,6 +3,98 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+### Lighthouse gate correctness (answer to P5/P6 QA failure 1) — 2026-10-06 — DONE (builder, worktree `wt/g` on `9295637`; uncommitted for the lead; ADR-0006)
+
+**What.** `npm run check:lighthouse` now measures the **COLD first visit, deterministically**, and gates at **performance ≥ 85 / accessibility ≥ 90 /
+best-practices ≥ 90, the same locally and in CI** (lead decision → `DECISIONS.md` ADR-0006). QA's root cause (the SW installs ~300 ms into an audit and
+whichever seed chunks are requested after that moment come from its precache at `transferSize 0`; 91 vs 87 on the same artifact) is removed at the
+source: every audit runs with Lighthouse `blockedUrlPatterns: ['*/registerSW.js', '*/sw.js']`, so no service worker ever registers during an audit, and
+the script PROVES it from each LHR before accepting the score. 90 performance stays the TARGET (PLAN §1 item 10 amended), not the gate.
+
+**Files (6, all in scope):**
+- `scripts/check-lighthouse.mjs` — header rewritten (thresholds block, the ADR-0006 "cold first visit by construction" paragraph with the documented 3-run
+  determinism command, exit code 2 now also = "not a cold visit"); `THRESHOLDS.performance` 90 → **85**; `CI_PERFORMANCE_TOLERANCE` and
+  `effectiveThresholds` **removed** (no CI code path, no CI header text); `evaluate(results)` takes no environment; new exports `PERFORMANCE_TARGET = 90`,
+  `BLOCKED_URL_PATTERNS`, `MODE_LINE`, `lighthouseFlags({ port })` (the exact flags object passed to Lighthouse, so the test can assert the block is in it),
+  `verifyColdVisit(lhr)` (`sw.js` never requested; `registerSW.js` never delivered; every `/assets/*.js` request `transferSize > 0`; missing
+  `network-requests` audit = failure). `main()` prints `mode: cold first visit (service worker blocked: */registerSW.js, */sw.js)` in the startup block,
+  runs `verifyColdVisit` after every audit (a SW-served chunk → `run failed`, exit 2 — an invalid measurement is neither pass nor fail), appends
+  `(cold: N /assets/*.js from the network, no SW)` to each `audited` line, and prints one thresholds line (`… performance >= 85 (target 90) …`).
+- `scripts/check-lighthouse.test.ts` — the CI-tolerance tests replaced by the one-bar contract (85 passes, 84 fails; 87/88 — QA's cold numbers — pass; a11y/bp
+  89 fail; tolerance exports absent; `evaluate.length === 1`), plus a `cold first visit by construction` block: `BLOCKED_URL_PATTERNS`, `lighthouseFlags`
+  carries the block + the mobile preset and returns a fresh copy per call, `MODE_LINE`, and `verifyColdVisit` on fixtures copied from real LHRs (QA's
+  SW-served signature `transferSize 0 / status 200` rejected; the blocked `registerSW.js` `statusCode -1 / transferSize 0` accepted; delivered
+  `registerSW.js` and any `sw.js` request rejected; no network evidence rejected; missing `transferSize` and query strings handled). **56 tests** in the
+  file; the suite is **3206** (was 3197).
+- `.github/workflows/deploy.yml` — the Lighthouse step comment: cold first visit, 85 cold floor / 90 target, one bar, the tolerance sentence removed.
+- `PLAN.md` §1 item 10 — amended: "cold-visit gate 85/90/90 (ADR-0006); 90 performance is the target".
+- `DECISIONS.md` — **ADR-0006** (decision, why — incl. the Enodia 96–97 precedent being a demo with no content payload, alternatives rejected, consequence).
+- `BRAIN.md` — header/status; §2 gates line; §3 `check:lighthouse` state; §5 the "cold visit scores ~87–88 … 90 is met when the SW wins" gotcha gets its
+  superseding conclusion APPENDED (nothing deleted) + a new gotcha on record files and the `format.sh` hook (below); §6 changelog entry; §7 ADR-0006 line.
+
+**Verification — fresh `npm run build` (local-only, `index-CSN5AedY.js 235.37 kB │ gzip 73.62 kB`, `precache 69 entries`), then `npm run check:lighthouse`
+three consecutive times on that unchanged `dist/` (runs 1–3 back to back in one shell loop), each printing the `mode:` line and 12 `cold:` lines:**
+```
+route        run 1   run 2   run 3   run 4*  | a11y · bp · seo (all runs)
+home            92      92      92      92   | 100 · 100 · 100
+recipes         87      88      87      87   |
+recipe          87      88      87      87   |
+fridge          88      87      88      87   |
+diets           90      90      90      90   |
+diet            87      87      87      87   |
+workouts        90      90      90      90   |
+tips            91      90      90      90   |
+auth            93      93      93      93   |
+account         94      97**    94      94   |
+admin           94      94      94      94   |
+not-found       94      94      94      94   |
+exit             0       0       0       0
+```
+- Every run: `check:lighthouse OK — 12 route(s) at or above every threshold`, exit 0. 35 of 36 perf cells of runs 1–3 agree within ±1; a11y / bp / seo
+  100 everywhere. The content routes sit at **87–88 cold** (LCP 3.5 s, FCP 2.4–2.6 s, TBT 0 ms, CLS 0) — the honest first-visit number QA named.
+- `**` `account` 97 in run 2 is outside ±1. During run 2 I was running git/node/prettier work on this machine (record-file repair, below) — the CPU noise
+  the BRAIN §5 gotcha warns feeds Lighthouse's simulation. `*` run 4 was taken deliberately with NOTHING else running: identical to runs 1 and 3 within
+  ±1 on every cell, `account` 94 with the same metric breakdown as run 3 (FCP 2.4 s, LCP 2.6 s, TBT 0 ms, CLS 0.001, SI 2.4 s). The SW race is gone
+  (36/36 + 12/12 audits verified cold); what remains is the ±1 the simulation always had, plus whatever the operator runs alongside.
+- **Cold evidence from the LHRs (run 1, `lighthouse-report/{fridge,recipe,diet}.json` → `audits['network-requests'].details.items`):**
+  `fridge`: `index-CSN5AedY.js transferSize 73062 status 200` · `registerSW.js transferSize 0 status -1` (blocked) · `ingredients-DwZv3rQQ.js transferSize
+  15209 status 200` · `recipes-Dq_qi9iR.js transferSize 48089 status 200` · assets.js with transferSize 0: **0** · `runWarnings: []`; `recipe` adds
+  `diets-xpoD_0O8.js transferSize 25118`; `diet` the same three seed chunks — all non-zero, every content-route audit, every run (the script would have
+  exited 2 otherwise). No `sw.js` request in any LHR.
+- Gate chain after the Lighthouse runs: `npm run lint` → `✖ 21 problems (0 errors, 21 warnings)` (the pre-existing `react-refresh` set), exit 0 ·
+  `npm run typecheck` → `tsc -b` silent, exit 0 · `npm test` → **`Test Files 63 passed` · `Tests 3206 passed`** (16.6 s) · `npm run build` AGAIN (because
+  `npm test` rewrites `dist/` with the dev React build — BRAIN §5; the lead's sequence had `check:pwa` + e2e straight after `npm test`, I put the rebuild
+  in between so the e2e exercise the production artifact; deviation, declared) → `index-CSN5AedY.js 235.37 kB` · `npm run check:pwa` → `check:pwa OK —
+  Hygieia · Υγίεια, 3 icons, sw.js present` · `E2E_PREBUILT=1 npm run e2e -- --reporter=list` → **`66 passed (37.7s)`**, 0 failed/flaky (the SW's
+  offline / clientsClaim behaviour untouched and still proven by `offline.spec.ts`). `npx prettier --check` clean on the three code files;
+  `npx eslint scripts/check-lighthouse.mjs scripts/check-lighthouse.test.ts` clean.
+
+**Deviations from the brief, for the lead:**
+1. The brief asked to verify per LHR that no request has `fromServiceWorker` and that the `service-worker` audit shows none registered. **Lighthouse 12.8.2 has
+   neither** — the `service-worker` audit left with the PWA category and `network-requests` items carry no `fromServiceWorker` field (keys: `url,
+   sessionTargetType, protocol, rendererStartTime, networkRequestTime, networkEndTime, finished, transferSize, resourceSize, statusCode, mimeType,
+   resourceType, priority, experimentalFromMainFrame, entity`). `verifyColdVisit` uses what the LHR does carry: `transferSize > 0` on every `/assets/*.js`
+   (QA's own SW signature was `transferSize 0 / status 200`), `registerSW.js` not delivered (it shows as `statusCode -1 / transferSize 0` when blocked),
+   and no `sw.js` request at all. Same proof, different field.
+2. Rebuild between `npm test` and `check:pwa`/e2e (above).
+3. A fourth Lighthouse run was added (idle machine) after the run-2 `account` cell; the three requested runs are reported unedited.
+4. **Record-file incident, repaired, worth a rule:** the session's `format.sh` PostToolUse hook runs prettier from the DISPATCHING project's cwd, so this
+   repo's `.prettierignore` (which lists `BRAIN.md`, `BUILD_LOG.md`, `DECISIONS.md`) was not consulted and an `Edit` of `BRAIN.md` reformatted it (list
+   markers `+`→`-`, table re-padding, de-indented continuation lines, a code-span change); and issuing six `Edit`s of `BRAIN.md` in one turn raced the
+   formatter and silently LOST one of them (the §5 gotcha append). Repaired by rebuilding `BRAIN.md` from HEAD with only my hunks (`git diff -U0` →
+   filtered patch → `git apply --unidiff-zero`), splicing the gotcha with `node -e`, and verifying `git diff -U0 BRAIN.md | grep ^@@` = exactly my 6 hunks
+   (`+39 −8`). This BUILD_LOG entry was spliced in with `node -e` for the same reason (the file would otherwise be reformatted end to end). `DECISIONS.md`
+   and `PLAN.md` diffs are pure insertions (verified). Recorded as a BRAIN §5 gotcha; the hook itself (`.claude/hooks/format.sh`, a Zeus kit file) is out of
+   this task's scope — the lead may want it to honour the TARGET repo's `.prettierignore` (e.g. `cd "$root" && prettier --write <relative>`).
+5. `scripts/check-lighthouse.mjs` and `deploy.yml` went through `prettier --write` (both were prettier-clean at HEAD; the only content change is one
+   wrapped `reasons.push(...)` line). The working-tree files are now LF where the checkout had CRLF — `core.autocrlf=true` normalises on commit, and
+   `git diff` shows no EOL-only changes.
+
+**Not done / next:** nothing of the task is left. Hand-off: test-writer (the 56-test file is already the coverage; a review of the fixtures against real
+LHRs is the useful pass) → reviewer → the lead commits and merges `wt/g` → **CI's first run on the one 85 bar is the honest runner reading** (if
+`ubuntu-latest` measures below 85 cold, the gate will say so — that is the point) → **P5/P6 re-QA** on this change. The artifact's cold 87 vs the 90
+target remains backlog (PLAN §1 item 10): seed bytes behind LCP on content routes; server-side content once configured mode ships.
+
 ### P5.QA + P6.QA — 2026-10-06 — FAILURES (one local criterion red: `check:lighthouse` is non-deterministic on a clean clone — 2 of 3 runs FAIL with one content route at 87; every other local P5/P6 criterion PASS; operator items NOT RUN)
 
 **Independent QA (agent `qa`, not a builder).** Fresh clone `git clone https://github.com/intotheveil/hygieia` → scratchpad `hygieia-qa56` at **`b14b2f9`**

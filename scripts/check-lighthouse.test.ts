@@ -1,11 +1,13 @@
 // @vitest-environment node
 //
 // P5.3 — the Lighthouse mobile gate (`npm run check:lighthouse`): the PURE parts. Threshold
-// evaluation (pass / fail / the CI tolerance applies to performance only and only under CI), the
-// shared route list and its validation, the LHR summariser (scores + top failing audits), the
-// table and failure formatting, the headless-shell path derivation, and the audit server's
-// Pages-like behaviour on a temp dist (gzip for text, the deep-link fallback as 200). Lighthouse
-// itself is NOT run here (that is the gate; it needs Chrome, a build and ~1 min).
+// evaluation (pass / fail; ONE set of thresholds, no CI variant — ADR-0006), the cold-first-visit
+// construction (the service-worker block in the Lighthouse flags the script builds, and the LHR
+// proof that no chunk came from a service worker), the shared route list and its validation, the
+// LHR summariser (scores + top failing audits), the table and failure formatting, the
+// headless-shell path derivation, and the audit server's Pages-like behaviour on a temp dist (gzip
+// for text, the deep-link fallback as 200). Lighthouse itself is NOT run here (that is the gate;
+// it needs Chrome, a build and ~1 min).
 
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { get as httpGet, type Server } from 'node:http'
@@ -16,22 +18,25 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { ROUTES, ROUTE_BASE } from '../e2e/support/routes.ts'
 import {
   BASE,
+  BLOCKED_URL_PATTERNS,
   CATEGORIES,
-  CI_PERFORMANCE_TOLERANCE,
+  MODE_LINE,
+  PERFORMANCE_TARGET,
   THRESHOLDS,
   TOP_AUDITS,
   auditStatus,
   contentTypeOf,
-  effectiveThresholds,
   evaluate,
   formatFailure,
   formatTable,
   headlessShellDir,
   isCompressible,
   isFailingAudit,
+  lighthouseFlags,
   parseRoutes,
   startAuditServer,
   summarise,
+  verifyColdVisit,
 } from './check-lighthouse.mjs'
 
 type Category = 'performance' | 'accessibility' | 'best-practices' | 'seo'
@@ -56,7 +61,7 @@ const scores = (
   'best-practices': bp,
   seo,
 })
-const allGreen = scores(90, 90, 90, 90)
+const allGreen = scores(85, 90, 90, 90)
 const home = route('/hygieia/', 'home')
 const auth = route('/hygieia/auth', 'auth')
 
@@ -153,71 +158,61 @@ describe('parseRoutes', () => {
   })
 })
 
-describe('thresholds and evaluate', () => {
-  it('gates performance, accessibility and best-practices at 90; seo is informational', () => {
-    expect(THRESHOLDS).toEqual({ performance: 90, accessibility: 90, 'best-practices': 90 })
+describe('thresholds and evaluate (ADR-0006: one bar, cold first visit, no CI tolerance)', () => {
+  it('gates performance at 85 (the measured cold floor), accessibility and best-practices at 90; seo is informational', () => {
+    expect(THRESHOLDS).toEqual({ performance: 85, accessibility: 90, 'best-practices': 90 })
     expect('seo' in THRESHOLDS).toBe(false)
     expect(CATEGORIES).toEqual(['performance', 'accessibility', 'best-practices', 'seo'])
-    expect(CI_PERFORMANCE_TOLERANCE).toBe(5)
   })
 
-  it('local: exactly the thresholds; CI: performance lowered by the tolerance, nothing else', () => {
-    expect(effectiveThresholds({ ci: false })).toEqual({
-      performance: 90,
-      accessibility: 90,
-      'best-practices': 90,
-    })
-    expect(effectiveThresholds({ ci: true })).toEqual({
-      performance: 85,
-      accessibility: 90,
-      'best-practices': 90,
-    })
+  it('keeps 90 as the recorded performance TARGET, distinct from the gate', () => {
+    expect(PERFORMANCE_TARGET).toBe(90)
+    expect(PERFORMANCE_TARGET).toBeGreaterThan(THRESHOLDS.performance)
+  })
+
+  it('has no CI variant: evaluate takes no environment and the tolerance exports are gone', async () => {
+    const mod: Record<string, unknown> = await import('./check-lighthouse.mjs')
+    expect('CI_PERFORMANCE_TOLERANCE' in mod).toBe(false)
+    expect('effectiveThresholds' in mod).toBe(false)
+    expect(evaluate.length).toBe(1)
   })
 
   it('passes when every gating score is at or above its threshold, whatever seo says', () => {
-    expect(evaluate([{ route: home, scores: allGreen }], { ci: false })).toEqual([])
-    expect(evaluate([{ route: home, scores: scores(100, 100, 100, 0) }], { ci: false })).toEqual([])
-    expect(evaluate([{ route: home, scores: scores(90, 90, 90, null) }], { ci: false })).toEqual([])
+    expect(evaluate([{ route: home, scores: allGreen }])).toEqual([])
+    expect(evaluate([{ route: home, scores: scores(100, 100, 100, 0) }])).toEqual([])
+    expect(evaluate([{ route: home, scores: scores(85, 90, 90, null) }])).toEqual([])
   })
 
   it('fails one point below threshold, naming the route, the category, the score and the threshold', () => {
-    expect(evaluate([{ route: home, scores: scores(89, 100, 100, 100) }], { ci: false })).toEqual([
-      { route: home, category: 'performance', score: 89, threshold: 90 },
+    expect(evaluate([{ route: home, scores: scores(84, 100, 100, 100) }])).toEqual([
+      { route: home, category: 'performance', score: 84, threshold: 85 },
     ])
-    expect(evaluate([{ route: auth, scores: scores(100, 89, 100, 100) }], { ci: false })).toEqual([
+    expect(evaluate([{ route: auth, scores: scores(100, 89, 100, 100) }])).toEqual([
       { route: auth, category: 'accessibility', score: 89, threshold: 90 },
     ])
-    expect(evaluate([{ route: auth, scores: scores(100, 100, 89, 100) }], { ci: false })).toEqual([
+    expect(evaluate([{ route: auth, scores: scores(100, 100, 89, 100) }])).toEqual([
       { route: auth, category: 'best-practices', score: 89, threshold: 90 },
     ])
   })
 
-  it('in CI tolerates performance down to 85 — and not 84', () => {
-    expect(evaluate([{ route: home, scores: scores(85, 90, 90, 90) }], { ci: true })).toEqual([])
-    expect(evaluate([{ route: home, scores: scores(84, 90, 90, 90) }], { ci: true })).toEqual([
-      { route: home, category: 'performance', score: 84, threshold: 85 },
-    ])
+  it('the cold-visit numbers QA measured (87–88 on content routes) pass; 85 passes; 84 does not', () => {
+    expect(evaluate([{ route: home, scores: scores(87, 100, 100, 100) }])).toEqual([])
+    expect(evaluate([{ route: home, scores: scores(88, 100, 100, 100) }])).toEqual([])
+    expect(evaluate([{ route: home, scores: scores(85, 100, 100, 100) }])).toEqual([])
+    expect(evaluate([{ route: home, scores: scores(84, 100, 100, 100) }])).toHaveLength(1)
   })
 
-  it('in CI gives NO tolerance to accessibility or best-practices', () => {
-    expect(evaluate([{ route: home, scores: scores(90, 89, 90, 90) }], { ci: true })).toEqual([
+  it('accessibility and best-practices get no slack: 89 fails even with a perfect performance', () => {
+    expect(evaluate([{ route: home, scores: scores(100, 89, 90, 90) }])).toEqual([
       { route: home, category: 'accessibility', score: 89, threshold: 90 },
     ])
-    expect(evaluate([{ route: home, scores: scores(90, 90, 89, 90) }], { ci: true })).toEqual([
+    expect(evaluate([{ route: home, scores: scores(100, 90, 89, 90) }])).toEqual([
       { route: home, category: 'best-practices', score: 89, threshold: 90 },
     ])
   })
 
-  it('outside CI, 85 on performance is a failure (the tolerance never leaks locally)', () => {
-    expect(evaluate([{ route: home, scores: scores(85, 90, 90, 90) }], { ci: false })).toEqual([
-      { route: home, category: 'performance', score: 85, threshold: 90 },
-    ])
-  })
-
   it('treats a missing (null) gating score as a failure — a category that produced nothing must not pass', () => {
-    expect(
-      evaluate([{ route: auth, scores: scores(null, null, null, null) }], { ci: true }),
-    ).toEqual([
+    expect(evaluate([{ route: auth, scores: scores(null, null, null, null) }])).toEqual([
       { route: auth, category: 'performance', score: null, threshold: 85 },
       { route: auth, category: 'accessibility', score: null, threshold: 90 },
       { route: auth, category: 'best-practices', score: null, threshold: 90 },
@@ -225,14 +220,11 @@ describe('thresholds and evaluate', () => {
   })
 
   it('reports every failing pair across routes, route order then category order', () => {
-    const failures = evaluate(
-      [
-        { route: home, scores: scores(70, 100, 80, 100) },
-        { route: auth, scores: allGreen },
-        { route: route('/hygieia/x', 'x'), scores: scores(100, 50, 100, 100) },
-      ],
-      { ci: false },
-    )
+    const failures = evaluate([
+      { route: home, scores: scores(70, 100, 80, 100) },
+      { route: auth, scores: allGreen },
+      { route: route('/hygieia/x', 'x'), scores: scores(100, 50, 100, 100) },
+    ])
     expect(failures.map((f) => `${f.route.name}:${f.category}:${f.score}`)).toEqual([
       'home:performance:70',
       'home:best-practices:80',
@@ -257,6 +249,133 @@ describe('isFailingAudit (Lighthouse "passed" = numeric >= 0.9, binary == 1)', (
     [{ score: 0.2 }, false],
   ])('%j → %s', (audit, failing) => {
     expect(isFailingAudit(audit)).toBe(failing)
+  })
+})
+
+describe('cold first visit by construction (ADR-0006)', () => {
+  it('blocks the service-worker registration script and the worker itself', () => {
+    expect([...BLOCKED_URL_PATTERNS]).toEqual(['*/registerSW.js', '*/sw.js'])
+    expect(Object.isFrozen(BLOCKED_URL_PATTERNS)).toBe(true)
+  })
+
+  it('the Lighthouse flags the script builds carry the block, the mobile preset and the four categories', () => {
+    const flags = lighthouseFlags({ port: 9222 })
+    expect(flags.blockedUrlPatterns).toEqual(['*/registerSW.js', '*/sw.js'])
+    expect(flags.port).toBe(9222)
+    expect(flags.formFactor).toBe('mobile')
+    expect(flags.throttlingMethod).toBe('simulate')
+    expect(flags.screenEmulation).toEqual({
+      mobile: true,
+      width: 412,
+      height: 823,
+      deviceScaleFactor: 1.75,
+      disabled: false,
+    })
+    expect(flags.onlyCategories).toEqual([...CATEGORIES])
+    expect(flags.output).toEqual(['html', 'json'])
+    // A fresh copy each call: mutating one run's flags must not leak into the next route's.
+    flags.blockedUrlPatterns.push('*/other.js')
+    expect(lighthouseFlags({ port: 9222 }).blockedUrlPatterns).toEqual([
+      '*/registerSW.js',
+      '*/sw.js',
+    ])
+  })
+
+  it('the startup line says what is measured', () => {
+    expect(MODE_LINE).toBe(
+      'mode: cold first visit (service worker blocked: */registerSW.js, */sw.js)',
+    )
+  })
+
+  const item = (url: string, transferSize: number, statusCode = 200) => ({
+    url,
+    transferSize,
+    statusCode,
+    finished: true,
+  })
+  const asLhr = (items: unknown) =>
+    ({ audits: { 'network-requests': { details: { items } } } }) as Parameters<
+      typeof verifyColdVisit
+    >[0]
+  const origin = 'http://127.0.0.1:4175/hygieia'
+
+  it('accepts a cold visit: every /assets/*.js over the network, registerSW.js blocked, no sw.js', () => {
+    const verdict = verifyColdVisit(
+      asLhr([
+        item(`${origin}/fridge`, 1234),
+        item(`${origin}/assets/index-yst3_xaI.js`, 73076),
+        item(`${origin}/assets/index-C-VKBQg-.css`, 7409),
+        item(`${origin}/assets/ingredients-DwZv3rQQ.js`, 15209),
+        item(`${origin}/assets/recipes-Dq_qi9iR.js`, 48089),
+        // How a blocked request shows up: no status, nothing transferred.
+        { url: `${origin}/registerSW.js`, transferSize: 0, statusCode: -1, finished: true },
+        item(`${origin}/fonts/inter-latin.woff2`, 20000),
+      ]),
+    )
+    expect(verdict).toEqual({ ok: true, assets: 3 })
+  })
+
+  it('also accepts an LHR where registerSW.js never appears at all', () => {
+    expect(
+      verifyColdVisit(asLhr([item(`${origin}/`, 900), item(`${origin}/assets/index-a.js`, 1)])),
+    ).toEqual({ ok: true, assets: 1 })
+  })
+
+  it('rejects the SW-served signature QA found: a seed chunk at transferSize 0 (status 200) — the race the gate exists to remove', () => {
+    const verdict = verifyColdVisit(
+      asLhr([
+        item(`${origin}/assets/index-yst3_xaI.js`, 73076),
+        item(`${origin}/assets/ingredients-DwZv3rQQ.js`, 0),
+        item(`${origin}/assets/recipes-Dq_qi9iR.js`, 0),
+      ]),
+    )
+    expect(verdict.ok).toBe(false)
+    if (verdict.ok) throw new Error('unreachable')
+    expect(verdict.reasons).toEqual([
+      'ingredients-DwZv3rQQ.js transferSize 0 (served by a service worker?)',
+      'recipes-Dq_qi9iR.js transferSize 0 (served by a service worker?)',
+    ])
+  })
+
+  it('rejects a delivered registerSW.js and any request for sw.js', () => {
+    const verdict = verifyColdVisit(
+      asLhr([
+        item(`${origin}/assets/index-a.js`, 10),
+        item(`${origin}/registerSW.js`, 374),
+        item(`${origin}/sw.js`, 5000),
+      ]),
+    )
+    expect(verdict.ok).toBe(false)
+    if (verdict.ok) throw new Error('unreachable')
+    expect(verdict.reasons).toEqual([
+      'registerSW.js was delivered (status 200, 374 bytes)',
+      `sw.js was requested (${origin}/sw.js)`,
+    ])
+  })
+
+  it('rejects an LHR with no network evidence (missing audit, no items, no asset chunk)', () => {
+    expect(verifyColdVisit({ audits: {} })).toEqual({
+      ok: false,
+      reasons: ['network-requests audit has no items'],
+    })
+    expect(verifyColdVisit(asLhr([]))).toEqual({
+      ok: false,
+      reasons: ['no /assets/*.js request recorded'],
+    })
+    expect(verifyColdVisit(asLhr([item(`${origin}/`, 900)]))).toEqual({
+      ok: false,
+      reasons: ['no /assets/*.js request recorded'],
+    })
+  })
+
+  it('a missing transferSize counts as not transferred, and a query string does not hide an asset', () => {
+    const verdict = verifyColdVisit(
+      asLhr([{ url: `${origin}/assets/index-a.js?v=1`, statusCode: 200, finished: true }]),
+    )
+    expect(verdict).toEqual({
+      ok: false,
+      reasons: ['index-a.js transferSize missing (served by a service worker?)'],
+    })
   })
 })
 

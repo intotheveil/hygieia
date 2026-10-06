@@ -98,11 +98,15 @@ jobs:
           name: e2e-test-results
           path: test-results/
           retention-days: 7
-      # Lighthouse mobile gate (PLAN P5.3, §1 item 10): performance, accessibility and best-practices
-      # >= 90 on every route in e2e/support/routes.ts, against the same local-only dist/ (no
-      # rebuild), served with Pages semantics and gzip like Pages. Local-only also keeps the
-      # performance score free of live-backend latency. CI applies a documented −5 tolerance on PERFORMANCE
-      # only (scripts/check-lighthouse.mjs header: shared runners vary). Drives the full Chromium
+      # Lighthouse mobile gate (PLAN P5.3, §1 item 10; ADR-0006): a COLD first visit by construction
+      # (the service worker is blocked for every audit, so no chunk is ever served from its precache
+      # and the score is a function of the artifact alone) — performance >= 85 (the measured cold
+      # floor; 90 is the target), accessibility and best-practices >= 90, on every route in
+      # e2e/support/routes.ts, against the same local-only dist/ (no rebuild), served with Pages
+      # semantics and gzip like Pages. Local-only also keeps the performance score free of
+      # live-backend latency. ONE bar, the same as locally: there is no CI tolerance any more — a
+      # deterministic measurement needs none, and if the runner measures lower the job says so
+      # (scripts/check-lighthouse.mjs header). Drives the full Chromium
       # installed above with `--no-sandbox --disable-dev-shm-usage` (the script adds them when CI is
       # set; its header says why) and prints the resolved binary + flags first, with the tail of
       # chrome-err.log on a launch failure. The HTML + JSON reports are uploaded always, so a
