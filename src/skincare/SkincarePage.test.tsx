@@ -2,7 +2,12 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import { bundledSource } from '../content/bundled'
 import { fail, ok, type ContentSource, type SkincareProductType } from '../content/source'
-import { SKINCARE_PRODUCT_TYPES, SKINCARE_ROUTINES, SKINCARE_TIPS } from '../content/seed/skincare'
+import { OVERLAYS, overlayTable } from '../content/seed/overlays'
+import {
+  SKINCARE_PRODUCT_TYPES,
+  SKINCARE_ROUTINES,
+  SKINCARE_TIPS as BASE_TIPS,
+} from '../content/seed/skincare'
 import { LangProvider } from '../i18n/LangProvider'
 import { dictionaries, type Lang } from '../i18n/dictionary'
 import { plural } from '../i18n/fill'
@@ -33,6 +38,8 @@ const el = dictionaries.el
 
 const FACE_ROUTINES = SKINCARE_ROUTINES.filter((r) => r.area === 'face')
 const NAIL_ROUTINES = SKINCARE_ROUTINES.filter((r) => r.area === 'nails')
+// The tips the bundled source serves: base seed + every content overlay (overlay 0002 sourced all).
+const SKINCARE_TIPS = overlayTable('skincare_tips', BASE_TIPS, OVERLAYS)
 const FACE_TIPS = SKINCARE_TIPS.filter((t) => t.area === 'face')
 const NAIL_TIPS = SKINCARE_TIPS.filter((t) => t.area === 'nails')
 const FACE_TYPES = SKINCARE_PRODUCT_TYPES.filter((p) => !NAIL_CATEGORIES.has(p.category))
@@ -313,11 +320,22 @@ describe('<SkincarePage> with the bundled source', () => {
   })
 
   it('tips link every source by hostname in a new tab, or show "source pending"', async () => {
-    renderAt('/skincare')
-    await ready()
     const sourced = FACE_TIPS.find((t) => !t.needs_source && t.sources.length > 1)
-    const pending = FACE_TIPS.find((t) => t.needs_source)
-    if (!sourced || !pending) throw new Error('seed needs a multi-sourced and a pending face tip')
+    // Every served tip is sourced since overlay 0002, so the pending branch is exercised by serving
+    // one face tip back unsourced (what a new, not-yet-sourced tip would look like).
+    const pending = FACE_TIPS.find((t) => t.slug !== sourced?.slug)
+    if (!sourced || !pending) throw new Error('seed needs a multi-sourced and a second face tip')
+    const listSkincareTips: ContentSource['listSkincareTips'] = async () => {
+      const res = await bundledSource.listSkincareTips()
+      if (!res.ok) return res
+      return ok(
+        res.data.map((t) =>
+          t.slug === pending.slug ? { ...t, sources: [], needs_source: true } : t,
+        ),
+      )
+    }
+    renderAt('/skincare', 'en', { ...bundledSource, listSkincareTips })
+    await ready()
 
     const sourcedCard = document.querySelector(`[data-tip="${sourced.slug}"]`)
     if (!(sourcedCard instanceof HTMLElement)) throw new Error('no card')
@@ -336,9 +354,7 @@ describe('<SkincarePage> with the bundled source', () => {
     expect(within(pendingCard).getByText(en.sourcePending)).toBeInTheDocument()
     expect(within(pendingCard).queryByRole('link')).toBeNull()
 
-    expect(screen.getAllByText(en.sourcePending)).toHaveLength(
-      FACE_TIPS.filter((t) => t.needs_source).length,
-    )
+    expect(screen.getAllByText(en.sourcePending)).toHaveLength(1)
     for (const anchor of screen.getAllByRole('link')) {
       expect(anchor.getAttribute('href')).toMatch(/^https?:\/\//)
     }

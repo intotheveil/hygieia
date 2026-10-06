@@ -3,7 +3,8 @@ import { MemoryRouter, useLocation } from 'react-router-dom'
 import { bundledSource } from '../content/bundled'
 import { TIP_TOPICS } from '../content/enums'
 import { fail, ok, type ContentSource, type HealthTip } from '../content/source'
-import { HEALTH_TIPS } from '../content/seed/tips'
+import { OVERLAYS, overlayTable } from '../content/seed/overlays'
+import { HEALTH_TIPS as BASE_TIPS } from '../content/seed/tips'
 import { LangProvider } from '../i18n/LangProvider'
 import { dictionaries, type Lang } from '../i18n/dictionary'
 import { fill } from '../i18n/fill'
@@ -24,6 +25,10 @@ function renderAt(path: string, lang: Lang = 'en', source: ContentSource = bundl
     </LangProvider>,
   )
 }
+
+// The tips the bundled source serves: the base seed with every content overlay applied (overlay
+// 0002 sourced every tip, so none is `needs_source` any more).
+const HEALTH_TIPS = overlayTable('health_tips', BASE_TIPS, OVERLAYS)
 
 const en = dictionaries.en
 const el = dictionaries.el
@@ -118,11 +123,21 @@ describe('<TipsPage> with the bundled source', () => {
   })
 
   it('shows "source pending" for a needs_source tip and a safe external link for a sourced one', async () => {
-    const pending = HEALTH_TIPS.find((tip) => tip.needs_source)
-    const sourced = HEALTH_TIPS.find((tip) => !tip.needs_source && tip.source_url !== null)
-    if (!pending || !sourced) throw new Error('seed lacks a pending or a sourced tip')
+    // Every served tip is sourced since overlay 0002, so the pending branch is exercised by serving
+    // one tip back unsourced (what a new, not-yet-sourced tip would look like).
+    const [pending, sourced] = HEALTH_TIPS
+    if (!pending || !sourced?.source_url) throw new Error('seed lacks two sourced tips')
+    const listTips: ContentSource['listTips'] = async () => {
+      const res = await bundledSource.listTips()
+      if (!res.ok) return res
+      return ok(
+        res.data.map((tip) =>
+          tip.slug === pending.slug ? { ...tip, source_url: null, needs_source: true } : tip,
+        ),
+      )
+    }
 
-    renderAt('/tips')
+    renderAt('/tips', 'en', { ...bundledSource, listTips })
     await findTopicHeadings()
 
     const pendingCard = screen
@@ -172,8 +187,11 @@ describe('<TipsPage> with the bundled source', () => {
           name: lang === 'el' ? first.title_el : first.title_en,
         }),
       ).toBeInTheDocument()
-      expect(screen.getAllByText(t.sourcePending).length).toBe(
+      expect(screen.queryAllByText(t.sourcePending)).toHaveLength(
         HEALTH_TIPS.filter((tip) => tip.needs_source).length,
+      )
+      expect(screen.getAllByRole('link', { name: t.readSource })).toHaveLength(
+        HEALTH_TIPS.filter((tip) => tip.source_url !== null).length,
       )
     },
   )

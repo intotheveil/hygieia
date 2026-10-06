@@ -6,7 +6,15 @@ import {
 } from '../../test/bilingual'
 import { SLUG_RE, TIP_TOPICS } from '../enums'
 import type { TipTopic } from '../enums'
-import { HEALTH_TIPS } from './tips'
+import { OVERLAYS, overlayTable } from './overlays'
+import { HEALTH_TIPS as BASE_TIPS } from './tips'
+
+/**
+ * The rows the app serves: the frozen base seed with every content overlay applied. Every rule
+ * below binds the SERVED text, so an overlay that rewrites a tip or adds a source is held to the
+ * same allow-list, sentence and bilingual rules as the base seed (overlay 0002, 2026-10-06).
+ */
+const HEALTH_TIPS = overlayTable('health_tips', BASE_TIPS, OVERLAYS)
 
 /**
  * Domains a tip may cite. This is the guard against an invented source: a URL whose host is not
@@ -21,6 +29,10 @@ const ALLOWED_SOURCE_DOMAINS = [
   'mayoclinic.org',
   'sleepfoundation.org',
   'nih.gov',
+  // Public-health agencies for the EU and Greece, admitted with overlay 0002 (operator brief,
+  // 2026-10-06): as authoritative for a Greek audience as the NHS or the CDC.
+  'ecdc.europa.eu',
+  'eody.gov.gr',
 ] as const
 
 /** Substrings that mark a placeholder rather than a real reference. */
@@ -136,6 +148,11 @@ describe('health tips seed (PLAN.md §2 health_tips, P4.9)', () => {
     for (const tip of HEALTH_TIPS) {
       expect(tip.needs_source, tip.slug).toBe(tip.source_url === null)
     }
+  })
+
+  it('every served tip is sourced (overlay 0002 closed the last `needs_source` rows)', () => {
+    expect(HEALTH_TIPS.filter((t) => t.needs_source).map((t) => t.slug)).toEqual([])
+    expect(BASE_TIPS.filter((t) => t.needs_source).length).toBeGreaterThan(0)
   })
 
   it('has at least one sourced tip per topic', () => {

@@ -23,6 +23,7 @@ import { HEALTH_TIPS } from '../tips.ts'
 import { WORKOUT_TEMPLATES } from '../workouts.ts'
 import { applyOverlays, checkOverlayIds, overlayTable } from './apply.ts'
 import { OVERLAY as O0001 } from './0001-fix-typos.ts'
+import { OVERLAY as O0002 } from './0002-tip-sources.ts'
 import { OVERLAYS } from './index.ts'
 import { OVERLAY_ID_RE, PATCH_COLUMNS, type Overlay, type SeedBase } from './types.ts'
 
@@ -402,6 +403,64 @@ describe('the real overlay list (./index.ts)', () => {
     expect(fish?.body_en).toMatch(/they make a ten-minute meal\.$/)
     const sk = await bundledSource.listSkincareTips()
     if (!sk.ok) throw new Error(sk.error)
+    expect(
+      sk.data.find((t) => t.slug === 'face-all-sunscreen-every-day-clouds-included')?.body_el,
+    ).toContain('Βάλ’ το ως τελευταίο βήμα')
+  })
+})
+
+describe('overlay 0002-tip-sources (every unsourced tip gets a checked source)', () => {
+  const unsourcedHealth = HEALTH_TIPS.filter((t) => t.needs_source).map((t) => t.slug)
+  const unsourcedSkincare = SKINCARE_TIPS.filter((t) => t.needs_source).map((t) => t.slug)
+  const healthPatches = O0002.patches?.health_tips ?? []
+  const skincarePatches = O0002.patches?.skincare_tips ?? []
+
+  it('is registered second, after 0001', () => {
+    expect(OVERLAYS.indexOf(O0002)).toBe(1)
+  })
+
+  it('patches exactly the 17 health and 26 skincare tips the base seed left unsourced', () => {
+    expect(unsourcedHealth).toHaveLength(17)
+    expect(unsourcedSkincare).toHaveLength(26)
+    expect(healthPatches.map((p) => p.slug).sort()).toEqual([...unsourcedHealth].sort())
+    expect(skincarePatches.map((p) => p.slug).sort()).toEqual([...unsourcedSkincare].sort())
+    expect(O0002.additions).toBeUndefined()
+  })
+
+  it('every patch sets a real https source and needs_source: false', () => {
+    for (const p of healthPatches) {
+      expect(p.set.needs_source, p.slug).toBe(false)
+      expect(p.set.source_url, p.slug).toMatch(/^https:\/\/[a-z0-9.-]+\//)
+    }
+    for (const p of skincarePatches) {
+      expect(p.set.needs_source, p.slug).toBe(false)
+      expect(p.set.sources?.length, p.slug).toBeGreaterThan(0)
+      for (const url of p.set.sources ?? []) expect(url, p.slug).toMatch(/^https:\/\/[a-z0-9.-]+\//)
+      expect(new Set(p.set.sources).size, `${p.slug} repeats a source`).toBe(p.set.sources?.length)
+    }
+  })
+
+  it('a wording change always comes as an EL + EN pair', () => {
+    for (const p of [...healthPatches, ...skincarePatches]) {
+      const set: Record<string, unknown> = p.set
+      expect('body_el' in set, `${p.slug} body pair`).toBe('body_en' in set)
+      expect('title_el' in set, `${p.slug} title pair`).toBe('title_en' in set)
+    }
+  })
+
+  it('after the full overlay list no tip is unsourced, and the bundled source serves them sourced', async () => {
+    const out = applyOverlays(FULL_BASE, OVERLAYS)
+    expect(out.health_tips.filter((t) => t.needs_source)).toEqual([])
+    expect(out.skincare_tips.filter((t) => t.needs_source)).toEqual([])
+    expect(out.health_tips).toHaveLength(HEALTH_TIPS.length)
+    expect(out.skincare_tips).toHaveLength(SKINCARE_TIPS.length)
+    const tips = await bundledSource.listTips()
+    if (!tips.ok) throw new Error(tips.error)
+    expect(tips.data.every((t) => !t.needs_source && t.source_url !== null)).toBe(true)
+    const sk = await bundledSource.listSkincareTips()
+    if (!sk.ok) throw new Error(sk.error)
+    expect(sk.data.every((t) => !t.needs_source && t.sources.length > 0)).toBe(true)
+    // 0001's sunscreen fix (a 0002-untouched row) survives the later overlay
     expect(
       sk.data.find((t) => t.slug === 'face-all-sunscreen-every-day-clouds-included')?.body_el,
     ).toContain('Βάλ’ το ως τελευταίο βήμα')
