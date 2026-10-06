@@ -15,6 +15,7 @@ import { useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { EmptyState, ErrorState, Loading } from '../components/AsyncState'
 import { DraftRibbon } from '../components/DraftRibbon'
+import { SaveButton, SavedItemsScope } from '../components/SaveButton'
 import { contentSource } from '../content'
 import type { ContentSource, Exercise, WorkoutTemplate } from '../content'
 import { BLOCKS, INTENSITIES, LEVELS, WORKOUT_TYPES } from '../content/enums.ts'
@@ -193,6 +194,7 @@ function SessionCard({
             {equipment.length === 0 ? t.bodyweight : equipment.join(', ')}
           </span>
         </p>
+        <SaveButton kind="workout" itemId={template.id} label={title} />
       </header>
 
       {blocks.map(({ block, items }) => (
@@ -269,48 +271,50 @@ export function WorkoutsPage({ source = contentSource }: WorkoutsPageProps) {
     setParams(serializeWorkoutSelection({ ...selection, ...patch }))
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-3xl flex-col gap-8 px-4 py-10 sm:px-6">
-      <header className="flex flex-col gap-3">
-        <h1 className="font-display text-3xl font-semibold text-olive-950">{t.workoutsTitle}</h1>
-        <p className="max-w-2xl leading-relaxed text-olive-700">{t.workoutsIntro}</p>
-      </header>
+    <SavedItemsScope>
+      <main className="mx-auto flex min-h-dvh max-w-3xl flex-col gap-8 px-4 py-10 sm:px-6">
+        <header className="flex flex-col gap-3">
+          <h1 className="font-display text-3xl font-semibold text-olive-950">{t.workoutsTitle}</h1>
+          <p className="max-w-2xl leading-relaxed text-olive-700">{t.workoutsIntro}</p>
+        </header>
 
-      <div className="flex flex-col gap-5">
-        <ChipGroup
-          id="type"
-          label={t.pickType}
-          options={WORKOUT_TYPES}
-          value={type}
-          labels={t.types}
-          onChange={(next) => select({ type: next })}
-        />
-        <ChipGroup
-          id="level"
-          label={t.pickLevel}
-          options={LEVELS}
-          value={level}
-          labels={t.levels}
-          onChange={(next) => select({ level: next })}
-        />
-        <ChipGroup
-          id="intensity"
-          label={t.pickIntensity}
-          options={INTENSITIES}
-          value={intensity}
-          labels={t.intensities}
-          onChange={(next) => select({ intensity: next })}
-        />
-      </div>
+        <div className="flex flex-col gap-5">
+          <ChipGroup
+            id="type"
+            label={t.pickType}
+            options={WORKOUT_TYPES}
+            value={type}
+            labels={t.types}
+            onChange={(next) => select({ type: next })}
+          />
+          <ChipGroup
+            id="level"
+            label={t.pickLevel}
+            options={LEVELS}
+            value={level}
+            labels={t.levels}
+            onChange={(next) => select({ level: next })}
+          />
+          <ChipGroup
+            id="intensity"
+            label={t.pickIntensity}
+            options={INTENSITIES}
+            value={intensity}
+            labels={t.intensities}
+            onChange={(next) => select({ intensity: next })}
+          />
+        </div>
 
-      {state.status === 'loading' ? (
-        <Loading variant="detail" />
-      ) : state.status === 'error' ? (
-        <ErrorState message={t.workoutsLoadFailed} onRetry={state.reload} />
-      ) : state.data === null ? (
-        <EmptyState title={t.noSession} icon="⟳" />
-      ) : (
-        <SessionCard template={state.data} kind={source.kind} />
-      )}
-    </main>
+        {state.status === 'loading' ? (
+          <Loading variant="detail" />
+        ) : state.status === 'error' ? (
+          <ErrorState message={t.workoutsLoadFailed} onRetry={state.reload} />
+        ) : state.data === null ? (
+          <EmptyState title={t.noSession} icon="⟳" />
+        ) : (
+          <SessionCard template={state.data} kind={source.kind} />
+        )}
+      </main>
+    </SavedItemsScope>
   )
 }

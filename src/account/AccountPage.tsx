@@ -90,6 +90,9 @@ export function AccountPage({
   return (
     <main className="mx-auto flex min-h-dvh max-w-3xl flex-col gap-6 px-4 py-10 sm:px-6">
       <h1 className="font-display text-3xl font-semibold text-olive-950">{t.account}</h1>
+      <Link to="/profile" className="self-start text-sm font-medium text-olive-900 underline">
+        {t.profileLink} →
+      </Link>
 
       {userData.kind === 'disabled' ? (
         <SignedOutNote reason={userData.reason ?? 'signed-out'} />

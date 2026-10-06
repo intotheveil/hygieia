@@ -3,6 +3,71 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+### P8.2 PROFILE page + achievements + save buttons — 2026-10-06 — DONE (builder, lane `wt/e`)
+
+- **What:** `/profile` (operator: "profile page, which tracks our data and achievements / entries … like save favorites"). Lazy route chunk
+  (`ProfilePage-*.js`) in `src/routes/routes.tsx` → `src/profile/ProfilePage.tsx`; NOT behind `RequireAuth` — signed-out / local-only the page
+  renders its H1 + intro + the `SignedOutNote` (`role="note"`, the account-page pattern), which is what the gates audit. Signed in, one
+  `Promise.all` over the four per-user reads (entries, goals, saved items, favourites) → **Summary strip** (`SummaryStrip.tsx`: entries this
+  week, current streak = consecutive days ENDING TODAY, longest streak, favourites + saved; today's progress vs the water / steps / sleep /
+  workout goals as `role="progressbar"` + `aria-valuetext` + visible `{value} / {target} {unit}`), **Quick add** (`QuickAdd.tsx`: kind select,
+  value with the unit fixed per kind — weight kg · meal kcal · workout min · water ml · sleep h · steps steps · mood 1–5 score · skincare /
+  nails no value, "done today" —, date defaulting to today with `max=today`, note; pure validation in `entryForm.ts` incl. decimal commas,
+  whole numbers for steps/mood, per-kind ranges, no future dates, note ≤ 280; field errors `aria-invalid` + `aria-describedby`; write failure
+  as an inline alert), **Weight trend** (`WeightTrend.tsx` over pure `chart.ts`: inline SVG sparkline of the last 90 days, x proportional to
+  TIME, `role="img"` with the first/last/delta/n summary as `aria-label` and as visible text; < 2 readings → empty copy), **History**
+  (`History.tsx`: grouped by date newest first, kind glyph + label, value + unit, note, Delete → second click "Σίγουρα;" / "Sure?", no
+  `window.confirm`; another row's Delete resets the first), **Goals** (`GoalsEditor.tsx`: the six goal kinds, target + per day / per week,
+  Save → `upsertGoal`, per-row `role="status"` saved / failed / "target above zero"), **Achievements** (`AchievementsGrid.tsx` over pure
+  `achievements.ts`: **16 badges**, computed on every render, never stored — first entry; 3 / 7 / 30-day any-kind streaks; 10 / 50 workouts;
+  hydration / sleep / steps week = DAILY goal met 7 days running; weight tracked 4 Monday-weeks running; skincare 14 days; nails 4 weeks;
+  mood 7 days; 30 meals; collector (favourites + saved ≥ 10); all-rounder (every kind once). Each reports `progress 0..1` and `earnedOn`),
+  **Saved** (`SavedSection.tsx`: favourite recipes + saved items grouped by kind, names resolved through the ContentSource reading ONLY the
+  tables the saved rows need, Open links — `/workouts?type=&level=&intensity=`, `/skincare?area=`, `/tips?topic=`, `/diets/:slug`,
+  `/recipes/:slug` — an id no visible row carries is labelled "no longer available"; Unsave / unfavourite). Writes are OPTIMISTIC through
+  `useOverlay.ts` (an overlay keyed on the loaded value, no effect): the list changes at once, a temp id is swapped for the server row, a
+  refused write reverts and the section shows its inline error. Dates: `stats.ts` works on UTC day numbers (`YYYY-MM-DD` in, Monday weeks),
+  `today` is always an argument (injected in tests; `localIsoDate(new Date())` in the app).
+- **Save buttons:** `src/components/SaveButton.tsx` — `SaveButton({ kind, itemId, label })`, `aria-pressed`, optimistic, inline alert on
+  failure, **hidden when user data is disabled** (so the local-only gates see unchanged cards), plus `SavedItemsScope` so a page's many
+  buttons share ONE `listSavedItems()` read (a button outside a scope loads its own). Placed on the WorkoutsPage session card
+  (`kind="workout"`), skincare `RoutineCard` (`skincare_routine`), TipsPage tip card (`health_tip`), `SkincareTipCard` (`skincare_tip`) and
+  the DietsPage cards (`diet`); `itemId` = the content row `id` (every row type carries `id` via `ReviewColumns`). The five pages wrap their
+  `<main>` in `<SavedItemsScope>`.
+- **Navigation:** `/profile` link in `AccountMenu` (next to Account, signed in only) and a "Profile →" link under the AccountPage H1; NOT in the
+  main nav. i18n: `src/i18n/features/profile.ts` (`ProfileDictionary`, el + en; label tables keyed by `EntryKind` / `EntryUnit` / `GoalKind` /
+  `Cadence` / `SavedItemKind` / `EntryFormError` / `BadgeId`) wired in `features/index.ts`; `dictionary.test.ts` registry now lists ten modules.
+  Reused from owners: `open`, `retry`, `loadFailed` (plans), `account`, `favourites`, `signIn` (base).
+- **Gates:** `/profile` added to `e2e/support/routes.ts` (ready = `main [role="note"]`) and the `check-lighthouse.test.ts` pin; the a11y matrix
+  picks it up (2 new cells). `e2e/local/profile.spec.ts` (2 specs: deep link renders H1 + intro + local-only note, no form / sections, English
+  twin; profile absent from the main nav and the silent account menu). **Not added to `e2e/dead-backend/error-states.spec.ts`:** with a dead
+  backend auth never settles to signed-in, so `/profile` renders the signed-out note, not an ErrorState — there is no error state to prove
+  there. **Signed-in e2e is not possible without a backend**; the signed-in page is proven in `ProfilePage.test.tsx` against the in-memory
+  `UserDataSource`.
+- **P8 contract scaffolding (for the lead at merge with P8.1):** `src/user/source.ts` gained the block `// --- P8 contract (implemented by
+  P8.1) ---` (enum arrays + types + `interface UserDataSourceP8` with the eight methods; `UserDataSource extends UserDataSourceP8`),
+  `src/user/disabled.ts` the eight `fail('disabled')` / empty-list stubs, and **`src/user/supabase.ts` a placeholder block of eight
+  `fail('unknown')` stubs** (the real interface forced it to compile — P8.1 replaces that block with the queries). `src/user/memory.ts` is a
+  complete in-memory `UserDataSource` (`memorySource({ store, failing, now })`) used by every P8.2 test. Three pre-existing tests that
+  hand-roll a `UserDataSource` literal (`AccountPage.test.tsx`, `FridgePage.test.tsx`, `PlanView.test.tsx`) now spread
+  `...memorySource().source` first — a mechanical consequence of the contract P8.1 would have hit too.
+- **Tests:** `stats.test.ts` 13 · `entryForm.test.ts` 12 · `chart.test.ts` 9 · `achievements.test.ts` 19 (every badge earned / unearned /
+  progress / `earnedOn`) · `ProfilePage.test.tsx` 17 (disabled ×3, empty, load error + Retry, add → history + summary + store, unit swap,
+  validation, refused add, grouped history + two-click delete + reset, refused delete, goal upsert → progress bar tracks a new entry, invalid
+  / refused goal, stored cadence edit, **badge flips live** when the third day is logged, sparkline name + path, saved lists with Open
+  hrefs + unsave + unfavourite, refused unsave, Greek) · `SaveButton.test.tsx` 7 (hidden when disabled ×3, toggle el/en, pre-saved,
+  refused write reverts, three buttons = one list read) · AccountMenu profile-link assertion in `guards.test.tsx`.
+- **Verified (this worktree, `main` `ca32ea7` + this lane):** `npm run lint` **0 errors** (23 warnings = baseline) · `npm run typecheck` clean ·
+  `npm test` **3429 tests, 75 files** (was 3246 / 66) · `npm run build` OK (entry `index-CBp7KEvK.js` 237.8 kB; `ProfilePage-*.js` is its own
+  chunk) · `npm run build:dead` OK · `E2E_PREBUILT=1 npm run e2e` **84 passed** (local incl. the 2 profile specs + 2 new a11y cells; dead-backend
+  9) · `check:pwa` OK · `check:bundle` OK (42 files) · **`check:lighthouse` 14 routes OK — `/hygieia/profile (profile) · 91 · 100 · 100 · 100`**
+  (home 92, content routes 87–91, auth/account/admin/not-found 93–94).
+- **Notable / for the lead:** (1) `npm ci` was needed in this worktree before e2e (`@axe-core/playwright` missing → TS7006 ×4; the recorded
+  gotcha). (2) `Achievements.tsx` had to be named `AchievementsGrid.tsx`: it differs from `achievements.ts` only in casing → TS1149 on
+  Windows. (3) Greek `profileGoalBar` is `{value} από {target} {unit}` because the sweep (rightly) rejects a ≥ 12-char `el` leaf with no Greek
+  that equals its `en` twin. (4) Lint warnings stay at the 23 baseline (helpers moved into `stats.ts`). (5) BRAIN.md is left to the lead's
+  reconciliation, as the P7.2 lane did.
+
 ### P7.2 SKINCARE page — 2026-10-06 — DONE (builder, lane `wt/c`)
 
 - **What:** `/skincare` — the seventh module on the P7.1 data spine (PLAN.md `## P7 Skincare`). Lazy route chunk in `src/routes/routes.tsx` →

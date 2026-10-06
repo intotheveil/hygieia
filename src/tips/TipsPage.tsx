@@ -9,6 +9,7 @@ import { useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { EmptyState, ErrorState, Loading } from '../components/AsyncState'
 import { DraftRibbon } from '../components/DraftRibbon'
+import { SaveButton, SavedItemsScope } from '../components/SaveButton'
 import { contentSource } from '../content'
 import type { ContentSource, HealthTip } from '../content'
 import { TIP_TOPICS } from '../content/enums.ts'
@@ -50,6 +51,7 @@ function TipCard({ tip }: { tip: HealthTip }) {
     <article className="flex flex-col gap-2 rounded-2xl border border-olive-900/10 bg-paper-50/80 p-5 shadow-sm">
       <h3 className="font-display text-lg font-semibold text-olive-950">{title}</h3>
       <p className="text-sm leading-relaxed text-olive-700">{body}</p>
+      <SaveButton kind="health_tip" itemId={tip.id} label={title} />
       {tip.source_url !== null && !tip.needs_source ? (
         <a
           href={tip.source_url}
@@ -98,76 +100,78 @@ export function TipsPage({ source = contentSource }: TipsPageProps) {
     }`
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-3xl flex-col gap-8 px-4 py-10 sm:px-6">
-      <header className="flex flex-col gap-3">
-        <h1 className="font-display text-3xl font-semibold text-olive-950">{t.tipsTitle}</h1>
-        <p className="max-w-2xl leading-relaxed text-olive-700">{t.tipsIntro}</p>
-      </header>
+    <SavedItemsScope>
+      <main className="mx-auto flex min-h-dvh max-w-3xl flex-col gap-8 px-4 py-10 sm:px-6">
+        <header className="flex flex-col gap-3">
+          <h1 className="font-display text-3xl font-semibold text-olive-950">{t.tipsTitle}</h1>
+          <p className="max-w-2xl leading-relaxed text-olive-700">{t.tipsIntro}</p>
+        </header>
 
-      <DraftRibbon kind={source.kind} />
+        <DraftRibbon kind={source.kind} />
 
-      <div role="radiogroup" aria-label={t.tipsTitle} className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          role="radio"
-          aria-checked={topic === null}
-          onClick={() => choose(null)}
-          className={chipClass(topic === null)}
-        >
-          {t.allTopics}
-          {state.status === 'ready' && <Count n={total} />}
-        </button>
-        {TIP_TOPICS.map((option) => {
-          const n = groups[TIP_TOPICS.indexOf(option)]?.tips.length ?? 0
-          return (
-            <button
-              key={option}
-              type="button"
-              role="radio"
-              aria-checked={topic === option}
-              onClick={() => choose(option)}
-              className={chipClass(topic === option)}
-            >
-              {t.topics[option]}
-              {state.status === 'ready' && <Count n={n} />}
-            </button>
-          )
-        })}
-      </div>
-
-      {state.status === 'loading' ? (
-        <Loading variant="list" />
-      ) : state.status === 'error' ? (
-        <ErrorState message={t.tipsLoadFailed} onRetry={state.reload} />
-      ) : visible.length === 0 ? (
-        <EmptyState title={t.tipsEmpty} icon="☀" />
-      ) : (
-        visible.map((group) => (
-          <section
-            key={group.topic}
-            aria-labelledby={`topic-${group.topic}`}
-            className="flex flex-col gap-4"
+        <div role="radiogroup" aria-label={t.tipsTitle} className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            role="radio"
+            aria-checked={topic === null}
+            onClick={() => choose(null)}
+            className={chipClass(topic === null)}
           >
-            <h2
-              id={`topic-${group.topic}`}
-              className="font-display text-2xl font-semibold text-olive-950"
+            {t.allTopics}
+            {state.status === 'ready' && <Count n={total} />}
+          </button>
+          {TIP_TOPICS.map((option) => {
+            const n = groups[TIP_TOPICS.indexOf(option)]?.tips.length ?? 0
+            return (
+              <button
+                key={option}
+                type="button"
+                role="radio"
+                aria-checked={topic === option}
+                onClick={() => choose(option)}
+                className={chipClass(topic === option)}
+              >
+                {t.topics[option]}
+                {state.status === 'ready' && <Count n={n} />}
+              </button>
+            )
+          })}
+        </div>
+
+        {state.status === 'loading' ? (
+          <Loading variant="list" />
+        ) : state.status === 'error' ? (
+          <ErrorState message={t.tipsLoadFailed} onRetry={state.reload} />
+        ) : visible.length === 0 ? (
+          <EmptyState title={t.tipsEmpty} icon="☀" />
+        ) : (
+          visible.map((group) => (
+            <section
+              key={group.topic}
+              aria-labelledby={`topic-${group.topic}`}
+              className="flex flex-col gap-4"
             >
-              {t.topics[group.topic]}
-              <span className="ml-3 align-middle text-sm font-normal text-olive-700">
-                {fill(t.tipsCount, { n: group.tips.length })}
-              </span>
-            </h2>
-            <ul className="grid gap-4 sm:grid-cols-2">
-              {group.tips.map((tip) => (
-                <li key={tip.slug}>
-                  <TipCard tip={tip} />
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))
-      )}
-    </main>
+              <h2
+                id={`topic-${group.topic}`}
+                className="font-display text-2xl font-semibold text-olive-950"
+              >
+                {t.topics[group.topic]}
+                <span className="ml-3 align-middle text-sm font-normal text-olive-700">
+                  {fill(t.tipsCount, { n: group.tips.length })}
+                </span>
+              </h2>
+              <ul className="grid gap-4 sm:grid-cols-2">
+                {group.tips.map((tip) => (
+                  <li key={tip.slug}>
+                    <TipCard tip={tip} />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))
+        )}
+      </main>
+    </SavedItemsScope>
   )
 }
 

@@ -74,7 +74,8 @@ export interface FavouriteInput {
 
 // --- the interface --------------------------------------------------------------------------------
 
-export interface UserDataSource {
+// --- P8 contract (implemented by P8.1): the interface extends UserDataSourceP8 (declared at the end of this file) ---
+export interface UserDataSource extends UserDataSourceP8 {
   kind: 'supabase' | 'disabled'
   /** Present only when `kind === 'disabled'`. */
   reason?: DisabledReason
@@ -96,3 +97,84 @@ export interface UserDataSource {
     remove(id: string): Promise<Result<void>>
   }
 }
+
+// --- P8 contract (implemented by P8.1) ---------------------------------------------------------
+// Declared here by the P8.2 page lane so its tree compiles; the P8.1 data-spine lane ships the
+// identical declarations plus the supabase implementation. At merge the lead keeps ONE copy.
+
+export const ENTRY_KINDS = [
+  'weight',
+  'meal',
+  'workout',
+  'water',
+  'sleep',
+  'steps',
+  'skincare',
+  'nails',
+  'mood',
+] as const
+export type EntryKind = (typeof ENTRY_KINDS)[number]
+export const ENTRY_UNITS = ['kg', 'kcal', 'min', 'ml', 'h', 'steps', 'score'] as const
+export type EntryUnit = (typeof ENTRY_UNITS)[number]
+export const GOAL_KINDS = ['water', 'sleep', 'workout', 'steps', 'weight', 'skincare'] as const
+export type GoalKind = (typeof GOAL_KINDS)[number]
+export type Cadence = 'daily' | 'weekly'
+export const SAVED_ITEM_KINDS = [
+  'workout',
+  'skincare_routine',
+  'health_tip',
+  'skincare_tip',
+  'diet',
+] as const
+export type SavedItemKind = (typeof SAVED_ITEM_KINDS)[number]
+
+export interface Entry {
+  id: string
+  kind: EntryKind
+  entry_date: string
+  value: number | null
+  unit: EntryUnit | null
+  payload: JsonValue | null
+  note: string | null
+  created_at: string
+}
+export interface EntryInput {
+  kind: EntryKind
+  entry_date?: string
+  value?: number | null
+  unit?: EntryUnit | null
+  payload?: JsonValue | null
+  note?: string | null
+}
+export interface Goal {
+  kind: GoalKind
+  target: number
+  unit: string
+  cadence: Cadence
+  updated_at: string
+}
+export interface GoalInput {
+  kind: GoalKind
+  target: number
+  unit: string
+  cadence: Cadence
+}
+export interface SavedItem {
+  kind: SavedItemKind
+  item_id: string
+  created_at: string
+}
+
+/** The P8 methods, mixed into `UserDataSource` below (one object, every per-user feature). */
+export interface UserDataSourceP8 {
+  /** `entry_date` descending. */
+  listEntries(range?: { from: string; to: string }): Promise<Result<Entry[]>>
+  addEntry(input: EntryInput): Promise<Result<Entry>>
+  deleteEntry(id: string): Promise<Result<void>>
+  listGoals(): Promise<Result<Goal[]>>
+  upsertGoal(input: GoalInput): Promise<Result<Goal>>
+  listSavedItems(): Promise<Result<SavedItem[]>>
+  saveItem(kind: SavedItemKind, itemId: string): Promise<Result<SavedItem>>
+  unsaveItem(kind: SavedItemKind, itemId: string): Promise<Result<void>>
+}
+// --- end P8 contract ------------------------------------------------------------------------------

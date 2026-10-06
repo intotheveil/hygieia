@@ -229,5 +229,16 @@ export function supabaseSource(client: UserDataClient, userId: string): UserData
       },
       remove: (id) => run(() => client.savedPlans.remove(id), nothing),
     },
+    // --- P8 contract (implemented by P8.1) --- placeholder so the P8.2 page lane compiles; P8.1
+    // ships the real queries. Never reached by P8.2's tests (they use ./memory.ts).
+    listEntries: async () => fail('unknown'),
+    addEntry: async () => fail('unknown'),
+    deleteEntry: async () => fail('unknown'),
+    listGoals: async () => fail('unknown'),
+    upsertGoal: async () => fail('unknown'),
+    listSavedItems: async () => fail('unknown'),
+    saveItem: async () => fail('unknown'),
+    unsaveItem: async () => fail('unknown'),
+    // --- end P8 contract ---
   }
 }

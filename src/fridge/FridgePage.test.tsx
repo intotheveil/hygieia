@@ -8,6 +8,7 @@ import { LangProvider } from '../i18n/LangProvider'
 import { el, en, type Lang } from '../i18n/dictionary'
 import { fill } from '../i18n/fill'
 import { disabledSource } from '../user/disabled'
+import { memorySource } from '../user/memory'
 import { ok, type FridgeList, type UserDataSource } from '../user/source'
 import { bundledSource } from '../content/bundled.ts'
 import { fail, type ContentSource } from '../content/source.ts'
@@ -330,6 +331,8 @@ describe('<FridgePage> — save list', () => {
       return ok(list)
     })
     userData.current = {
+      // P8 members (entries, goals, saved items) come from the in-memory double; unused here.
+      ...memorySource().source,
       kind: 'supabase',
       userId: 'u1',
       fridgeLists: { list: async () => ok([...saved]), save, remove: async () => ok(undefined) },

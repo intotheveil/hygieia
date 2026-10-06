@@ -15,6 +15,7 @@ import { adminEl, adminEn, type AdminDictionary } from './admin.ts'
 import { dietsEl, dietsEn, type DietsDictionary } from './diets.ts'
 import { fridgeEl, fridgeEn, type FridgeDictionary } from './fridge.ts'
 import { plansEl, plansEn, type PlansDictionary } from './plans.ts'
+import { profileEl, profileEn, type ProfileDictionary } from './profile.ts'
 import { recipesEl, recipesEn, type RecipesDictionary } from './recipes.ts'
 import { skincareEl, skincareEn, type SkincareDictionary } from './skincare.ts'
 import { themeEl, themeEn, type ThemeDictionary } from './theme.ts'
@@ -28,6 +29,7 @@ export interface FeatureDictionary
     DietsDictionary,
     FridgeDictionary,
     PlansDictionary,
+    ProfileDictionary,
     RecipesDictionary,
     SkincareDictionary,
     ThemeDictionary,
@@ -39,6 +41,7 @@ export const featuresEn: FeatureDictionary = {
   ...dietsEn,
   ...fridgeEn,
   ...plansEn,
+  ...profileEn,
   ...recipesEn,
   ...skincareEn,
   ...themeEn,
@@ -51,6 +54,7 @@ export const featuresEl: FeatureDictionary = {
   ...dietsEl,
   ...fridgeEl,
   ...plansEl,
+  ...profileEl,
   ...recipesEl,
   ...skincareEl,
   ...themeEl,

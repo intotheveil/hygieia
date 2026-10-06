@@ -15,6 +15,7 @@ import { useCallback, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { EmptyState, ErrorState, Loading } from '../components/AsyncState'
 import { DraftRibbon } from '../components/DraftRibbon'
+import { SavedItemsScope } from '../components/SaveButton'
 import { contentSource } from '../content'
 import type { ContentSource } from '../content'
 import { ok, type Result } from '../content/source'
@@ -101,68 +102,70 @@ export function SkincarePage({ source = contentSource }: SkincarePageProps) {
   const view = state.status === 'ready' ? selectContent(state.data, selection) : null
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-4xl flex-col gap-8 px-4 py-10 sm:px-6">
-      <header className="flex flex-col gap-3">
-        <h1 className="font-display text-3xl font-semibold text-olive-950">{t.skincareTitle}</h1>
-        <p className="max-w-3xl leading-relaxed text-olive-700">{t.skincareIntro}</p>
-        <p role="note" className="max-w-3xl text-sm leading-relaxed text-olive-700">
-          {t.skincareDisclaimer}
-        </p>
-      </header>
+    <SavedItemsScope>
+      <main className="mx-auto flex min-h-dvh max-w-4xl flex-col gap-8 px-4 py-10 sm:px-6">
+        <header className="flex flex-col gap-3">
+          <h1 className="font-display text-3xl font-semibold text-olive-950">{t.skincareTitle}</h1>
+          <p className="max-w-3xl leading-relaxed text-olive-700">{t.skincareIntro}</p>
+          <p role="note" className="max-w-3xl text-sm leading-relaxed text-olive-700">
+            {t.skincareDisclaimer}
+          </p>
+        </header>
 
-      <DraftRibbon kind={source.kind} />
+        <DraftRibbon kind={source.kind} />
 
-      <Filters selection={selection} onChange={select} />
+        <Filters selection={selection} onChange={select} />
 
-      {state.status === 'loading' ? (
-        <Loading variant="list" />
-      ) : state.status === 'error' ? (
-        <ErrorState message={t.skincareLoadFailed} onRetry={state.reload} />
-      ) : view === null ? null : (
-        <>
-          <Section
-            id="skincare-routines"
-            heading={t.skincareRoutinesHeading}
-            count={t.skincareRoutinesCount}
-            n={view.routines.length}
-            empty={t.skincareRoutinesEmpty}
-          >
-            {view.routines.map((routine) => (
-              <li key={routine.slug}>
-                <RoutineCard routine={routine} types={state.data.productTypes} />
-              </li>
-            ))}
-          </Section>
+        {state.status === 'loading' ? (
+          <Loading variant="list" />
+        ) : state.status === 'error' ? (
+          <ErrorState message={t.skincareLoadFailed} onRetry={state.reload} />
+        ) : view === null ? null : (
+          <>
+            <Section
+              id="skincare-routines"
+              heading={t.skincareRoutinesHeading}
+              count={t.skincareRoutinesCount}
+              n={view.routines.length}
+              empty={t.skincareRoutinesEmpty}
+            >
+              {view.routines.map((routine) => (
+                <li key={routine.slug}>
+                  <RoutineCard routine={routine} types={state.data.productTypes} />
+                </li>
+              ))}
+            </Section>
 
-          <Section
-            id="skincare-guide"
-            heading={t.skincareGuideHeading}
-            count={t.skincareGuideCount}
-            n={view.productTypes.length}
-            empty={t.skincareGuideEmpty}
-          >
-            {view.productTypes.map((type) => (
-              <li key={type.slug}>
-                <ProductTypeCard type={type} />
-              </li>
-            ))}
-          </Section>
+            <Section
+              id="skincare-guide"
+              heading={t.skincareGuideHeading}
+              count={t.skincareGuideCount}
+              n={view.productTypes.length}
+              empty={t.skincareGuideEmpty}
+            >
+              {view.productTypes.map((type) => (
+                <li key={type.slug}>
+                  <ProductTypeCard type={type} />
+                </li>
+              ))}
+            </Section>
 
-          <Section
-            id="skincare-tips"
-            heading={t.skincareTipsHeading}
-            count={t.skincareTipsCount}
-            n={view.tips.length}
-            empty={t.skincareTipsEmpty}
-          >
-            {view.tips.map((tip) => (
-              <li key={tip.slug}>
-                <SkincareTipCard tip={tip} />
-              </li>
-            ))}
-          </Section>
-        </>
-      )}
-    </main>
+            <Section
+              id="skincare-tips"
+              heading={t.skincareTipsHeading}
+              count={t.skincareTipsCount}
+              n={view.tips.length}
+              empty={t.skincareTipsEmpty}
+            >
+              {view.tips.map((tip) => (
+                <li key={tip.slug}>
+                  <SkincareTipCard tip={tip} />
+                </li>
+              ))}
+            </Section>
+          </>
+        )}
+      </main>
+    </SavedItemsScope>
   )
 }

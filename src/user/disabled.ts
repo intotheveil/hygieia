@@ -13,5 +13,15 @@ export function disabledSource(reason: DisabledReason): UserDataSource {
     fridgeLists: { list: empty, save: refuse, remove: refuse },
     favourites: { list: empty, add: refuse, remove: refuse },
     savedPlans: { list: empty, save: refuse, remove: refuse },
+    // --- P8 contract (implemented by P8.1) ---
+    listEntries: empty,
+    addEntry: refuse,
+    deleteEntry: refuse,
+    listGoals: empty,
+    upsertGoal: refuse,
+    listSavedItems: empty,
+    saveItem: refuse,
+    unsaveItem: refuse,
+    // --- end P8 contract ---
   }
 }

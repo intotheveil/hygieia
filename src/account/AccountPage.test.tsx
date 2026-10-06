@@ -6,6 +6,7 @@ import { DIETS } from '../content/seed/diets.ts'
 import { LangProvider } from '../i18n/LangProvider'
 import { dictionaries, type Lang } from '../i18n/dictionary'
 import { disabledSource } from '../user/disabled'
+import { memorySource } from '../user/memory'
 import {
   fail,
   ok,
@@ -42,6 +43,8 @@ function fakeSource(store: Store) {
   })
   const refuse = async <T,>() => fail<T>('unknown')
   const source: UserDataSource = {
+    // P8 members (entries, goals, saved items) come from the in-memory double; unused here.
+    ...memorySource().source,
     kind: 'supabase',
     userId: 'user-1',
     savedPlans: { list: async () => ok([...store.plans]), save: refuse, remove: removePlan },
