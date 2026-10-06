@@ -7,7 +7,7 @@
 // is the same in both languages on purpose (it IS the bilingual name).
 //
 // ThemeSwitch (operator request 2026-10-06) is a native `<select>` in the same pill as the language
-// button: one control, four options, keyboard and screen-reader semantics for free, and the open
+// button: one control, one option per theme, keyboard and screen-reader semantics for free, and the open
 // list follows `color-scheme` in the dark skins. No `background-image` chevron on the select itself
 // (a gradient under text blinds axe to contrast — src/index.css); the arrow is a sibling SVG.
 
