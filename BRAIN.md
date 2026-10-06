@@ -5,13 +5,13 @@
 > intent; rewritten 2026-10-06 to the P1–P6 state (P1/P2 review item 1). Genuine unknowns are
 > marked **❓ needs human input**.
 
-**Last updated:** 2026-10-06 by the gate-correctness builder (Claude Code, Fable 5.1, worktree `wt/g`) — ADR-0006 Lighthouse cold gate;
-previous: the lead's consolidated rewrite after P1–P6 (same day).
+**Last updated:** 2026-10-06 (late) by the lead (Claude Code, Fable 5.1) — P5/P6 QA VALIDATED on the cold gate, seeds LIVE in the shared
+project (10/10 ledger), full app DEPLOYED in local-only mode; previous: the gate-correctness builder (ADR-0006), same day.
 **Status:** in-development — P1–P6 built on `main` (`9295637`); P1/P2 and P3/P4 QA VALIDATED and re-reviewed PASS; P5/P6 QA
 **FAILURES** on one criterion (the Lighthouse gate's non-determinism) — answered by ADR-0006 in `wt/g`, re-QA owed. The full app
-is live on Pages in local-only mode (deployed from `b14b2f9` by CI).
+is live on Pages in local-only mode (deployed from `a9efff9` by CI run 37416889242).
 **Repo:** `intotheveil/hygieia` (public) · `D:\projects\hygieia` (lane worktrees `D:\projects\hygieia-wt\a..g`, branches `wt/a..g`) ·
-**Deployed:** https://intotheveil.github.io/hygieia/ (GitHub Pages, from `main` via CI — today the P0 shell, see §3)
+**Deployed:** https://intotheveil.github.io/hygieia/ (GitHub Pages, from `main` via CI — the FULL APP since 2026-10-06, local-only mode until the operator steps in §3)
 
 ---
 
@@ -31,7 +31,7 @@ intensities."_ Named for the goddess of health and preventive wellbeing (source 
 - **Six modules** (`src/i18n/dictionary.ts` `MODULE_IDS`): tips · diets (+ meal plans) ·
   recipes (+ fridge) · cost · calories · workouts.
 - **Working means:** both languages complete, informational (not medical advice), deployed.
-- **What works today (built, on `main`, not yet deployed):** every module has a route — `/recipes` (filter by diet/meal/search,
+- **What works today (built on `main`, DEPLOYED in local-only mode):** every module has a route — `/recipes` (filter by diet/meal/search,
   detail with steps, nutrition + cost panels), `/fridge` (ingredient picker → ranked recipes with substitutions and staples),
   `/diets` (16 diets, each with a seeded 7-day plan, reshuffle, shopping list), `/workouts` (7 types × 3 levels × 3 intensities →
   a three-block session), `/tips` (75 tips by topic). In **local-only** mode (no Supabase env) all of it runs on the bundled seed
@@ -138,46 +138,49 @@ pending|approved|rejected` stamped by `stamp_review()` BEFORE UPDATE · per-user
 
 ## 3. CURRENT STATE (what's true RIGHT NOW — the thing a resuming session reads)
 
-- **Built on `main` `fecacfa` (2026-10-06), all local gates green:** lint 0 errors (21 pre-existing `react-refresh` warnings) ·
-  typecheck clean · **tests 3196** (63 files) · **e2e 66** (57 local incl. 24 a11y cells + 9 dead-backend) · `db:check` 10 files ·
-  **`db:gate` 227** · **prove-red 25/25** · `seed:check` OK · `check:bundle` OK · `check:pwa` OK · entry chunk 235 kB / 74 kB gzip
-  (was 1,264 / 319 before route splitting). Archive: 10 migrations (4 schema + 6 seed). Seed rows: 322 ingredients · 16 diets ·
-  152 recipes · 136 exercises · 63 workout templates · 75 tips, all `pending`.
-- **`check:lighthouse` is a deterministic COLD-visit gate, 85/90/90 (ADR-0006, 2026-10-06, worktree `wt/g`, uncommitted for the
-  lead):** the SW is blocked for every audit, so the number is the artifact's. Measured cold on the production build: `recipes` /
-  `recipe` / `fridge` / `diet` **87** (LCP 3.5 s, FCP 2.6 s — the seed chunks on the LCP path), `diets` / `workouts` / `tips` 90,
-  `home` 92, `auth` 93, `account` / `admin` / `not-found` 94; a11y / best-practices / SEO 100 everywhere; three consecutive runs
-  identical. P5/P6 QA's single red criterion answered; **re-QA of P5/P6 owed** on this change. 90 performance remains the target
-  (lever: render the above-the-fold frame before the seed `import()` resolves; later, server-side content in configured mode).
-- **Deployed:** the live Pages site **still serves the P0 shell** — no push of the full app has passed CI because of the Lighthouse step.
-  When CI goes green the deploy will be in **local-only mode** (bundled drafts + ribbon, no sign-in) until OP2.c sets the variables.
-- **Live DB (shared project, schema `hygieia`) — 2026-10-06, operator's go:** ledger `hygieia.schema_migrations` holds versions
-  **000100–000400** (schema, profiles, content, user_data) applied by `db:apply -- --apply`. **The six seed files (000500–001000) are
-  being applied as this is written** — verdict lines go to the BUILD_LOG `OPERATOR-P1` entry; do not assert live row counts until it
-  exists. **Data API exposure of schema `hygieia` not yet confirmed** (O1 open) — until then `db:live-check` probes 2–3 and every
-  configured-mode read legitimately FAIL with PGRST106.
-- **Gates run (ADR-0005 cadence — after merge, phase by phase):** P1/P2 QA **VALIDATED** · P1/P2 REVIEW **REVISE on records only**
-  (items 2–3 done: DECISIONS +5 incl. ADR-0005; item 1 = this rewrite) · P3/P4 QA **VALIDATED** (P4.QA.5 live admin NOT RUN — operator) ·
-  P3/P4 REVIEW **REVISE** → the four required fixes LANDED on `main` (`229b974`, merged `be016e1`); re-review owed. P5 and P6 QA + review
-  not yet run. Operator-side QA items (P2.QA.3b/4b/5/6, P4.QA.5, P6.QA.4) are NOT RUN, never claimed.
-- **In flight:** perf lane (Lighthouse); operator seed apply; this BRAIN rewrite (closes REVIEW-P12); P3/P4 re-review pending.
-- **Next, in order:** (1) perf gate green locally with `CI=1` → push → CI green → Pages deploy (local-only mode). (2) seeds live →
-  operator exposes schema `hygieia` (O1 / OP1.b) → `npm run db:live-check` PASSED → operator approves content in `/admin` (OP4.b; needs the
-  admin flag OP2.b, which needs one signed-in session first). (3) OP2.a Google OAuth + redirect URLs, OP2.b admin flag, OP2.c repo
-  variables (Supabase pair) and OP6.a (fleet trio) → next `main` deploy is configured → `smoke:live` reports rows. (4) re-reviews:
-  P1/P2 → PASS on this rewrite; P3/P4 → PASS on `fecacfa`. (5) P5 QA + review; P6 QA + review (P6.QA needs OP6.a). (6) P6.5 release notes.
+- **Built on `main` `a9efff9` (2026-10-06), every local gate green:** lint 0 errors (21 pre-existing `react-refresh` warnings) ·
+  typecheck clean · **tests 3206** (63 files) · **e2e 66** (57 local incl. 24 a11y cells + 9 dead-backend) · `db:check` 10 files ·
+  **`db:gate` 227** · **prove-red 25/25** · `seed:check` OK · `check:bundle` OK · `check:pwa` OK · **`check:lighthouse` cold
+  85/90/90 (ADR-0006) deterministic: three consecutive runs 36/36 cells within ±1**, perf 87–94 locally, 86–94 on the GitHub runner
+  (1-point margin on `recipes` / `recipe` / `diet`; 90 stays the recorded target). Entry chunk 235 kB / 74 kB gzip.
+- **DEPLOYED — the FULL APP is live at https://intotheveil.github.io/hygieia/ in LOCAL-ONLY mode** (CI run 37416889242 on
+  `a9efff9`, both jobs green; `smoke:live` 13/13; entry `index-w_FjhxYD.js`): bundled draft content with the draft ribbon, no sign-in,
+  nothing sent anywhere. It flips to configured mode on the first `main` push after OP2.c sets the two repository variables —
+  deliberately HELD until the content is approved (O1 → OP2.b → OP4.b), otherwise the configured site would show an empty catalogue.
+  Note: the Windows build of the same commit hashes the entry `index-BfBCudBw.js` (10-byte platform difference) — same build is
+  proven by the CI log chain, not by hash equality.
+- **Live DB (shared project, schema `hygieia`) — COMPLETE 2026-10-06:** ledger `hygieia.schema_migrations` = **10/10** rows
+  (000100–001000), every checksum equal to the sha256 of the LF-normalised archive file; rows 322 ingredients · 16 diets · 152 recipes ·
+  1173 recipe_ingredients · 740 recipe_diets · 136 exercises · 63 workout_templates · 579 slots · 75 health_tips; **approved recipes 0**
+  (all `pending`, by design). `supabase_migrations.schema_migrations` still 8 rows (Alyssos untouched). Schema files went through
+  `db:apply -- --apply`; the six seed files through the MCP SQL tool in ≤23 KB pieces inside the same batch shape, per-column md5/sum
+  verified against the files (BUILD_LOG `OPERATOR-P1 / OP4`). **Data API exposure of schema `hygieia` is NOT done (O1):** the
+  `authenticator` role carries no `pgrst.db_schemas` GUC, so the exposed list is Dashboard-managed and invisible from SQL; setting the
+  GUC would override Alyssos's list — not done. Until the Dashboard toggle, `db:live-check` probes 2–3 and every configured-mode read
+  fail with PGRST106, legitimately.
+- **Gates (ADR-0005 cadence):** P1/P2 QA **VALIDATED** · P1/P2 REVIEW **PASS** · P3/P4 QA **VALIDATED** · P3/P4 REVIEW **PASS** ·
+  P5/P6 QA **VALIDATED (re-run 2026-10-06 on the cold gate)** · **P5/P6 REVIEW: running at the time of writing — read the top of
+  BUILD_LOG for the verdict.** Operator-side QA items (P2.QA.3b/4b/5/6, P4.QA.5, P6.QA.2 backend probes, P6.QA.3, P6.QA.4) are NOT RUN,
+  never claimed.
+- **Next, in order:** (1) **O1** operator: Dashboard → Project Settings → Data API → Exposed schemas → add `hygieia` → `npm run
+  db:live-check` PASSED. (2) **OP2.a** Google OAuth client + redirect URLs (`https://intotheveil.github.io/hygieia/auth/callback`,
+  localhost) · first sign-in · **OP2.b** admin flag per `docs/ops/admin.md` · **OP4.b** approve content in `/admin`. (3) **OP2.c** repo
+  variables `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` and **OP6.a** the fleet trio → next `main` deploy is configured →
+  `smoke:live` reports rows. (4) P6.5 release notes once P5/P6 review is PASS. Backlog: cold perf 87 → 90 on content routes (render the
+  above-the-fold frame before the seed `import()`), RecipeCard chips as links, cross-OS byte-identical dist, seed-floor constants,
+  `db-types.ts` profiles.Insert tightening, bundle-secret test under `NODE_ENV=production`.
 
 ## 4. OUTSTANDING (bugs · feedback · requests · known issues — the triage queue)
 
 | id         | sev | type     | summary                                                                                                                                                                                                 | status          | added      |
 | ---------- | --- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | ---------- |
-| O1         | 🟠  | operator | Expose schema `hygieia` in the shared project's Data API settings (ADR-0003 rule 5; OP1.b). Until done every configured-mode read and `db:live-check` probes 2–3 fail with PGRST106                     | open (operator) | 2026-10-05 |
+| O1         | 🟠  | operator | **Now the only blocker for configured mode (seeds are live):** expose schema `hygieia` — Dashboard → Project Settings → Data API → Exposed schemas (ADR-0003 rule 5; OP1.b). No `pgrst.db_schemas` GUC exists on `authenticator`, so this cannot be done from SQL without overriding Alyssos's list. Until done `db:live-check` probes 2–3 fail with PGRST106 | open (operator) | 2026-10-05 |
 | O2         | 🟡  | note     | Supabase advisory seen while inspecting the shared project: Alyssos's PostGIS reference table `public.spatial_ref_sys` has RLS disabled. Alyssos's call — flagged, not touched; the gate asserts we never change it | open (operator) | 2026-10-05 |
-| PERF       | 🟠  | bug      | CI `check:lighthouse` below the 85 bar on content routes on GitHub runners (77–84; local 85–91). Blocks every deploy of the full app. Levers: lazy supabase-js, Layout footer CLS. Perf lane working      | in progress     | 2026-10-06 |
-| REVIEW-P12 | 🟠  | gate     | P1/P2 REVIEW REVISE on records: item 1 = BRAIN.md rewrite (this file, 2026-10-06); items 2–3 landed. Reviewer flips to PASS without re-reading code                                                      | fix landed      | 2026-10-06 |
-| REVIEW-P34 | 🟠  | gate     | P3/P4 REVIEW REVISE: four required fixes landed on `main` `fecacfa`; re-review owed before P3/P4 are claimed                                                                                            | fix landed      | 2026-10-06 |
+| PERF       | 🟡  | perf     | ~~CI Lighthouse below 85 on content routes~~ **CLOSED 2026-10-06** by code splitting + lazy seeds/supabase-js + fallback fonts + ADR-0006 cold gate (QA re-run: 36/36 cells within ±1, runner 86–94). Remaining: cold perf 87 vs target 90 on `recipes`/`recipe`/`fridge`/`diet`; CI margin 1 point | backlog         | 2026-10-06 |
+| REVIEW-P12 | ✅  | gate     | ~~P1/P2 REVIEW REVISE on records~~ **PASS 2026-10-06** (BUILD_LOG `P1/P2 + P3/P4 re-review — PASS`)                                                                                                    | closed          | 2026-10-06 |
+| REVIEW-P34 | ✅  | gate     | ~~P3/P4 REVIEW REVISE~~ **PASS 2026-10-06** on `fecacfa`+ (same entry)                                                                                                                                  | closed          | 2026-10-06 |
 | OP2        | 🟠  | operator | OP2.a Google OAuth client + both apps' redirect URLs on the shared project; OP2.b admin flag via `docs/ops/admin.md` after a first sign-in; OP2.c repo variables `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` | open (operator) | 2026-10-06 |
-| OP4        | 🟠  | operator | After O1 and OP2.b: review and approve seeded content in `/admin` (OP4.b) — until then the configured site shows no DB content, by design                                                             | open (operator) | 2026-10-06 |
+| OP4        | 🟠  | operator | OP4.a seeds live ✅ (2026-10-06, 10/10 ledger). **OP4.b after O1 + OP2.b:** review and approve seeded content in `/admin` — until then the configured site shows no DB content, by design | open (operator) | 2026-10-06 |
 | OP6        | 🟡  | operator | Register Hygieia on the Zeus dashboard, then repo variables `VITE_FLEET_URL`, `VITE_FLEET_KEY`, `VITE_FLEET_PRODUCT_ID` (OP6.a); telemetry client is wired (P6.1) and off until then                   | open (operator) | 2026-10-06 |
 
 Closed since the P0 brain (detail in §6): Q1, Q2 (operator interview 2026-10-05) · F3 brand imagery · F1 e2e runner (P3.6) ·
@@ -321,6 +324,21 @@ table (14)` is right; P1.QA.2's `(13)` is the typo.
   `pages-server --base`; prefix the command with `MSYS_NO_PATHCONV=1`.
 
 ## 6. CHANGELOG (append-only — what happened, newest first)
+
+### 2026-10-06 (late) — seeds LIVE (10/10), P5/P6 QA VALIDATED on the cold gate, full app DEPLOYED local-only (lead, Fable 5.1)
+
+- Did: merged `wt/g` (ADR-0006) → `a9efff9`; CI run 37416889242 green on both jobs (Lighthouse cold on all 12 routes) → Pages now
+  serves the FULL app in local-only mode (`smoke:live` 13/13). QA re-ran the P5/P6 failed criterion in a fresh clone: 3× identical
+  cold scores, RED-verified the determinism guard (empty block list → `not a cold visit`, exit 2), 56 gate tests, 3206 unit tests,
+  runner scores 86–94 → **VALIDATED**. Seed agent applied 000500–001000 to the shared project via the MCP SQL tool in 54 pieces
+  (statement-split by row where a file exceeded the payload cap, identical headers and `on conflict … do nothing` tails); every
+  table verified by per-column md5/sum against the files; ledger 10/10 with checksums equal to the archive (re-verified by the lead
+  with an independent sha256 pass); `supabase_migrations` still 8. Launched the P5/P6 reviewer.
+- Decided: the two Supabase repository variables stay UNSET until O1 + OP4.b, so the deploy keeps serving drafts rather than an
+  empty configured catalogue. Did NOT set `pgrst.db_schemas` on `authenticator`: no existing value to extend, and an in-DB value
+  would override whatever Alyssos exposes from the Dashboard.
+- Resolved: PERF (closed → backlog 87 vs 90), REVIEW-P12 and REVIEW-P34 (PASS), OP4.a. Reopened nothing.
+- Left off: P5/P6 REVIEW running (verdict at the top of BUILD_LOG); then P6.5 release notes. Operator: O1 → OP2.a/b → OP4.b → OP2.c + OP6.a.
 
 ### 2026-10-06 — Lighthouse gate correctness: cold first visit, deterministic, 85/90/90 (builder, Fable 5.1, worktree `wt/g`; detail: BUILD_LOG entry of the same name, DECISIONS ADR-0006)
 

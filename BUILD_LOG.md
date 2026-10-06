@@ -3,6 +3,181 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+### P6.5 Release notes + brain/fleet records — 2026-10-06 — DONE (lead, Fable 5.1; review fix 1 + 3)
+
+**Release: Hygieia 1.0.0-local — `main` `a9efff9`, deployed by CI run 37416889242 to https://intotheveil.github.io/hygieia/ in LOCAL-ONLY mode.**
+
+- **What shipped (P1–P6):** bilingual EL/EN shell + typed dictionary (ADR-0002) · 10 forward-only migrations in schema `hygieia` of the
+  shared Alyssos project (ADR-0003; own ledger, Management-API applier, PGlite gate 227 checks, prove-red 25/25) · auth (magic link +
+  Google, RLS per role, `user_id` never sent) · content: 322 ingredients, 16 diets with generated 7-day plans + shopping list, 152 recipes
+  tagged per diet with nutrition + EUR cost panels, "What's in my fridge" matcher, 136 exercises / 63 workout templates (7 types × 3 levels
+  × 3 intensities), 75 tips · admin review page + curated price table · account page (favourites, fridge list) · installable PWA
+  (ADR-0004) with offline precache · error/loading/empty states incl. a dead-backend e2e project · axe matrix 12 routes × 2 languages ·
+  route-level code splitting (entry 235 kB / 74 kB gzip) · deterministic cold Lighthouse gate 85/90/90 (ADR-0006) · fleet telemetry
+  client (silent until OP6.a) · CI: lint → typecheck → 3206 tests → db:check → db:gate → prove-red → seed:check → build (local-only) →
+  check:bundle → check:pwa → build:dead → 66 e2e → Lighthouse → build (configured from repo vars) → check:bundle/pwa → Pages.
+- **Mode on the live URL:** local-only — bundled DRAFT content with the draft ribbon, no sign-in, nothing sent anywhere. The two Supabase
+  repository variables are deliberately unset until the content is approved; the first `main` push after OP2.c flips the site to
+  configured mode with no code change (README → Deploy).
+- **Live DB:** `hygieia.schema_migrations` 10/10, checksums equal the archive, all content rows present and `pending`; Alyssos's
+  own ledger untouched (8). Evidence: the `OPERATOR-P1 / OP4` entry below.
+- **Open operator items (Hygieia BRAIN §4):** O1 expose schema `hygieia` (Dashboard → Data API → Exposed schemas; not possible safely
+  from SQL on a shared project) · OP2.a Google OAuth client + redirect URLs (`https://intotheveil.github.io/hygieia/auth/callback`,
+  `http://localhost:5173/auth/callback`) · OP2.b admin flag (`docs/ops/admin.md`) after a first sign-in · OP4.b approve content in
+  `/admin` · OP2.c `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` repo variables · OP6.a register on the Zeus dashboard + the three
+  `VITE_FLEET_*` variables · O2 Alyssos `spatial_ref_sys` RLS advisory (Alyssos's call). Operator-side QA (P2.QA.3b/4b/5/6, P4.QA.5,
+  P6.QA.2 backend probes, P6.QA.3, P6.QA.4) NOT RUN until then.
+- **Records touched (review fixes 1(a)(b)(c) + 3):** README "What it does" + live-mode paragraph · `.claude/CLAUDE.project.md` §8 gained
+  `gates:`, `smoke:`, `telemetry:` lines → kit recompose (`kit.mjs apply hygieia`) · BRAIN header/§1/§3/§4/§6 current at `a9efff9`
+  · DECISIONS P5.3 entry carries a SUPERSEDED-by-ADR-0006 pointer. `verify-kit` result and `G6` recorded in the lead's next line
+  once run. (Zeus-side: FLEET.md row + Zeus BRAIN pointer updated from `D:/projects/zeus`.)
+- **Known backlog (accepted, not misses):** cold perf 87–88 vs target 90 on content routes · RecipeCard chips as links · cross-OS
+  byte-identical dist hashes · `check-bundle-secrets.test.ts` under `NODE_ENV=production` · seed-floor constants · `db-types.ts`
+  profiles.Insert tightening.
+
+### P5+P6 REVIEW — 2026-10-06 — REVISE (three rubric lines at 1: P6.5 release/records task not done and not logged; the offline spec never proves a content route offline since code splitting; BRAIN.md §3/§4/§6 and README still describe the pre-merge state. Code, gate design, a11y, error states, deploy wiring and the ADR-0006 bar PASS)
+
+**Independent reviewer (agent `reviewer`, not a builder, not QA), on `main` `a9efff9` = `origin/main`, after `P5.QA + P6.QA RE-RUN — VALIDATED` (above).**
+Spot-check of QA's claims in `D:/projects/hygieia`: `npm run lint` → `0 errors, 21 warnings` (the pre-existing `react-refresh` set), exit 0 · `npm run typecheck` → `tsc -b` silent, exit 0 · `npm test` → `Test Files 63 passed` · `Tests 3206 passed`, exit 0. Lighthouse NOT re-run (QA ran it 3× + RED-verify; the lead said not to). `src/lib/telemetry/{fleet-telemetry,fleet-telemetry-server,rate-limit,types,fingerprint,scrub}.ts` compared to `D:/projects/enodia-transit/src/lib/telemetry/` after CRLF normalisation → 6/6 IDENTICAL. `git show --stat 28ffe22` (the ADR-0006 fix) touched `scripts/check-lighthouse.mjs`, its test, `deploy.yml`, PLAN, DECISIONS, BRAIN, BUILD_LOG only; `git diff --stat b14b2f9 a9efff9 -- src public vite.config.ts index.html package.json` → empty. Scope is clean.
+
+**On ADR-0006 (perf bar 90 → 85): honest, not a quiet weakening — PASS.** The argument holds on QA's own LHR evidence: with the SW allowed, seed chunks requested after ~300 ms came from the precache at `transferSize 0` (91) or over the network (87) — the SAME artifact, 3 of 7 runs red, a different route each time. The new gate measures a strictly HARDER condition (no precache at all, every `/assets/*.js` over simulated slow-4G) and proves it per audit (`verifyColdVisit`, `scripts/check-lighthouse.mjs:267-288`; RED-verified by QA: emptying `BLOCKED_URL_PATTERNS` → exit 2 on the first route). Determinism is real: 36/36 cells within ±1 locally, CI 86–94 with identical per-route chunk counts. The lowered number is loud, not quiet: `THRESHOLDS` + `PERFORMANCE_TARGET = 90` (`check-lighthouse.mjs:130-137`), the test pins both and that the CI tolerance is GONE (`check-lighthouse.test.ts:161-178`), the printed thresholds line says `(target 90)`, `deploy.yml:101-113`, PLAN §1 item 10 amended, ADR-0006 with alternatives (a)–(c) rejected, BRAIN §5 superseding note. Two caveats the lead should hold: (1) 85 was set at "measured cold floor minus a margin" — the bar follows the artifact; the next red on a runner drift must be treated as a regression finding, never as another bar move; (2) the CI margin is ONE point on `recipes`/`recipe`/`diet` (86). Records nit under fix 3: `DECISIONS.md:272-282` (P5.3, "gate at 90 kept … a lower bar was rejected in favour of fixing the cause") now reads as contradicting ADR-0006 — it needs a one-line "superseded by ADR-0006" pointer.
+
+**SCORES (CLAUDE.md §6; 0 missing / 1 partial / 2 met):**
+- **Acceptance criteria met exactly (no scope creep, no gaps): 1.** P5.1–P5.4, P5.5, P6.1–P6.4 meet their PLAN acceptance (evidence: `e2e/dead-backend/error-states.spec.ts:30-38` 7 pages + Retry armed after settle; `e2e/local/a11y-matrix.spec.ts:72-91` lang + H1 + 0 serious/critical on 12×2; skeleton-first unit tests on every page (`src/*/…Page.test.tsx` "renders the … skeleton first while a slow source has not answered"); `vite.config.ts:81-85` explicit `clientsClaim`/`skipWaiting`/`navigateFallback`; `deploy.yml:50-57,134-141` two builds, `vars.*`; `README.md:58-97` Deploy; `.env.example:8-21`). **P6.5 "Release notes + brain/fleet records" is NOT done and has no BUILD_LOG lane entry:** `README.md:20-21` still says "The current build is the foundation (P0) … No module holds content yet"; `.claude/CLAUDE.project.md` §8 (`:54-66`) has no `smoke: npm run smoke:live`, no `telemetry: VITE_FLEET_*`, no `check:bundle` / `check:pwa` / `check:lighthouse` line — PLAN P6.5 names the first two explicitly; no release notes exist (`RELEASE*`, `CHANGELOG*`, `docs/release*` absent). Scope: no out-of-scope writes found.
+- **Tests meaningful and pass: 1.** The gate's 56 tests are real (LHR fixtures copied from QA's evidence, SW signature rejected, delivered `registerSW.js` rejected, fresh flags copy per call, audit server over HTTP) and QA red-verified the guard; `error-states` proves the artifact against a backend that fails (`requestfailed` armed only after the alert settles); the a11y matrix gates on measured contrast after the `body::before` fix (`src/index.css:78-93`). **Miss: `e2e/local/offline.spec.ts` never visits a content route.** PLAN P5.4 says "navigate client-side to `/hygieia/recipes` and hard-load `/hygieia/diets` → both render"; the spec does `/auth` (pushState) and a not-found deep link because, per its lane entry (BUILD_LOG "P5.4 … 2026-10-05"), "PLAN's `/hygieia/recipes` + `/hygieia/diets` routes do not exist yet". They have existed since P3/P4 and P5.3 made every page a `React.lazy` chunk plus per-table lazy seed chunks (`src/routes/routes.tsx:26-48`, `src/content/bundled.ts`) — exactly the bytes that must come from the precache offline — and the spec was never revisited. The only proof a lazy page + its seed chunks load offline is QA's uncommitted scratch script (P5.QA.3). Also stale in the same file: lines 23-36 justify a console-watchdog exemption for `fonts.googleapis.com` that cannot fire since P5.3 self-hosted the fonts (`src/index.css:6-7`; `grep googleapis` finds no reference in `index.html`/`src`).
+- **RLS/isolation (if applicable): 2 — n/a.** No tenant data touched in P5/P6; the dead build uses public dummies set in `scripts/build-dead.mjs:29-30`; `src/` unchanged since `b14b2f9`.
+- **Migration applies cleanly (if applicable): 2 — n/a.** No migration in P5/P6 (archive still 10 files; `db:gate` 227 carried forward by QA).
+- **No secrets, no out-of-scope writes, TS strict honored: 2.** No `any`, no `@ts-ignore`; the only `@ts-expect-error`s are in the byte-identical donor tests and carry a reason. `check:bundle` runs on the Pages artifact (`deploy.yml:146-147`); `vars` not secrets is argued correctly. Advisory, not a miss: `scripts/check-lighthouse.mjs:86` ("apart from the Google Fonts CSS") and `:676-679` (cold DNS/TLS to `fonts.googleapis.com`) are stale rationale in a header rewritten by `28ffe22`; fix alongside item 2.
+- **Runnable artifact exercised, observable recorded: 2.** QA's three gate runs + the CI runner table + per-LHR `transferSize` evidence; `smoke:live` 13 probes with the live chunk name and `Last-Modified` inside the CI window; manual offline on `/fridge` (57 articles from precache); both RED-verifies (`BLOCKED_URL_PATTERNS` → exit 2; `clientsClaim` removed → offline step 1 red).
+- **`BUILD_LOG.md`, `DECISIONS.md`, `BRAIN.md` updated: 1.** BUILD_LOG: lane entries exist for P5.1, P5.2, P5.3 (×3), P5.4, P5.5, P6.1–P6.4 — none for P6.5. DECISIONS: ADR-0004/0005/0006 + dated P5.1, P5.2, P5.3 (×3), P6.4 entries are complete and specific. **BRAIN.md is stale against `main` on the lines a resuming session reads first:** `:8-12` Status says `main` `9295637`, "P5/P6 QA FAILURES … re-QA owed" (re-QA is VALIDATED on `a9efff9`); `:14` "today the P0 shell"; `:34` "built on `main`, not yet deployed"; `:141` "Built on `main` `fecacfa` … tests 3196" (3206); `:146` "uncommitted for the lead" (merged); `:150` "re-QA of P5/P6 owed"; `:152-153` "the live Pages site still serves the P0 shell" (the full app has been live since CI run 37413728863, 04:36 Z, per QA); `:159-162` "P3/P4 … re-review owed", "P5 and P6 QA + review not yet run" (P3/P4 re-review PASS at `b14b2f9`); `:163-168` In-flight / Next list predates the merge; §4 `PERF` row (`:176`) says CI 77–84 below the bar (CI now 86–94, gate green) and `REVIEW-P12`/`REVIEW-P34` (`:177-178`) are closed but still open rows; §6 has no changelog entry for the merge, the first green CI, the deploy of the full app or the P5/P6 re-QA. `README.md:20-21` (see line 1).
+
+**REQUIRED FIXES (each maps to a line at 1; a records-only fix can be verified without re-reading code):**
+1. **P6.5 — do it and log it (acceptance line → 2).** (a) `README.md:20-21`: replace the P0 paragraph with what is live at `a9efff9` — every module's route on the bundled seed in local-only mode (draft ribbon, no sign-in) until OP2.c/OP6.a flip the deploy to configured mode. (b) `.claude/CLAUDE.project.md` §8: add `smoke: npm run smoke:live` (read-only probes of the deployed URL; backend probes need the anon pair in the shell), `telemetry: VITE_FLEET_URL/KEY/PRODUCT_ID (src/telemetry.ts; no-op until OP6.a)` and `gates: npm run check:bundle && npm run check:pwa && npm run check:lighthouse`; recompose the constitution with the kit and record `verify-kit` PASS. (c) A `P6.5` lane entry in BUILD_LOG with the release notes: what shipped at `a9efff9` (12 routes, PWA, cold gate 85/90/90, two-build CI), the live URL and mode, the CI run that deployed it, and the operator items still open (O1, OP2, OP4, OP6). `G6` green after (b).
+2. **`e2e/local/offline.spec.ts` — prove a content route offline, as PLAN P5.4 says (tests line → 2).** After step 2 (offline): click the REAL header link `el.nav.recipes` (`src/components/SiteHeader.tsx:15`) and assert the recipes list renders (`getByRole('list', { name: el.recipesTitle })` with `RECIPES.length` items — the lazy page chunk AND the `recipes`/`ingredients`/`diets` seed chunks came from the precache); then HARD-load `/hygieia/diets` and assert `response.fromServiceWorker() === true` and the diets list is visible. Delete the dead Google Fonts exemption (lines 23-49: the comment, `isOfflineGoogleFontsFailure`, the fixture override) and use the house `test` directly — any console error offline must fail the test now that fonts are self-hosted. Same pass: correct `scripts/check-lighthouse.mjs:86` and `:676-679`. Verify: `E2E_PREBUILT=1 npm run e2e -- --project=local e2e/local/offline.spec.ts` green on a fresh `npm run build`, and a RED check (remove `clientsClaim: true` or block `sw.js`) still turns step 1 / the new hard load red.
+3. **Records to `main` reality (records line → 2).** BRAIN.md: rewrite the lines listed above (`:8-14`, `:34`, `:141`, `:146`, `:150`, `:152-153`, `:154-158` (the six seeds are now applied live — see the OPERATOR-P1 / OP4 entry below; O1 Data API exposure still open), `:159-168`, §4 `PERF` → closed or re-scoped to "cold 87 vs target 90, CI margin 1 point", `REVIEW-P12`/`REVIEW-P34` → moved to §6), add a §6 entry for `a9efff9` (merge, first green CI on the one bar, full app deployed, P5/P6 re-QA VALIDATED, this review), bump "Last updated". DECISIONS.md: one line under the 2026-10-06 P5.3 entry (`:272-282`) — "gate at 90 superseded by ADR-0006 (cold-visit 85/90/90)". Edit the record files with a script (BRAIN §5 gotcha on the format hook) and confirm with `git diff -U0 | grep ^@@`.
+
+**Known accepted backlog (not misses):** cold perf 87–88 vs target 90 on content routes · `RecipeCard` chips as links · cross-OS byte-identical `dist` hashes · the `NODE_ENV=test` build inside `check-bundle-secrets.test.ts` (BRAIN §5).
+**Hand-off:** builder for fixes 1–2 (one lane, file-disjoint from nothing else in flight), lead for fix 3 → reviewer re-review scoped to the three items → human CHECKPOINT P5/P6 (ADR-0005 cadence). Nothing may be claimed as P5/P6 done before that.
+
+### OPERATOR-P1 / OP4 — live apply to the shared project — 2026-10-06
+
+**What.** The six SEED migrations (`20261006000500`…`20261006001000`) were applied to the live shared Supabase project
+(`jenbakghoiaiwceyrshz`) by the operator's explicit instruction, through the Supabase MCP `execute_sql` only — no
+`apply_migration`, nothing touched in `public` / `auth` / `storage` / `supabase_migrations`, no extensions created. The four
+schema files (000100–000400) were already on the ledger (pre-check: exactly those four versions). Every piece ran as its own
+`begin; set local lock_timeout='5s'; set local statement_timeout='120s'; <piece> commit;` transaction; the last piece of each
+file also inserted the `hygieia.schema_migrations (version, name, checksum)` row with the sha256 of the CRLF-normalised file.
+Every piece was accepted first time; no SQL error occurred.
+
+**Chunking deviation (content verbatim).** The MCP tool and the Read tool cap payload size, so each file was split at
+`do nothing;` boundaries into ≤23 KB pieces. Two statements were larger than one piece on their own (recipes 152 rows,
+recipe_ingredients 1173 rows, etc.), so oversize single `insert … values (…),(…) on conflict … do nothing;` statements were
+split BY ROW into several inserts sharing the identical header and `on conflict` tail. Row content is byte-identical to the
+files; only the grouping of rows per statement changed. Idempotent either way (`on conflict do nothing`).
+
+| File | Pieces | Rows after (live) | Verified |
+|---|---|---|---|
+| `20261006000500_hygieia_seed_ingredients.sql` | 6 | ingredients 322 | n + 9 numeric sums + 3 md5s match |
+| `20261006000600_hygieia_seed_diets.sql` | 5 | diets 16 | n + 18 md5 columns match |
+| `20261006000700_hygieia_seed_recipes.sql` | 24 | recipes 152 · recipe_ingredients 1173 · recipe_diets 740 | all md5s/sums match; image_path all null; approved = 0 |
+| `20261006000800_hygieia_seed_exercises.sql` | 5 | exercises 136 | n + 11 md5 columns match (`Child''s pose`, `World''s greatest stretch`, `arm’s length` intact) |
+| `20261006000900_hygieia_seed_workouts.sql` | 10 | workout_templates 63 · workout_template_exercises 579 | all md5s/sums match (`a minute''s rest` intact) |
+| `20261006001000_hygieia_seed_tips.sql` | 4 | health_tips 75 | all md5s match; needs_source true = 17 |
+
+Verification method: per column, `md5(string_agg(col::text, '|' order by <col0>::text collate "C", <col1>::text collate "C"))`
+(arrays via `array_to_string(col,'~')`), `round(sum(col)::numeric,2)` for numerics, `count(*) filter (where col)` for booleans —
+computed locally from the file by `verify.mjs` and compared against the identical SQL on the live DB. Every table matched exactly.
+
+**Final block.**
+- `hygieia.schema_migrations` → 10 rows: 000100 schema `032b5f1427fd`, 000200 profiles `6856e5e03b01`, 000300 content `f26c9dace5e2`,
+  000400 user_data `0b6d6736c178`, 000500 seed_ingredients `db40862b5601`, 000600 seed_diets `d8cffa7857a5`, 000700 seed_recipes
+  `11107c42840e`, 000800 seed_exercises `6dc5f0af49fe`, 000900 seed_workouts `075392b57663`, 001000 seed_tips `269173560e97`
+  (all seed checksums = sha256 of the CRLF-normalised file).
+- `select count(*) from hygieia.recipes where status='approved'` → **0** (everything seeded `pending`, as designed).
+- `select count(*) from supabase_migrations.schema_migrations` → **8** (Alyssos ledger untouched).
+
+**Data API exposure — NOT done, needs the Dashboard.** `select rolconfig from pg_roles where rolname='authenticator'` returns
+only `session_preload_libraries`, `statement_timeout`, `lock_timeout` — there is **no `pgrst.db_schemas` GUC on the role**, so the
+exposed-schemas list is platform-managed and not readable from SQL. The planned `alter role authenticator set pgrst.db_schemas =
+'<existing list>, hygieia'` was deliberately NOT attempted: with no existing list to extend, any value set on the role would
+OVERRIDE the Dashboard-managed list (in-database PostgREST config takes precedence over the platform value), risking hiding
+schemas Alyssos exposes and silently ignoring future Dashboard edits. → Operator: Dashboard → Project Settings → Data API →
+Exposed schemas → add `hygieia` (and `hygieia` to "Extra search path" if the app relies on it). Until then PostgREST returns
+`PGRST106` for `hygieia.*` requests.
+
+**Not committed.** No files in this repo changed except this BUILD_LOG entry. Scratch tooling (`chunk.mjs`, `verify.mjs`, the 54
+`.partN.sql` pieces, `expect_*.txt`) lives in the session scratchpad, not the repo.
+
+**Next.** Operator adds `hygieia` to the exposed schemas; then P1 QA can hit the Data API against the live project.
+
+### P5.QA + P6.QA RE-RUN — 2026-10-06 — VALIDATED (the one red criterion is now deterministic and green on a clean clone, 3/3 runs; CI's runner reading clears the bar; every other local P5/P6 criterion carried forward PASS; operator items NOT RUN)
+
+**Independent QA (agent `qa`, not the builder), re-running only the failed criterion of the `P5.QA + P6.QA — 2026-10-06 — FAILURES` entry below, after ADR-0006 landed.**
+Fresh clone `git clone https://github.com/intotheveil/hygieia` → scratchpad `hygieia-qa56b` at **`a9efff9`** (`merge: wt/g deterministic cold Lighthouse gate (ADR-0006)` = `origin/main` = `D:/projects/hygieia` HEAD, clean tree);
+`npm ci` exit 0 (node v24.11.1 / npm 11.6.2); `npx playwright install chromium` exit 0. No `VITE_*` in the shell → local-only build. Nothing under `D:/projects/hygieia` touched except this entry.
+Clone `git status --short` → 0 at the end (the RED-verify edit was reverted with `git checkout -- .`). Every number below was produced by me in the clone or read from the GitHub Actions log; nothing is taken from the builder's entry.
+
+**1. Determinism + bar — `npm run build` fresh (NOT after `npm test`) → `dist/assets/index-BfBCudBw.js 235.37 kB │ gzip: 73.63 kB` · `✓ built in 639ms` · `precache 69 entries (2103.20 KiB)`, exit 0; then `npm run check:lighthouse` THREE consecutive times on that unchanged `dist/`, one at a time, nothing else running on the machine (no parallel tool calls, no editor, no other node):**
+Every run printed `mode: cold first visit (service worker blocked: */registerSW.js, */sw.js)` and 12 `audited … (cold: N /assets/*.js from the network, no SW)` lines (N = 2·12·14·11·7·13·8·8·3·2·2·2), then
+`thresholds (mobile, cold first visit, same locally and in CI — ADR-0006): performance >= 85 (target 90) · accessibility >= 90 · best-practices >= 90 · seo informational`.
+```
+route        run 1   run 2   run 3   CI runner (37416889242)  | a11y · bp · seo (all runs, local + CI)
+home            92      92      92        92                   | 100 · 100 · 100
+recipes         87      87      87        86                   |
+recipe          88      87      87        86                   |
+fridge          87      87      87        87                   |
+diets           90      90      90        89                   |
+diet            87      87      88        86                   |
+workouts        90      90      90        90                   |
+tips            90      90      90        89                   |
+auth            94      93      93        92                   |
+account         94      94      94        94                   |
+admin           94      94      94        94                   |
+not-found       94      94      94        94                   |
+exit             0       0       0     success
+verdict  `check:lighthouse OK — 12 route(s) at or above every threshold; reports in lighthouse-report/` ×3 (and in CI)
+```
+- 36/36 local perf cells within ±1 across the three runs (max spread 1: `recipe` 88/87/87, `diet` 87/87/88, `auth` 94/93/93); every cell ≥ 85; a11y / bp / seo 100 everywhere. The previous entry's 87-vs-91 swing on a different route each run is gone — the content routes now sit at the cold 87–88 EVERY run, which is the honest first-visit number and is what the gate measures. **PASS.**
+- **Cold evidence from the LHR** (run 3, `lighthouse-report/recipes.json`, `lighthouseVersion 12.8.2`, `runWarnings []`, perf 87, LCP 3.5 s, FCP 2.6 s; `audits['network-requests'].details.items`):
+  ```
+  /hygieia/assets/index-BfBCudBw.js          statusCode  200  transferSize  73068  resourceSize 235376
+  /hygieia/assets/LangProvider-CuBv3Vit.js   statusCode  200  transferSize  29144  resourceSize  82813
+  /hygieia/registerSW.js                     statusCode   -1  transferSize      0  resourceSize      0   <- blocked
+  /hygieia/assets/RecipesPage-DO753cUP.js    statusCode  200  transferSize   2257
+  /hygieia/assets/useAsync-DqtE7Rme.js       statusCode  200  transferSize   3613
+  /hygieia/assets/content-TLFIwuAR.js        statusCode  200  transferSize   2555
+  /hygieia/assets/DraftRibbon-CIw3m5Y_.js    statusCode  200  transferSize    597
+  /hygieia/assets/fill--dbCANpO.js           statusCode  200  transferSize    415
+  /hygieia/assets/format-B6V6QOGY.js         statusCode  200  transferSize   1302
+  /hygieia/assets/match-CuO7k1gf.js          statusCode  200  transferSize    802
+  /hygieia/assets/diets-xpoD_0O8.js          statusCode  200  transferSize  25118  resourceSize  79972
+  /hygieia/assets/recipes-Dq_qi9iR.js        statusCode  200  transferSize  48089  resourceSize 255710
+  /hygieia/assets/ingredients-DwZv3rQQ.js    statusCode  200  transferSize  15209  resourceSize 119611
+  sw.js requests: 0 · /assets/*.js with transferSize 0: 0 (12 of 12 > 0)
+  ```
+  The three seed chunks that the previous entry caught at `transferSize 0` (SW-served) now come over the network in every audit. **PASS.**
+
+**2. RED-verify of the determinism guard:** in the clone, `scripts/check-lighthouse.mjs` line 145 `export const BLOCKED_URL_PATTERNS = Object.freeze(['*/registerSW.js', '*/sw.js'])` → `Object.freeze([])` (`git diff --stat` → `1 file changed, 1 insertion(+), 1 deletion(-)`); `npm run check:lighthouse` once →
+```
+  mode: cold first visit (service worker blocked: )
+check:lighthouse: run failed — http://127.0.0.1:4175/hygieia/ was not a cold visit — the service worker took part:
+    registerSW.js was delivered (status 200, 374 bytes)
+```
+**exit 2** on the FIRST route, no score table, no pass/fail — the guard refuses an invalid measurement rather than gambling on the race. `git checkout -- .` → `git status --short` 0 lines, line 145 restored. The guard binds. **PASS.**
+
+**3. Unit:** `npx vitest run scripts/check-lighthouse.test.ts` → `Test Files 1 passed` · **`Tests 56 passed (56)`** · 2.58 s, exit 0 — PASS. `npm test` (run LAST, after every build-dependent check, because it rewrites `dist/` — BRAIN §5) → `Test Files 63 passed (63)` · **`Tests 3206 passed (3206)`** · 30.39 s, exit 0 — PASS (≥ 3206).
+
+**4. CI:** `gh run list --limit 3` → `37416889242 · completed success · merge: wt/g deterministic cold Lighthouse gate (ADR-0006) · main · a9efff9… · 05:06:24 → 05:13:03 Z` (the two earlier runs `37413728863` and `37413677962` also `success`).
+`gh run view 37416889242 --json jobs` → job "Lint + typecheck + tests + build + e2e" **every step `success`**: `npm ci` · `lint` · `typecheck` · `npm test` · `db:check` · `Migration gate (db:gate)` · `Prove the gate red` · `seed:check` · `Build, local-only mode` · `check:bundle` · `check:pwa` · `Build, dead-backend mode` · `Playwright version` · `actions/cache` · `Install chromium` · `e2e … local + dead-backend` · (`Upload e2e failure artefacts` SKIPPED, as it should) · **`Lighthouse mobile gate (npm run check:lighthouse)` SUCCESS** · `Upload Lighthouse reports` · `Build, configured mode (Pages artifact)` · `Bundle secret scan of the Pages artifact` · `Installability check of the Pages artifact` · `upload-pages-artifact@v3`; job "Deploy to GitHub Pages" → `deploy-pages@v4` `success`.
+`gh run view 37416889242 --log` → the runner printed the same `mode:` line, 12 `cold: … no SW` lines with the SAME N per route as locally (2·12·14·11·7·13·8·8·3·2·2·2), the table in the column above (`recipes` 86 · `recipe` 86 · `fridge` 87 · `diets` 89 · `diet` 86 · `workouts` 90 · `tips` 89 · `auth` 92 · others as local), the same thresholds line and `check:lighthouse OK — 12 route(s) at or above every threshold`. **The runner reads 0–2 below this machine on the content routes (86 vs 87 at the lowest); its minimum is 86 ≥ 85 — a 1-point margin on `recipes`/`recipe`/`diet`.** It clears the bar on the one bar; no tolerance in play (the `CI_PERFORMANCE_TOLERANCE` path is gone from the script — confirmed by the 56-test file's "tolerance exports absent" tests). **PASS.** Note for the lead: the margin is thin; if `ubuntu-latest` drifts a point the gate will say so honestly, which is what ADR-0006 chose.
+
+**5. Carried forward unchanged from the previous entry (`P5.QA + P6.QA — 2026-10-06 — FAILURES`, below):** every other P5/P6 local criterion PASS as recorded there — G6 chain (lint 0 errors / typecheck / build / build:dead / check:pwa / check:bundle / db:check / db:gate 227 / seed:check / prove-red 25/25), e2e `66 passed` incl. `error-states` on 7 pages, `a11y-matrix` 24/24, `offline.spec.ts`, the manual offline check, the `clientsClaim` RED-verify, the `.skip/.only` grep. `git diff --stat b14b2f9 a9efff9 -- src public vite.config.ts index.html package.json package-lock.json` → **empty**: the fix touched only `scripts/`, the test file, `deploy.yml` and records, so those results stand for the artifact unchanged. Operator items **NOT RUN**: P6.QA.2 backend probes (OP2.c), P6.QA.3 install prompt / magic-link / favourite / second-account isolation on the live URL (OP2.a–c), P6.QA.4 telemetry fingerprint on the Zeus dashboard (OP6.a).
+**P6.QA.2 smoke, run again now:** `npm run smoke:live` → **`SMOKE PASSED — 13 probes against https://intotheveil.github.io/hygieia/ (2670 ms)`**, exit 0 — every static probe PASS (`GET / → 200, lang="el", title "Hygieia · Υγίεια", #root, manifest linked` · manifest `start_url + scope /hygieia/, display standalone, 3 icons` · 3 icons 200 · `sw.js` 200 · `registerSW.js` 200 · deep-link `→ 404 with the SPA fallback document` · `favicon.svg` 200 · `script /hygieia/assets/index-w_FjhxYD.js → 200, 235343 chars, no secret-looking value or server-only name` · `registerSW.js` 150 chars · stylesheet `index-C-VKBQg-.css` 33791 chars · `brand/og-hygieia.jpg` 200); `SKIPPED (backend)` → operator.
+**Same build deployed — proven via the CI log chain, NOT by a byte-equal hash to my Windows build:** live `index.html` entry chunk = `assets/index-w_FjhxYD.js`; the runner's `Build, local-only mode` AND `Build, configured mode (Pages artifact)` steps both printed `dist/assets/index-w_FjhxYD.js 235.36 kB │ gzip: 73.62 kB` (identical because the `vars.VITE_*` are unset — the live entry contains 0 `supabase.co` strings), `upload-pages-artifact@v3` listed `./assets/index-w_FjhxYD.js`, and the live `Last-Modified: Tue, 06 Oct 2026 05:12:56 GMT` falls inside run 37416889242's window (05:06:24–05:13:03 Z). The clone's Windows build hashes `index-BfBCudBw.js 235.37 kB` for the same commit — a 10-byte, platform-dependent difference (Windows vs `ubuntu-latest`; the previous QA's Windows build at `b14b2f9` gave the same `BfBCudBw`, and CI gave `w_FjhxYD` for both commits — consistent with no app-source change). The lead's literal "live hash equals the clone's `dist/index.html`" therefore does NOT hold across OSes; the "same build deployed" property it was standing in for DOES, by the chain above. Not a failure of the artifact or the gate; recorded so nobody chases it as one. If byte-reproducible builds across OSes are wanted, that is a new backlog item (likely a CRLF-normalised input).
+
+**VERDICT: VALIDATED — P5 validated; P6 validated for every local criterion (operator items NOT RUN, as before).** The failed criterion is closed: on a clean clone of `a9efff9` the gate exits 0 three times out of three with every perf cell within ±1 and every route ≥ 85/90/90, each audit proven cold from its own LHR; emptying the block list makes the gate refuse (exit 2) instead of guessing; CI's runner reads 86–94 on the same bar and passed. Hand-off: `reviewer` for the P5/P6 quality judgment, then the human checkpoint. Backlog unchanged: content routes 87–88 cold vs the 90 target (PLAN §1 item 10, ADR-0006); CI margin on `recipes`/`recipe`/`diet` is 1 point.
+Reports from runs 1–3 and the RED run are in the QA scratchpad (`lh56b-run{1,2,3}.out`, `lh56b-red.out`, `ci-37416889242.log`); the clone's `lighthouse-report/` holds run 3 (the RED run wrote no report).
+
 ### Lighthouse gate correctness (answer to P5/P6 QA failure 1) — 2026-10-06 — DONE (builder, worktree `wt/g` on `9295637`; uncommitted for the lead; ADR-0006)
 
 **What.** `npm run check:lighthouse` now measures the **COLD first visit, deterministically**, and gates at **performance ≥ 85 / accessibility ≥ 90 /

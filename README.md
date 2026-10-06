@@ -7,7 +7,7 @@ word "hygiene". Fleet product of `intotheveil`; the product name is Hygieia, the
 
 **Live:** https://intotheveil.github.io/hygieia/ (GitHub Pages, deployed from `main` by CI).
 
-## What it will do
+## What it does
 
 - **Health tips** — short, sourced everyday guidance.
 - **Diets and meal plans** — what each diet is (Mediterranean, Atkins, paleo, low-carb, keto,
@@ -17,8 +17,8 @@ word "hygiene". Fleet product of `intotheveil`; the product name is Hygieia, the
 - **Meal cost** and **calories / macros** estimates per recipe.
 - **Workouts** — home, gym or calisthenics; beginner / intermediate / advanced; three intensities.
 
-The current build is the foundation (P0): the bilingual shell, the module map and the toolchain.
-No module holds content yet, and the page says so.
+The deployed build is the full P1–P6 app. Until the operator sets the repository variables (see Deploy) it runs in
+local-only mode: the bundled draft content with a draft ribbon, no sign-in, nothing sent anywhere.
 
 ## Stack
 

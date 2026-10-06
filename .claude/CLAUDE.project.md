@@ -63,6 +63,9 @@ migrate:    npm run db:check && npm run db:gate (rehearse) → npm run db:apply 
             (runbook: docs/ops/migrations.md; red-proof: npm run db:gate:prove-red; live read-only check: npm run db:live-check)
 seed:       npm run seed:gen → npm run seed:check
 lint+types: npm run lint && npm run typecheck
+gates:      npm run check:bundle && npm run check:pwa && npm run check:lighthouse   (on dist/; lighthouse = COLD first visit, 85/90/90, ADR-0006)
+smoke:      npm run smoke:live   (read-only HTTP probes of the deployed site; backend probes need VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY in the shell)
+telemetry:  VITE_FLEET_URL, VITE_FLEET_KEY, VITE_FLEET_PRODUCT_ID (repo variables, OP6.a; names only — the client is silent until set)
 ```
 
 <!-- KIT:PROJECT:END §8 -->

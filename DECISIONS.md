@@ -271,6 +271,10 @@ effect`) and asserts A's rows unchanged — instead of adding new checks — bec
 
 ## 2026-10-06 — P5.3 Lighthouse mobile gate: fonts self-hosted; gate at 90 kept
 
+- **SUPERSEDED on the bar (same day) by ADR-0006:** the 90 bar was later shown to be measuring an in-audit service-worker
+  race, not the page (same artifact 87 ↔ 91). The gate now audits a proven COLD first visit (SW blocked, verified per LHR) at
+  85/90/90 with 90 recorded as the target. The fonts decision below stands unchanged.
+
 - **Fonts self-hosted; Lighthouse gate at 90 kept.** The render-blocking Google Fonts stylesheet in
   `index.html` cost the home page ~15 Lighthouse mobile performance points (79 baseline → 94 with the
   fonts origins blocked, nothing else changed) and made the score bimodal (79 ↔ 93) with the cold
