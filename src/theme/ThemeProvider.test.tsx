@@ -1,6 +1,8 @@
-import { act, render, renderHook, screen } from '@testing-library/react'
+import { act, fireEvent, render, renderHook, screen } from '@testing-library/react'
+import { ThemeSwitch } from '../components/SiteHeader'
+import { LangProvider } from '../i18n/LangProvider'
 import { THEME_STORAGE_KEY, ThemeProvider, applyTheme, useTheme } from './ThemeProvider'
-import { THEME_COLOR, type Theme } from './themes'
+import { THEMES, THEME_COLOR, type Theme } from './themes'
 
 /** Stub `matchMedia` so `(prefers-color-scheme: dark)` answers `dark`; jsdom ships none. */
 function stubPrefersDark(dark: boolean) {
@@ -44,7 +46,7 @@ describe('ThemeProvider', () => {
     expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBeNull()
   })
 
-  it.each(['dark', 'athletic', 'gamer'] as const)(
+  it.each(['dark', 'athletic', 'gamer', 'rose', 'lavender'] as const)(
     'applies a stored %s to <html data-theme> and <meta theme-color>',
     (theme) => {
       window.localStorage.setItem(THEME_STORAGE_KEY, theme)
@@ -167,5 +169,41 @@ describe('ThemeProvider', () => {
 
   it('refuses to be used outside the provider', () => {
     expect(() => renderHook(() => useTheme())).toThrow(/within <ThemeProvider>/)
+  })
+})
+
+describe('ThemeSwitch (the header select)', () => {
+  beforeEach(() => {
+    window.localStorage.clear()
+    delete document.documentElement.dataset.theme
+  })
+
+  it.each([
+    ['en', ['Kitchen', 'Dark', 'Athletic', 'Gamer', 'Rose', 'Lavender']],
+    ['el', ['Κουζίνα', 'Σκοτεινό', 'Αθλητικό', 'Gamer', 'Ροζ', 'Λεβάντα']],
+  ] as const)('offers every theme, in THEMES order, labelled in %s', (lang, labels) => {
+    render(
+      <LangProvider initial={lang}>
+        <ThemeProvider>
+          <ThemeSwitch />
+        </ThemeProvider>
+      </LangProvider>,
+    )
+    const options = screen.getAllByRole('option') as HTMLOptionElement[]
+    expect(options.map((o) => o.value)).toEqual([...THEMES])
+    expect(options.map((o) => o.textContent)).toEqual([...labels])
+  })
+
+  it.each(['rose', 'lavender'] as const)('choosing %s applies and persists it', (theme) => {
+    render(
+      <LangProvider initial="en">
+        <ThemeProvider>
+          <ThemeSwitch />
+        </ThemeProvider>
+      </LangProvider>,
+    )
+    fireEvent.change(screen.getByRole('combobox', { name: 'Theme' }), { target: { value: theme } })
+    expect(document.documentElement.dataset.theme).toBe(theme)
+    expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe(theme)
   })
 })

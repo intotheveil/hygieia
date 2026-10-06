@@ -71,7 +71,7 @@ html {
   color-scheme: light;
 }
 
-/* THEMES (operator request 2026-10-06; DECISIONS.md of that date). Four cosmetic skins, selected by
+/* THEMES (operator request 2026-10-06; DECISIONS.md of that date). Six cosmetic skins, selected by
    `html[data-theme]` (set before first paint by the inline script in index.html, then owned by
    src/theme/ThemeProvider.tsx; the attribute's absence or `default` = the kitchen palette above).
    A theme RE-MAPS the same variables, never adds parallel ones: `paper` stays "surfaces", `olive`
@@ -138,6 +138,45 @@ html[data-theme='gamer'] {
   --color-clay-700: #ff80cc;
 }
 
+html[data-theme='rose'] {
+  color-scheme: light;
+  /* Blush surfaces, cards near-white pink, deep plum ink, rose primary, soft gold secondary. */
+  --color-paper-50: #fffafb;
+  --color-paper-100: #fbf1f3;
+  --color-paper-200: #f4e0e6;
+  --color-paper-300: #e9c9d3;
+  --color-olive-950: #2a1520;
+  --color-olive-900: #3a1f2b;
+  --color-olive-700: #6b3a50;
+  --color-olive-500: #96677b;
+  --color-sage-500: #d6457a;
+  --color-sage-600: #c13568;
+  /* The rose itself is a bar/tint shade (3.8:1 on paper-100); as TEXT it is deepened to a berry. */
+  --color-sage-700: #a3245a;
+  /* Soft gold: the bright peach is a bar/border shade held at ≥ 3:1; the text shade is a toasted gold. */
+  --color-clay-500: #c07a2c;
+  --color-clay-700: #8a4f12;
+}
+
+html[data-theme='lavender'] {
+  color-scheme: light;
+  /* Lilac-white surfaces, deep aubergine ink, lavender-violet primary, mint/teal secondary. */
+  --color-paper-50: #fdfcff;
+  --color-paper-100: #f5f2fb;
+  --color-paper-200: #e8e2f4;
+  --color-paper-300: #d6cceb;
+  --color-olive-950: #1d162c;
+  --color-olive-900: #2b2140;
+  --color-olive-700: #554870;
+  --color-olive-500: #7d7198;
+  --color-sage-500: #7b5cc7;
+  --color-sage-600: #6a4bb6;
+  /* Lavender as TEXT is darkened a step to a violet. */
+  --color-sage-700: #5937a6;
+  --color-clay-500: #2b9a86;
+  --color-clay-700: #17695a;
+}
+
 /* The only non-colour touch: a faint glow on KEYBOARD focus in the gamer skin. `:focus-visible`
    only, so pointer clicks are untouched; the outline stays a solid 2 px ring (the glow is decoration,
    the outline is the indicator). */
@@ -197,4 +236,20 @@ html[data-theme='gamer'] body::before {
 }
 html[data-theme='gamer'] ::selection {
   background: rgb(57 255 138 / 0.4);
+}
+html[data-theme='rose'] body::before {
+  background-image:
+    radial-gradient(48rem 28rem at 12% -10%, rgb(214 69 122 / 0.12), transparent 60%),
+    radial-gradient(36rem 22rem at 100% 30%, rgb(244 176 130 / 0.16), transparent 60%);
+}
+html[data-theme='rose'] ::selection {
+  background: rgb(214 69 122 / 0.28);
+}
+html[data-theme='lavender'] body::before {
+  background-image:
+    radial-gradient(48rem 28rem at 12% -10%, rgb(123 92 199 / 0.14), transparent 60%),
+    radial-gradient(36rem 22rem at 100% 30%, rgb(110 214 180 / 0.14), transparent 60%);
+}
+html[data-theme='lavender'] ::selection {
+  background: rgb(123 92 199 / 0.3);
 }

@@ -13,7 +13,7 @@ export interface ThemeCopy extends Record<Theme, string> {
 export interface ThemeDictionary {
   theme: ThemeCopy
   /**
-   * The home hero picture follows the theme (src/App.tsx: one image set per theme, the three
+   * The home hero picture follows the theme (src/App.tsx: one image set per theme, the five
    * non-default ones rendered on the operator's ComfyUI), so the `alt` must describe the picture
    * actually shown. The default theme keeps the base dictionary's `heroImageAlt` (the salmon plate).
    */
@@ -27,6 +27,8 @@ export const themeEn: ThemeDictionary = {
     dark: 'Dark',
     athletic: 'Athletic',
     gamer: 'Gamer',
+    rose: 'Rose',
+    lavender: 'Lavender',
   },
   themeHeroAlt: {
     dark: 'Grilled salmon with roasted vegetables, herbs and lemon on a dark slate plate.',
@@ -34,6 +36,9 @@ export const themeEn: ThemeDictionary = {
       'Meal-prep box with grilled chicken, quinoa and broccoli, a jar of greens and blueberries, on a grey towel.',
     gamer:
       'Top-down view of a desk mat glowing green: a backlit keyboard, headphones, green apples and a bowl of almonds.',
+    rose: 'Top-down view of a pink smoothie bowl topped with raspberries, oats and seeds, next to pink peonies on a blush linen cloth.',
+    lavender:
+      'Top-down view of a lavender latte, a bowl of yoghurt with blueberries, a halved fig and sprigs of dried lavender on a lilac linen cloth.',
   },
 }
 
@@ -44,6 +49,8 @@ export const themeEl: ThemeDictionary = {
     dark: 'Σκοτεινό',
     athletic: 'Αθλητικό',
     gamer: 'Gamer',
+    rose: 'Ροζ',
+    lavender: 'Λεβάντα',
   },
   themeHeroAlt: {
     dark: 'Ψητός σολομός με ψητά λαχανικά, μυρωδικά και λεμόνι σε σκούρο πιάτο από σχιστόλιθο.',
@@ -51,5 +58,8 @@ export const themeEl: ThemeDictionary = {
       'Δοχείο γεύματος με ψητό κοτόπουλο, κινόα και μπρόκολο, βάζο με πράσινα και μύρτιλα, πάνω σε γκρι πετσέτα.',
     gamer:
       'Κάτοψη γραφείου με πράσινο φωτισμό: φωτιζόμενο πληκτρολόγιο, ακουστικά, πράσινα μήλα και ένα μπολ αμύγδαλα.',
+    rose: 'Κάτοψη από ροζ μπολ smoothie με σμέουρα, βρώμη και σπόρους, δίπλα σε ροζ παιώνιες πάνω σε απαλό ροζ λινό τραπεζομάντιλο.',
+    lavender:
+      'Κάτοψη από latte λεβάντας, μπολ με γιαούρτι και μύρτιλα, ένα κομμένο σύκο και κλωνάρια αποξηραμένης λεβάντας πάνω σε λιλά λινό τραπεζομάντιλο.',
   },
 }

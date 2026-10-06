@@ -3,6 +3,47 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+### THEMES+ — rose and lavender — 2026-10-06 — DONE
+
+- **Operator:** "my wife advised: one-two girly themes, you improvise". Two light skins added the same way as dark/athletic/gamer
+  (`P4.x THEMES` below): one `html[data-theme=…]` block each in `src/index.css` re-mapping the SAME 13 colour variables, a wash +
+  `::selection` pair, `THEMES` = default, dark, athletic, gamer, **rose, lavender**, `THEME_COLOR` rose `#fbf1f3` / lavender `#f5f2fb`, the
+  pre-paint script in `index.html` accepts both, dictionary labels (en Rose / Lavender, el Ροζ / Λεβάντα) and `themeHeroAlt` for both.
+  No component changed: `ThemeSwitch` maps `THEMES`, `src/App.tsx` already picks `hero-<theme>` (verified).
+- **rose:** blush surfaces (`paper-100 #fbf1f3`, cards `#fffafb`), plum ink `olive-900 #3a1f2b`, primary rose `sage-500 #d6457a` (text shade
+  berry `sage-700 #a3245a`), secondary soft gold `clay-500 #c07a2c` (text `clay-700 #8a4f12`), washes rose + peach.
+  **lavender:** lilac-white `paper-100 #f5f2fb`, aubergine ink `olive-900 #2b2140`, primary `sage-500 #7b5cc7` (text `sage-700 #5937a6`),
+  secondary mint/teal `clay-500 #2b9a86` (text `clay-700 #17695a`), washes lilac + mint.
+- **Graphics:** the two ComfyUI masters (1216×640) were already in `public/brand/`: rose = pink smoothie bowl with raspberries, oats and
+  seeds beside pink peonies on blush linen; lavender = lavender latte, yoghurt with blueberries, a halved fig, dried lavender on lilac
+  linen. Both stems added to `scripts/brand.mjs`; `node scripts/brand.mjs` wrote `-sm.jpg` / `-800.webp` / `-1216.webp` (rose 31 / 40 / 68 kB,
+  lavender 29 / 36 / 62 kB); the existing four sets re-derived byte-identical (no diff).
+- **Contrast** (WCAG relative luminance, scratch script parsing `src/index.css`; tints composited over `paper-100`, card = `paper-50` at 80 %):
+
+  | pair (min) | rose | lavender |
+  |---|---|---|
+  | ink `olive-900` / `paper-100` · `paper-50` (4.5) | 13.45 · 14.40 | 13.61 · 14.73 |
+  | `olive-950` / `paper-100` (4.5) | 15.47 | 15.77 |
+  | `olive-700` / `paper-100` · `paper-50` · `paper-200` (4.5) | 8.09 · 8.66 · 7.10 | 7.45 · 8.07 · 6.52 |
+  | `sage-700` / `paper-100` · card (4.5) | 6.42 · 6.78 | 7.52 · 8.02 |
+  | `sage-700` / `sage-500/15` · `/25` chip (4.5) | 5.32 · 4.67 | 6.24 · 5.47 |
+  | `clay-700` / `paper-100` · card · `clay-500/10` (4.5) | 5.92 · 6.25 · 5.35 | 5.92 · 6.31 · 5.34 |
+  | `paper-50` / `olive-900` button · `olive-700` hover (4.5) | 14.40 · 8.66 | 14.73 · 8.07 |
+  | `olive-950` / `sage-500/15` · `olive-900` / `clay-500/10` (4.5) | 12.82 · 12.17 | 13.08 · 12.28 |
+  | UI `sage-500` · `sage-600` · `clay-500` / `paper-100` (3.0) | 3.80 · 4.77 · 3.13 | 4.52 · 5.76 · 3.13 |
+
+  Every text pair ≥ 4.5:1, every UI pair ≥ 3:1. axe confirms: a11y matrix theme axis `theme=rose` / `theme=lavender` × home + recipes =
+  4 cells, zero violations incl. color-contrast.
+- **Tests:** `themes.test.ts` pins the six-theme order and that a stored rose/lavender beats a dark OS preference; `ThemeProvider.test.tsx`
+  stored-theme `it.each` extended to both + NEW `ThemeSwitch` block (options = `THEMES` in order with the en and el labels; choosing
+  rose/lavender applies + persists); `theme-css.test.ts` asserts `color-scheme: light` for both (CSS ↔ `THEME_COLOR`, same-variable
+  re-map, pre-paint and hero-set checks already iterate `THEMES`). `e2e/support/theme-shots.mjs` list extended to six.
+- **Verified (worktree `wt/b`):** lint 0 errors (23 warnings, pre-existing) · typecheck clean · **unit 3568 tests / 76 files** · build
+  (entry 237.83 kB / 74.47 kB gzip; precache 114 entries, 3565.59 KiB — the 6 new derived files + 2 masters) · build:dead OK · check:pwa OK ·
+  check:bundle OK (42 files) · **e2e `E2E_PREBUILT=1` 88 passed** (incl. the 4 new theme cells) · six production screenshots of `/` in
+  the session scratchpad `shots2/` (rose.png, lavender.png viewed: blush/plum and lilac/aubergine skins with their own hero).
+- **Not touched, noted:** `src/components/SiteHeader.tsx` comment still says the switch has "four options" (out of this task's file list).
+
 ### OPERATOR-P7.3 + P8.4 — live apply + approval (skincare, nails, profile) — 2026-10-06
 
 - 001100 skincare schema applied by the lead (one batch; first attempt hit a transient tool error "Invalid or expired requestState" before reaching Postgres, retried after a read-only check). 001200 seed applied by an agent in 11 pieces, no errors; counts 52 / 28 / 65, 148 steps, 0 orphan slugs, per-column md5 = file on all three tables. 001300 profile (5 user tables, RLS per verb, column grants without user_id) applied by the lead in one batch. Ledger 13/13 (checksums 68da48f6ef86 / 9d6c54eee0c9 / d7eb009902f3); Alyssos ledger still 8.

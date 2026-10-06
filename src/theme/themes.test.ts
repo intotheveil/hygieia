@@ -6,8 +6,8 @@ import { DEFAULT_THEME, THEMES, initialTheme, toTheme } from './themes'
 // plugin still transforms the import and the `@theme` block is gone).
 
 describe('themes (pure)', () => {
-  it('lists the four themes with the kitchen look first and as the default', () => {
-    expect(THEMES).toEqual(['default', 'dark', 'athletic', 'gamer'])
+  it('lists the six themes with the kitchen look first and as the default', () => {
+    expect(THEMES).toEqual(['default', 'dark', 'athletic', 'gamer', 'rose', 'lavender'])
     expect(DEFAULT_THEME).toBe('default')
   })
 
@@ -24,6 +24,10 @@ describe('themes (pure)', () => {
     expect(initialTheme('athletic', true)).toBe('athletic')
     expect(initialTheme('default', true)).toBe('default')
     expect(initialTheme('gamer', false)).toBe('gamer')
+    // The two light skins added later: a stored choice beats a dark OS preference too.
+    expect(initialTheme('rose', true)).toBe('rose')
+    expect(initialTheme('lavender', true)).toBe('lavender')
+    expect(toTheme('Rose')).toBeNull()
     expect(initialTheme(null, true)).toBe('dark')
     expect(initialTheme(null, false)).toBe('default')
     expect(initialTheme('light', true)).toBe('dark')

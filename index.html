@@ -34,7 +34,8 @@
       try {
         var t = localStorage.getItem('hygieia:theme')
         if (!t && matchMedia('(prefers-color-scheme: dark)').matches) t = 'dark'
-        if (t === 'dark' || t === 'athletic' || t === 'gamer') document.documentElement.dataset.theme = t
+        if (t === 'dark' || t === 'athletic' || t === 'gamer' || t === 'rose' || t === 'lavender')
+          document.documentElement.dataset.theme = t
       } catch (e) {}
     </script>
     <!-- Fonts are self-hosted (src/index.css); no third-party stylesheet on the first-paint path. -->
