@@ -63,9 +63,11 @@ describe('<DietPage>', () => {
         expect(link.getAttribute('href')).toMatch(/^\/recipes\/[a-z0-9-]+$/)
       }
 
-      // The plan generator section is rendered with its 21 slots.
+      // The plan generator section is rendered with its 21 slots, and its daily totals carry the
+      // engine's "typical values" caveat (the recipes-owned key, reused by plans).
       expect(screen.getByRole('heading', { level: 2, name: t.generatePlan })).toBeInTheDocument()
       expect(screen.getAllByTestId('plan-slot')).toHaveLength(21)
+      expect(screen.getByText(t.typicalValuesNote)).toBeInTheDocument()
       view.unmount()
     })
   }

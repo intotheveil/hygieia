@@ -70,6 +70,11 @@ describe('<PlanView>', () => {
     expect(screen.getByText(/Week of 12 October 2026/)).toBeInTheDocument()
     // Per-day totals are rounded integers.
     expect(screen.getAllByText(/^\d+ kcal$/)).toHaveLength(7)
+    // ...and carry the engine's "typical values" caveat, once, under the table.
+    expect(screen.getByTestId('plan-totals-note')).toHaveTextContent(
+      dictionaries.en.typicalValuesNote,
+    )
+    expect(screen.getAllByText(dictionaries.en.typicalValuesNote)).toHaveLength(1)
   })
 
   it('renders day and meal names in Greek', async () => {
@@ -78,6 +83,9 @@ describe('<PlanView>', () => {
     expect(screen.getByRole('rowheader', { name: 'Κυριακή' })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: 'Πρωινό' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: dictionaries.el.reshuffle })).toBeInTheDocument()
+    expect(screen.getByTestId('plan-totals-note')).toHaveTextContent(
+      dictionaries.el.typicalValuesNote,
+    )
   })
 
   it('reshuffle moves to a new seed and changes at least one slot', async () => {

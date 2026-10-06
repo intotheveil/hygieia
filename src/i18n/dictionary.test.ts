@@ -1,5 +1,24 @@
 import { containsPlaceholderMarkers, hasGreek, leaves, looksUntranslated } from '../test/bilingual'
 import { LANGS, MODULE_IDS, dictionaries, el, en, type Dictionary } from './dictionary'
+import { adminEn } from './features/admin.ts'
+import { dietsEn } from './features/diets.ts'
+import { fridgeEn } from './features/fridge.ts'
+import { featuresEn } from './features/index.ts'
+import { plansEn } from './features/plans.ts'
+import { recipesEn } from './features/recipes.ts'
+import { tipsEn } from './features/tips.ts'
+import { workoutsEn } from './features/workouts.ts'
+
+/** The seven feature modules composed by `features/index.ts`, by name, over their `en` literal. */
+const FEATURE_MODULES: Readonly<Record<string, object>> = {
+  admin: adminEn,
+  diets: dietsEn,
+  fridge: fridgeEn,
+  plans: plansEn,
+  recipes: recipesEn,
+  tips: tipsEn,
+  workouts: workoutsEn,
+}
 
 /**
  * Brand names and loanwords an `el` leaf may legitimately share with its `en` twin (PLAN.md §0:
@@ -138,5 +157,44 @@ describe('bilingual dictionary — completeness sweep (PLAN.md P5.5)', () => {
     expect(keyOrder(el)).toEqual(keyOrder(en))
     expect(Object.keys(el)).toEqual(Object.keys(en))
     expect(Object.keys(el.modules)).toEqual(Object.keys(en.modules))
+  })
+})
+
+describe('bilingual dictionary — one owner per key (features/index.ts rule; P3/P4 review fix 3)', () => {
+  // Spreading the feature literals means a key declared by two modules is NOT a type error when the
+  // types agree — the last spread silently wins (`sourcePending` was declared by diets AND tips until
+  // 2026-10-06). This map makes the rule a failing test instead of a comment.
+  const owners = new Map<string, string[]>()
+  for (const [module, literal] of Object.entries(FEATURE_MODULES)) {
+    for (const key of Object.keys(literal)) {
+      owners.set(key, [...(owners.get(key) ?? []), module])
+    }
+  }
+
+  it('composes exactly the seven feature modules and nothing else', () => {
+    const union = new Set(Object.values(FEATURE_MODULES).flatMap((literal) => Object.keys(literal)))
+    expect([...union].sort()).toEqual(Object.keys(featuresEn).sort())
+  })
+
+  it('gives every feature key exactly one owning module (no key declared by two features)', () => {
+    const shared = [...owners].filter(([, modules]) => modules.length !== 1)
+    expect(shared, `keys with ≠ 1 owner: ${JSON.stringify(shared)}`).toEqual([])
+    expect(owners.size).toBeGreaterThan(0)
+  })
+
+  it('declares no feature key that the base dictionary already owns', () => {
+    // `en = { ...baseEn, ...featuresEn }` and the base literal is module-private, so read the overlap
+    // off the composed object's INSERTION ORDER: a key first inserted by `baseEn` keeps its base
+    // position even when a feature re-declares it, so the feature-owned keys must form exactly the
+    // tail of `Object.keys(en)` (base keys first, then every feature key, nothing interleaved).
+    const keys = Object.keys(en)
+    const featureKeys = Object.keys(featuresEn)
+    const firstFeature = keys.findIndex((key) => owners.has(key))
+    expect(firstFeature).toBeGreaterThan(0) // the base owns at least one key, and it comes first
+    const head = keys.slice(0, firstFeature)
+    const tail = keys.slice(firstFeature)
+    expect(head.filter((key) => owners.has(key))).toEqual([])
+    expect(tail).toEqual(featureKeys)
+    expect(keys.length).toBe(head.length + featureKeys.length)
   })
 })

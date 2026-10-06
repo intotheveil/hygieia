@@ -543,6 +543,7 @@ otherwise. Named in `.claude/CLAUDE.project.md` §2 "Deviations".
   settles (~7.2 s), so the project carries `expect: 20 s`, `timeout: 90 s`, and the spec arms `requestfailed` for the Retry proof
   only AFTER the alert has settled (a dead-host request after that can only be the click's). CI builds dist-dead/ once more
   before `npm run e2e` (E2E_PREBUILT=1 serves both directories; the configured Pages build stays LAST).
+
 ## 2026-10-06 — P5.3 follow-up: route-level code splitting, per-table lazy seeds, full Chromium in CI
 
 - **Every page but the home is a `React.lazy` chunk, with ONE `Suspense` in `Layout` around `<Outlet />`**
@@ -588,3 +589,16 @@ otherwise. Named in `.claude/CLAUDE.project.md` §2 "Deviations".
   list arrives). Left as found — `Layout.tsx` overrides the pages' `min-h-dvh` on purpose so the disclaimer is
   visible on short pages, and changing that is a design call for the lead (reserve `min-h-dvh` on the content
   slot, or a reserved height for loading states). `diet`'s 0.827 is DietPage content (P5.1 lane).
+
+## 2026-10-06 — P3/P4 review fixes: recipe diet chips target the diet page
+
+- **2026-10-06 (P3/P4 REVIEW fix 1) — A recipe's diet chips link to `/diets/<slug>` (the diet's own page), not to the
+  filtered recipe list `/recipes?diet=<slug>`.** PLAN P4.4 said so from the start; P3.2 shipped the filter target because
+  `/diets/:slug` did not exist yet, and the header comment promised the retarget "in P4.4" — which landed without doing it.
+  The plan and the code now agree (`src/recipes/RecipePage.tsx`, pinned by `RecipePage.test.tsx` in both languages). The
+  filtered list remains reachable through the list page's own diet filter and URL state (`RecipesPage` still owns
+  `serializeRecipeFilterParams`); `RecipeCard` chips stay plain text because the card is a stretched link (backlog).
+  Same entry, two companions: shared dictionary copy has ONE owning feature module (`sourcePending` → tips; a test now
+  fails on any duplicate), and the nutrition panel surfaces the engine's `unitMismatch` warnings as a footnote so an
+  admin-side `unit` / `grams_per_unit` edit is visible on the page it distorts, with the seed test pinning the invariant
+  `line.unit ∈ {g, ml, ingredient.unit}` both engines rest on.

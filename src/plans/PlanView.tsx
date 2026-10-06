@@ -230,6 +230,11 @@ export function PlanView({
           </tbody>
         </table>
       </div>
+      {/* The daily totals come from the nutrition engine's typical values; same caveat as the
+          recipe panel (the key is recipes-owned and reused here — one owner per key). */}
+      <p data-testid="plan-totals-note" className="text-xs leading-relaxed text-olive-700">
+        {t.typicalValuesNote}
+      </p>
 
       <section aria-labelledby="plan-shopping" className="flex flex-col gap-2">
         <h3 id="plan-shopping" className="font-display text-lg font-semibold text-olive-950">

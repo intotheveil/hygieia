@@ -37,6 +37,8 @@ export interface RecipesDictionary {
   perRecipe: string
   typicalValuesNote: string
   notCounted: string
+  /** Shown when the engine converted a line with the ingredient's default weight (`unitMismatch`). */
+  unitMismatchNote: string
   confidenceTypical: string
   costRange: string
   pricesAsOf: string
@@ -76,6 +78,8 @@ export const recipesEn: RecipesDictionary = {
   typicalValuesNote:
     'Typical values from USDA FoodData Central reference ranges; actual figures vary with brand, ripeness and cooking.',
   notCounted: 'Not counted (no nutrition data): {items}',
+  unitMismatchNote:
+    'Some quantities were converted with a default weight per unit; treat these figures as rough.',
   confidenceTypical: 'Confidence: typical values',
   costRange: 'About {min}–{max}',
   pricesAsOf: 'Prices as of {date}',
@@ -130,6 +134,8 @@ export const recipesEl: RecipesDictionary = {
   typicalValuesNote:
     'Τυπικές τιμές από τα εύρη αναφοράς του USDA FoodData Central· τα πραγματικά νούμερα διαφέρουν ανάλογα με τη μάρκα, την ωρίμανση και το μαγείρεμα.',
   notCounted: 'Δεν υπολογίστηκαν (χωρίς διατροφικά δεδομένα): {items}',
+  unitMismatchNote:
+    'Κάποιες ποσότητες μετατράπηκαν με ένα προεπιλεγμένο βάρος ανά μονάδα· θεώρησε αυτά τα νούμερα ενδεικτικά.',
   confidenceTypical: 'Αξιοπιστία: τυπικές τιμές',
   costRange: 'Περίπου {min}–{max}',
   pricesAsOf: 'Τιμές με ημερομηνία {date}',

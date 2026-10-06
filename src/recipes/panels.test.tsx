@@ -209,7 +209,45 @@ describe('<NutritionPanel>', () => {
     expect(screen.queryByRole('img')).not.toBeInTheDocument()
     // No `onScopeChange` → no toggle rendered.
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    // The fixture's lines are all in g/ml → no engine warning → no unit-mismatch footnote.
+    expect(NUTRITION.warnings).toEqual([])
+    expect(screen.queryByTestId('nutrition-unit-mismatch')).not.toBeInTheDocument()
   })
+
+  it.each(['en', 'el'] as const)(
+    'surfaces the engine warnings as the unit-mismatch footnote when a line is not in g/ml or the ingredient unit (%s)',
+    (lang) => {
+      const t = dictFor(lang)
+      // `onion` is sold by the piece (150 g each); the line asks for 2 TABLESPOONS of it, so the
+      // engine falls back to grams_per_unit (2 × 150 g) and says so — exactly what an admin edit of
+      // `unit` / `grams_per_unit` produces on a live catalogue.
+      const catalogue = indexBySlug([
+        ingredient({ slug: 'onion', unit: 'piece', grams_per_unit: 150, kcal_100g: 40 }),
+      ])
+      const mismatched: RecipeSeed = {
+        ...RECIPE,
+        slug: 'test-mismatch',
+        ingredients: [{ ingredient_slug: 'onion', quantity: 2, unit: 'tbsp' }],
+      }
+      const result = computeNutrition(mismatched, catalogue)
+      expect(result.warnings).toHaveLength(1)
+      expect(result.warnings[0]).toMatch(/^unitMismatch: onion /)
+      expect(result.unknown).toEqual([])
+
+      render(
+        <LangProvider initial={lang}>
+          <NutritionPanel result={result} scope="portion" />
+        </LangProvider>,
+      )
+      const note = screen.getByTestId('nutrition-unit-mismatch')
+      expect(note).toHaveTextContent(t.unitMismatchNote)
+      expect(screen.getAllByText(t.unitMismatchNote)).toHaveLength(1)
+      // The regular footnotes are still there; the engine's raw warning string is NOT shown.
+      expect(screen.getByText(t.typicalValuesNote)).toBeInTheDocument()
+      expect(screen.queryByText(/unitMismatch:/)).not.toBeInTheDocument()
+      expect(screen.queryByTestId('nutrition-not-counted')).not.toBeInTheDocument()
+    },
+  )
 })
 
 describe('<CostPanel>', () => {

@@ -230,9 +230,9 @@ export function FridgePage({ source = contentSource }: FridgePageProps) {
   )
 }
 
-function ResultCard({ result, lang }: { result: MatchResult; lang: Lang }) {
+function ResultCard({ result, lang }: { result: MatchResult<Recipe>; lang: Lang }) {
   const { t } = useLang()
-  const recipe = result.recipe as Recipe
+  const recipe = result.recipe
   const covered = result.have.length + result.substitutions.length
   const total = covered + result.missing.length
   const pct = Math.round(result.coverage * 100)

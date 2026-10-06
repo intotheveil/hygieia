@@ -20,8 +20,12 @@ export interface Substitution {
   use: IngredientSeed
 }
 
-export interface MatchResult {
-  recipe: RecipeSeed
+/**
+ * Generic over the recipe row so a caller that matches resolved `Recipe`s (the fridge page) gets
+ * them back as `Recipe`s without a cast; the matcher itself only reads the `RecipeSeed` fields.
+ */
+export interface MatchResult<R extends RecipeSeed = RecipeSeed> {
+  recipe: R
   /** Ingredients the user has directly. */
   have: IngredientSeed[]
   /** Ingredients the user lacks with no substitute in the fridge (staples excluded when ignored). */
@@ -76,12 +80,12 @@ function compareResults(a: MatchResult, b: MatchResult): number {
 }
 
 /** Match ONE recipe against the fridge. Returned for every recipe, including coverage 0. */
-export function matchRecipe(
-  recipe: RecipeSeed,
+export function matchRecipe<R extends RecipeSeed>(
+  recipe: R,
   ingredientsBySlug: ReadonlyMap<string, IngredientSeed>,
   haveSlugs: ReadonlySet<string>,
   opts: MatchOptions,
-): MatchResult {
+): MatchResult<R> {
   const have: IngredientSeed[] = []
   const missing: IngredientSeed[] = []
   const substitutions: Substitution[] = []
@@ -135,12 +139,12 @@ function findSubstitute(
  * then fewer ingredient lines, then `title_en` asc (then slug — a total order, so repeated calls
  * on the same input return the same array).
  */
-export function matchRecipes(
-  recipes: readonly RecipeSeed[],
+export function matchRecipes<R extends RecipeSeed>(
+  recipes: readonly R[],
   ingredients: readonly IngredientSeed[],
   haveSlugs: ReadonlySet<string>,
   opts: MatchOptions,
-): MatchResult[] {
+): MatchResult<R>[] {
   if (haveSlugs.size === 0) return []
   const bySlug = indexBySlug(ingredients)
   return recipes
