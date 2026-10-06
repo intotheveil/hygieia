@@ -1,20 +1,22 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { bundledSource } from '../content/bundled'
-import { HEALTH_TIPS } from '../content/seed/tips'
-import { OVERLAID_SEED } from '../test/overlaidSeed'
 import { fail, ok, type ContentSource } from '../content/source'
 import { LangProvider } from '../i18n/LangProvider'
 import { dictionaries, type Lang } from '../i18n/dictionary'
 import { fill } from '../i18n/fill'
 import { pickOfTheDay } from '../prefs/ofTheDay'
 import { NO_PREFS, type Prefs } from '../prefs/prefs'
+import { OVERLAID_SEED } from '../test/overlaidSeed'
 import { HomeExtras, type HomeExtrasProps } from './HomeExtras'
 
 const en = dictionaries.en
 const el = dictionaries.el
 /** A fixed day: 6 Oct 2026, noon in Athens. */
 const NOW = new Date('2026-10-06T09:00:00Z')
+/** What the page picks from: the SERVED lists (base seed + every overlay), not the frozen base arrays. */
+const RECIPES = OVERLAID_SEED.recipes
+const HEALTH_TIPS = OVERLAID_SEED.health_tips
 
 function renderExtras(props: Partial<HomeExtrasProps> = {}, lang: Lang = 'en') {
   const onPrefsDone = vi.fn<(prefs: Prefs | null) => void>()
@@ -106,7 +108,7 @@ describe('<Onboarding> (inside HomeExtras)', () => {
 describe('<OfTheDay> (inside HomeExtras)', () => {
   it("shows today's recipe and tip for a fixed date, linking to them", async () => {
     renderExtras()
-    const recipe = pickOfTheDay(OVERLAID_SEED.recipes, NOW, 'recipe')
+    const recipe = pickOfTheDay(RECIPES, NOW, 'recipe')
     const tip = pickOfTheDay(HEALTH_TIPS, NOW, 'tip')
     if (recipe === null || tip === null) throw new Error('seed lists are not empty')
 
@@ -126,7 +128,7 @@ describe('<OfTheDay> (inside HomeExtras)', () => {
 
   it('is the same pick on a re-render the same day', async () => {
     const first = renderExtras()
-    const recipe = pickOfTheDay(OVERLAID_SEED.recipes, NOW, 'recipe')
+    const recipe = pickOfTheDay(RECIPES, NOW, 'recipe')
     await within(screen.getByTestId('recipe-of-the-day')).findByRole('link')
     const title = screen.getByTestId('recipe-of-the-day').textContent
     first.unmount()
@@ -140,9 +142,7 @@ describe('<OfTheDay> (inside HomeExtras)', () => {
   it('honours the diet preference', async () => {
     const prefs: Prefs = { ...NO_PREFS, diet: 'keto' }
     renderExtras({ prefs })
-    const expected = pickOfTheDay(OVERLAID_SEED.recipes, NOW, 'recipe', (r) =>
-      r.diet_slugs.includes('keto'),
-    )
+    const expected = pickOfTheDay(RECIPES, NOW, 'recipe', (r) => r.diet_slugs.includes('keto'))
     expect(expected?.diet_slugs).toContain('keto')
     const card = screen.getByTestId('recipe-of-the-day')
     expect(await within(card).findByRole('link', { name: expected?.title_en })).toBeInTheDocument()

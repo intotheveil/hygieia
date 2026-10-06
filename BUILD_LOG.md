@@ -160,6 +160,7 @@ The human reads this first on return (CLAUDE.md §5).
 - **For the lead's BRAIN pass:** §2 ContentSource (per-table overlay indexes, `SEED_OVERLAY_TABLES`, part modules) and pages (RecipePage
   frame first, ribbon above the title); §5 gotcha — rolldown chunks whole modules, so "named exports per table" never splits an
   overlay's bytes; a data-dependent LCP element makes Lantern charge every seed byte to LCP; the 2 + 6 pre-existing test failures above.
+- **Stale tests fixed on wt/d (test-writer, 2026-10-07):** the 2 unit + 6 e2e pre-existing failures now assert against the SERVED seed (`src/test/overlaidSeed.ts`): `HomeExtras.test.tsx` picks from `OVERLAID_SEED` (182 recipes); `onboarding.spec.ts` reads served diets/recipes/tips (vegetarian 84, not 68); `tips.spec.ts` + `skincare.spec.ts` replace the "source pending" checks (0002 sourced every tip) with: no card shows it, one source link per card (75 health / 51 face tips), each sleep card links its own `source_url`; the skincare failure was the pending-tip check, not routine steps. Sabotage (one sleep tip rendered pending) → both tips tests red, green on restore. No product code changed. Verify: lint 0 errors (23 warnings) · typecheck app + e2e clean · vitest 112 files / **4436 passed** · build · build:dead · `E2E_PREBUILT=1 npm run e2e` **108 passed**.
 
 ### GREEK KITCHEN — fasting diet, 30 classic recipes, seasonal produce (overlay 0003) — 2026-10-06 — DONE
 
