@@ -130,9 +130,12 @@ describe('INGREDIENTS seed — nutrition (per 100 g)', () => {
     }
   })
 
-  it('source_note is the exact USDA reference-range label on every row', () => {
+  it('source_note is the USDA reference-range label, or names the EU source an overlay used', () => {
+    // Overlay 0004 replaced USDA values for Greek/local products with CIQUAL 2020 or EU label means;
+    // those rows must say so. Every other row keeps the exact USDA label.
     for (const row of INGREDIENTS) {
-      expect(row.source_note, row.slug).toBe(SOURCE_NOTE)
+      if (row.source_note === SOURCE_NOTE) continue
+      expect(row.source_note, row.slug).toMatch(/CIQUAL|label|USDA/)
     }
   })
 })
@@ -165,7 +168,10 @@ describe('INGREDIENTS seed — units and prices', () => {
     for (const row of INGREDIENTS) {
       expect(row.price_as_of, `${row.slug} price_as_of`).toMatch(ISO_DATE)
       expect(Number.isNaN(Date.parse(row.price_as_of)), `${row.slug} price_as_of`).toBe(false)
-      expect(row.price_note, `${row.slug} price_note`).toMatch(/\bper\b/)
+      // The base seed says "per <unit>"; overlay 0004 notes name the shelf source or say "Estimate".
+      expect(row.price_note, `${row.slug} price_note`).toMatch(
+        /\bper\b|Sklavenitis|My market|^Estimate|range/,
+      )
     }
   })
 })

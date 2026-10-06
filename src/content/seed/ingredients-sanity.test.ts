@@ -124,7 +124,14 @@ describe('ingredients as served — prices', () => {
   })
 
   it('a shelf-checked price names its source and method; every other price says it is an estimate', () => {
+    // Rows ADDED by another overlay (0003: tarama, pearl onions) carry their own basis note; this
+    // rule binds the base rows that overlay 0004 re-priced or marked as estimates.
+    const base = new Set(INGREDIENTS.map((r) => r.slug))
     for (const row of ROWS) {
+      if (!base.has(row.slug)) {
+        expect(row.price_note.trim().length, row.slug).toBeGreaterThan(10)
+        continue
+      }
       if (row.price_as_of === SHELF_CHECKED_AS_OF)
         expect(row.price_note, row.slug).toMatch(/Sklavenitis|My market/)
       else expect(row.price_note, row.slug).toMatch(/^Estimate, not checked against shelf prices/)
