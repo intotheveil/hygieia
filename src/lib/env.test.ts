@@ -1,4 +1,4 @@
-import { resolveAppEnv } from './env'
+import { googleSignInEnabled, resolveAppEnv } from './env'
 import { clientFor } from './supabase'
 
 describe('resolveAppEnv', () => {
@@ -30,6 +30,34 @@ describe('resolveAppEnv', () => {
         VITE_SUPABASE_ANON_KEY: ' k ',
       }),
     ).toEqual({ mode: 'configured', supabase: { url: 'https://x.supabase.co', anonKey: 'k' } })
+  })
+})
+
+describe('googleSignInEnabled', () => {
+  it.each(['1', 'true', 'TRUE ', ' True'])('is on for %j', (value) => {
+    expect(googleSignInEnabled({ VITE_AUTH_GOOGLE: value })).toBe(true)
+  })
+
+  it.each(['0', '', '   ', 'yes', 'on', '2', 'false', undefined])('is off for %j', (value) => {
+    expect(googleSignInEnabled({ VITE_AUTH_GOOGLE: value })).toBe(false)
+  })
+
+  it('is off when the name is absent altogether', () => {
+    expect(googleSignInEnabled({})).toBe(false)
+  })
+
+  it('isGoogleSignInEnabled reads VITE_AUTH_GOOGLE from import.meta.env at module load', async () => {
+    try {
+      vi.stubEnv('VITE_AUTH_GOOGLE', '')
+      vi.resetModules()
+      expect((await import('./env')).isGoogleSignInEnabled).toBe(false)
+      vi.stubEnv('VITE_AUTH_GOOGLE', '1')
+      vi.resetModules()
+      expect((await import('./env')).isGoogleSignInEnabled).toBe(true)
+    } finally {
+      vi.unstubAllEnvs()
+      vi.resetModules()
+    }
   })
 })
 

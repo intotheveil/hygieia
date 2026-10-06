@@ -5,14 +5,19 @@
 // or malformed value never throws here. It selects LOCAL-ONLY mode, in which nothing is sent
 // anywhere.
 //
-// Only the two allow-listed names are read, each by its full literal name. Never pass
+// Only the allow-listed names are read, each by its full literal name. Never pass
 // `import.meta.env` around as a whole object: Vite then inlines EVERY `VITE_*` variable present at
 // build time into the public bundle, which would bypass the lint allow-list in eslint.config.js.
+//
+// VITE_AUTH_GOOGLE is a feature FLAG, not configuration: the Google provider needs operator setup
+// on the shared project (OPERATOR-P2 OP2.a), and until then Supabase answers "Unsupported provider"
+// (incident 2026-10-06). The sign-in page shows "Continue with Google" only when the flag is on.
 
 declare global {
   interface ImportMetaEnv {
     readonly VITE_SUPABASE_URL?: string
     readonly VITE_SUPABASE_ANON_KEY?: string
+    readonly VITE_AUTH_GOOGLE?: string
     // Fleet telemetry (PLAN P6.1); read ONLY in src/telemetry.ts, each by its full literal name.
     readonly VITE_FLEET_URL?: string
     readonly VITE_FLEET_KEY?: string
@@ -24,6 +29,7 @@ declare global {
 export interface RawSupabaseEnv {
   VITE_SUPABASE_URL?: string
   VITE_SUPABASE_ANON_KEY?: string
+  VITE_AUTH_GOOGLE?: string
 }
 
 /** A usable Supabase configuration: a parsed http(s) URL and a non-empty anon key. */
@@ -68,3 +74,19 @@ export const appEnv: AppEnv = resolveAppEnv({
 
 /** True when no Supabase backend is configured. */
 export const isLocalOnly: boolean = appEnv.mode === 'local'
+
+/**
+ * Whether "Continue with Google" may be shown. Pure: true only when VITE_AUTH_GOOGLE is exactly
+ * `1` or `true` (trimmed; `true` case-insensitive). Anything else — unset, blank, `0`, `yes` — is
+ * off: a provider that needs operator setup is never shown on hope.
+ */
+export function googleSignInEnabled(raw: Pick<RawSupabaseEnv, 'VITE_AUTH_GOOGLE'>): boolean {
+  if (typeof raw.VITE_AUTH_GOOGLE !== 'string') return false
+  const value = raw.VITE_AUTH_GOOGLE.trim()
+  return value === '1' || value.toLowerCase() === 'true'
+}
+
+/** True when this build may offer Google sign-in (flag set at build time, after OP2.a). */
+export const isGoogleSignInEnabled: boolean = googleSignInEnabled({
+  VITE_AUTH_GOOGLE: import.meta.env.VITE_AUTH_GOOGLE,
+})

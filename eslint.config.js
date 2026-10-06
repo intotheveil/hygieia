@@ -10,8 +10,10 @@ import tseslint from 'typescript-eslint'
 // (supabase/functions/**) or scripts (scripts/**), never in src/**.
 const SERVER_SECRET =
   '/^(HYGIEIA_)?(ANTHROPIC_API_KEY|OPENAI_API_KEY)$|^SUPABASE_SERVICE_ROLE_KEY$|^SUPABASE_ACCESS_TOKEN$/'
-// Any VITE_ name except the allow-list: the Supabase URL + anon key and the fleet-telemetry names.
-const VITE_NOT_ALLOWED = '/^VITE_(?!(SUPABASE_URL|SUPABASE_ANON_KEY)$|FLEET_[A-Z0-9_]+$)/'
+// Any VITE_ name except the allow-list: the Supabase URL + anon key, the Google sign-in flag
+// (VITE_AUTH_GOOGLE, src/lib/env.ts) and the fleet-telemetry names.
+const VITE_NOT_ALLOWED =
+  '/^VITE_(?!(SUPABASE_URL|SUPABASE_ANON_KEY|AUTH_GOOGLE)$|FLEET_[A-Z0-9_]+$)/'
 
 const META_ENV =
   "[object.type='MemberExpression'][object.object.type='MetaProperty'][object.property.name='env']"
@@ -21,7 +23,7 @@ const PROCESS_ENV =
 const SECRET_MSG =
   'Server-only secret in browser code. Vite inlines env reads into the public bundle. This name belongs in supabase/functions/** or scripts/**, never in src/**.'
 const VITE_MSG =
-  'VITE_ name outside the allow-list. Every VITE_ var is inlined into the public bundle. Browser code may read only VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY and VITE_FLEET_*.'
+  'VITE_ name outside the allow-list. Every VITE_ var is inlined into the public bundle. Browser code may read only VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, VITE_AUTH_GOOGLE and VITE_FLEET_*.'
 
 /** @param {string} name regex literal for the env var name  @param {string} message */
 const envReads = (name, message) =>

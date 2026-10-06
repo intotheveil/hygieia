@@ -9,7 +9,15 @@ import { fakeClient, fakeSession } from './fake-client'
 import { NEXT_STORAGE_KEY } from './session'
 import { SignInPage } from './SignInPage'
 
-function renderAt(path: string, client: HygieiaClient | null, lang: Lang = 'en', timeoutMs = 30) {
+/** `google` mirrors the page's seam; `undefined` renders `<SignInPage />` bare (the build flag). */
+function renderAt(
+  path: string,
+  client: HygieiaClient | null,
+  lang: Lang = 'en',
+  timeoutMs = 30,
+  google?: boolean,
+) {
+  const signIn = google === undefined ? <SignInPage /> : <SignInPage google={google} />
   return render(
     <LangProvider initial={lang}>
       <AuthProvider client={client}>
@@ -17,7 +25,7 @@ function renderAt(path: string, client: HygieiaClient | null, lang: Lang = 'en',
           <Routes>
             <Route path="/" element={<p>home-probe</p>} />
             <Route path="/plans" element={<p>plans-probe</p>} />
-            <Route path="/auth" element={<SignInPage />} />
+            <Route path="/auth" element={signIn} />
             <Route path="/auth/callback" element={<CallbackPage timeoutMs={timeoutMs} />} />
           </Routes>
         </MemoryRouter>
@@ -44,9 +52,30 @@ describe('SignInPage', () => {
     expect(await screen.findByRole('status')).toHaveTextContent(en.signInLinkSent)
   })
 
+  it('hides "Continue with Google" by default (VITE_AUTH_GOOGLE unset): magic link only, no dead space', () => {
+    const fake = fakeClient()
+    const { container } = renderAt('/auth', fake.client)
+    expect(screen.getByRole('button', { name: en.signInSendLink })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: en.signInGoogle })).not.toBeInTheDocument()
+    expect(fake.signInWithOAuth).not.toHaveBeenCalled()
+    // Exactly the intro, the form and nothing else under the heading: no empty wrapper is left behind.
+    const main = container.querySelector('main')
+    expect(main).not.toBeNull()
+    expect(Array.from(main!.children).map((el) => el.tagName)).toEqual(['H1', 'P', 'FORM'])
+  })
+
+  it.each([
+    ['en', en],
+    ['el', el],
+  ] as const)('shows "Continue with Google" in %s when the flag is on', (lang, t) => {
+    renderAt('/auth', fakeClient().client, lang, 30, true)
+    expect(screen.getByRole('button', { name: t.signInGoogle })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: t.signInSendLink })).toBeInTheDocument()
+  })
+
   it('"Continue with Google" calls signInWithOAuth with provider google and the same redirect', async () => {
     const fake = fakeClient()
-    renderAt('/auth', fake.client)
+    renderAt('/auth', fake.client, 'en', 30, true)
     fireEvent.click(screen.getByRole('button', { name: en.signInGoogle }))
     await waitFor(() => expect(fake.signInWithOAuth).toHaveBeenCalledTimes(1))
     expect(fake.signInWithOAuth).toHaveBeenCalledWith({
@@ -57,13 +86,13 @@ describe('SignInPage', () => {
 
   it('stores a safe ?next= before leaving and ignores an off-site one', async () => {
     const fake = fakeClient()
-    const { unmount } = renderAt('/auth?next=/plans', fake.client)
+    const { unmount } = renderAt('/auth?next=/plans', fake.client, 'en', 30, true)
     fireEvent.click(screen.getByRole('button', { name: en.signInGoogle }))
     await waitFor(() => expect(window.sessionStorage.getItem(NEXT_STORAGE_KEY)).toBe('/plans'))
     unmount()
     window.sessionStorage.clear()
     const second = fakeClient()
-    renderAt('/auth?next=//evil.example', second.client)
+    renderAt('/auth?next=//evil.example', second.client, 'en', 30, true)
     fireEvent.click(screen.getByRole('button', { name: en.signInGoogle }))
     await waitFor(() => expect(second.signInWithOAuth).toHaveBeenCalledTimes(1))
     expect(window.sessionStorage.getItem(NEXT_STORAGE_KEY)).toBeNull()

@@ -52,6 +52,7 @@ jobs:
         env:
           VITE_SUPABASE_URL: ''
           VITE_SUPABASE_ANON_KEY: ''
+          VITE_AUTH_GOOGLE: ''
           VITE_FLEET_URL: ''
           VITE_FLEET_KEY: ''
           VITE_FLEET_PRODUCT_ID: ''
@@ -122,9 +123,10 @@ jobs:
           path: lighthouse-report/
           if-no-files-found: ignore
           retention-days: 14
-      # THE PAGES ARTIFACT: the same source built again in CONFIGURED mode (PLAN P6.4). The five
+      # THE PAGES ARTIFACT: the same source built again in CONFIGURED mode (PLAN P6.4). The six
       # names come from repository VARIABLES (Settings → Secrets and variables → Actions → Variables;
-      # OPERATOR-P2 OP2.c sets the Supabase pair, OPERATOR-P6 OP6.a the fleet trio), NOT from
+      # OPERATOR-P2 OP2.c sets the Supabase pair, OP2.a the Google flag, OPERATOR-P6 OP6.a the fleet
+      # trio), NOT from
       # secrets: every value is public by design (Vite inlines them into the public bundle; the anon
       # key is RLS-bound, the fleet key is write-only), and a secret would only make the value
       # invisible in these logs while it sits in plain text in dist/. Until the operator sets them,
@@ -136,6 +138,7 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+          VITE_AUTH_GOOGLE: ${{ vars.VITE_AUTH_GOOGLE }}
           VITE_FLEET_URL: ${{ vars.VITE_FLEET_URL }}
           VITE_FLEET_KEY: ${{ vars.VITE_FLEET_KEY }}
           VITE_FLEET_PRODUCT_ID: ${{ vars.VITE_FLEET_PRODUCT_ID }}
