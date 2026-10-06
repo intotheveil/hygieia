@@ -144,6 +144,19 @@ pending|approved|rejected` stamped by `stamp_review()` BEFORE UPDATE · per-user
 
 ## 3. CURRENT STATE (what's true RIGHT NOW — the thing a resuming session reads)
 
+- **PAUSED BY THE OPERATOR (2026-10-07 early, "I need the pc") — RESUME HERE FIRST:**
+  - Live DB ledger 18/18: … 001400 regrant, overlays 20261007000100 fix_typos, 000200 tip_sources, 000300 greek_kitchen, 000400
+    prices_nutrition — all applied and value-verified; everything approved (182 recipes, 17 diets incl. fasting, 324 ingredients, 0
+    unsourced tips). The configured site already serves this content from the DB.
+  - Local `main` `381e1b7` is AHEAD of origin (`626119e`) and NOT pushed: overlays 0002/0003/0004 merged + test scoping. HOLD the push
+    until the overlay per-table split lands — with all overlays in one chunk /recipes and /recipe sit at 85 locally (CI would read 84).
+  - Per-table split lane (`hygieia-wt/c`, branch `wt/c`) was STOPPED mid-work, uncommitted (it had started adding per-table indexes; last
+    note: adding 0004 to the ingredients index). Resume it: inspect `git -C D:/projects/hygieia-wt/c status`, merge `main`, finish,
+    measure 3× Lighthouse (recipes/recipe ≥ 87), commit, merge, push.
+  - Recipe photo lane (`hygieia-wt/b`) STOPPED: raw renders in the session scratchpad `recipes-img/raw/` (~81+ of 152), no QA/web assets
+    yet, nothing committed. Resume: render the rest (+ the 30 new Greek recipes from overlay 0003), vision-QA with qwen2.5vl, webp,
+    runtime-cache, then image_path via a new overlay 0005 (not the temporary mapping module).
+  - ComfyUI queue cleared, VRAM freed, Ollama models unloaded at pause.
 - **RESUME HERE (2026-10-06 evening, operator closed the session to test):**
   - **Live** (`main` `5b832ab`, CI runs 37461084866 / 37468983515 / 37471474005 / 37472191945 all green): `/skincare` (face + nails, 52 product
     types / 28 routines / 65 tips, all approved), `/profile` (signed-in: quick add, weight sparkline, history, goals, 16 achievements, saved
