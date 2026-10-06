@@ -2,7 +2,7 @@
      CORE    (§0 §3 §4 §5 §6 §7 §9 §10) come from .zeus/kit/CLAUDE.core.md and are synced fleet-wide.
      PROJECT (§1 §2 §8 §11) come from this repo's .claude/CLAUDE.project.md and are yours.
      Edit a CORE section in the kit, not here, or the next sync will overwrite it.
-     Composed 2026-10-06T05:38:09.781Z for hygieia. -->
+     Composed 2026-10-06T11:37:20.828Z for hygieia. -->
 
 # PROJECT CONSTITUTION — hygieia
 
@@ -207,6 +207,7 @@ lint+types: npm run lint && npm run typecheck
 gates:      npm run check:bundle && npm run check:pwa && npm run check:lighthouse   (on dist/; lighthouse = COLD first visit, 85/90/90, ADR-0006)
 smoke:      npm run smoke:live   (read-only HTTP probes of the deployed site; backend probes need VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY in the shell)
 telemetry:  VITE_FLEET_URL, VITE_FLEET_KEY, VITE_FLEET_PRODUCT_ID (repo variables, OP6.a; names only — the client is silent until set)
+auth flag:  VITE_AUTH_GOOGLE=1 (repo variable, set ONLY after OP2.a; unset = no "Continue with Google" button, magic link only)
 ```
 <!-- KIT:PROJECT:END §8 -->
 

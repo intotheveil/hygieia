@@ -147,7 +147,7 @@ pending|approved|rejected` stamped by `stamp_review()` BEFORE UPDATE · per-user
 ## 3. CURRENT STATE (what's true RIGHT NOW — the thing a resuming session reads)
 
 - **Built on `main` `b18f56d` (2026-10-06, themes merged; CI run 37441451272 green + deployed), every local gate green:** lint 0 errors
-  (23 pre-existing `react-refresh` warnings) · typecheck clean · **tests 3229** (66 files) · **e2e 74** (65 local incl. 24 a11y language
+  (23 pre-existing `react-refresh` warnings) · typecheck clean · **tests 3246** (66 files) · **e2e 74** (65 local incl. 24 a11y language
   cells + 8 theme cells; 9 dead-backend) · `db:check` 10 files ·
   **`db:gate` 227** · **prove-red 25/25** · `seed:check` OK · `check:bundle` OK · `check:pwa` OK · **`check:lighthouse` cold
   85/90/90 (ADR-0006) deterministic: three consecutive runs 36/36 cells within ±1**, perf 87–94 locally, 86–94 on the GitHub runner
@@ -185,7 +185,7 @@ pending|approved|rejected` stamped by `stamp_review()` BEFORE UPDATE · per-user
 | PERF       | 🟡  | perf     | ~~CI Lighthouse below 85 on content routes~~ **CLOSED 2026-10-06** by code splitting + lazy seeds/supabase-js + fallback fonts + ADR-0006 cold gate (QA re-run: 36/36 cells within ±1, runner 86–94). Remaining: cold perf 87 vs target 90 on `recipes`/`recipe`/`fridge`/`diet`; CI margin 1 point | backlog         | 2026-10-06 |
 | REVIEW-P12 | ✅  | gate     | ~~P1/P2 REVIEW REVISE on records~~ **PASS 2026-10-06** (BUILD_LOG `P1/P2 + P3/P4 re-review — PASS`)                                                                                                    | closed          | 2026-10-06 |
 | REVIEW-P34 | ✅  | gate     | ~~P3/P4 REVIEW REVISE~~ **PASS 2026-10-06** on `fecacfa`+ (same entry)                                                                                                                                  | closed          | 2026-10-06 |
-| OP2        | 🟠  | operator | **OP2.c DONE** (`VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` set; configured deploy run 37436089418) · **redirect URL `https://intotheveil.github.io/hygieia/auth/callback` ADDED by the operator** · still open: **OP2.b admin flag** after the operator's first magic-link sign-in (`docs/ops/admin.md`); Google provider optional | open (OP2.b)    | 2026-10-06 |
+| OP2        | 🟠  | operator | **OP2.c DONE** (`VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` set; configured deploy run 37436089418) · **redirect URL `https://intotheveil.github.io/hygieia/auth/callback` ADDED by the operator** · still open: **OP2.b admin flag** after the operator's first magic-link sign-in (`docs/ops/admin.md`); Google provider deferred by the operator ("later, not needed now") — when done, set repo variable `VITE_AUTH_GOOGLE=1`, the button is hidden until then | open (OP2.b)    | 2026-10-06 |
 | OP4        | ✅  | operator | OP4.a seeds live ✅ · **OP4.b content APPROVED 2026-10-06 (night) by SQL on the operator's instruction** — all tables approved except 17 `health_tips` with `needs_source = true`, left pending for the operator to source/reject in `/admin` (BUILD_LOG `OPERATOR-P4 / OP4.b`) | closed (17 tips pending) | 2026-10-06 |
 | OP6        | 🟡  | operator | Register Hygieia on the Zeus dashboard, then repo variables `VITE_FLEET_URL`, `VITE_FLEET_KEY`, `VITE_FLEET_PRODUCT_ID` (OP6.a); telemetry client is wired (P6.1) and off until then                   | open (operator) | 2026-10-06 |
 
@@ -332,6 +332,13 @@ table (14)` is right; P1.QA.2's `(13)` is the typo.
 - **`page.route('**/sw.js', r => r.abort())` does NOT block a service worker in Playwright/Chromium (2026-10-06, review fix 2).** The SW script is fetched outside page interception, so that sabotage stays GREEN and proves nothing. The only valid "no SW" sabotage is `test.use({ serviceWorkers: 'block' })` — then the offline spec fails at step 1 (no controller), as it should. Treat any earlier "blocked sw.js → test went red" claim with suspicion unless it says how.
 
 ## 6. CHANGELOG (append-only — what happened, newest first)
+
+### 2026-10-06 (afternoon) — Google button gated behind `VITE_AUTH_GOOGLE` (lane `wt/d`; BUILD_LOG `OP2.a FOLLOW-UP`)
+
+- Did: the live "Continue with Google" sent the operator to Supabase's `Unsupported provider: provider is not enabled` JSON. The button now
+  renders only when `VITE_AUTH_GOOGLE` is `1`/`true` (pure helper + module const in `src/lib/env.ts`, seam on `SignInPage`), CI passes the
+  variable to the configured build, README/`.env.example`/CLAUDE §8 documented, lint allow-list admits the name. +17 tests (3246).
+- Decided: providers that need operator setup are feature-flagged, never shown on hope (DECISIONS 2026-10-06). Operator deferred Google.
 
 ### 2026-10-06 (day) — four cosmetic themes + per-theme hero images (lane `wt/b`; BUILD_LOG `P4.x THEMES`)
 
