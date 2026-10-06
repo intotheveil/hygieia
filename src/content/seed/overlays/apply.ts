@@ -27,7 +27,7 @@ import {
   OVERLAY_ID_RE,
   OVERLAY_TABLES,
   PATCH_COLUMNS,
-  type Overlay,
+  type OverlaySlice,
   type OverlayParentTable,
   type OverlayTable,
   type SeedBase,
@@ -57,7 +57,7 @@ function fail(overlay: string, where: string, message: string): never {
 }
 
 /** Check overlay ids: well-formed, unique, strictly increasing NNNN. */
-export function checkOverlayIds(overlays: readonly Overlay[]): void {
+export function checkOverlayIds(overlays: readonly OverlaySlice[]): void {
   let last = -1
   for (const o of overlays) {
     const m = OVERLAY_ID_RE.exec(o.id)
@@ -168,7 +168,7 @@ function checkInvariants(id: string, state: State, touched: ReadonlySet<OverlayP
 }
 
 /** Apply ONE overlay to the state in place (the state's arrays are already private copies). */
-function applyOne(overlay: Overlay, state: State, touched: Set<OverlayParentTable>): void {
+function applyOne(overlay: OverlaySlice, state: State, touched: Set<OverlayParentTable>): void {
   const id = overlay.id
   const write = writer(state, touched)
   const patches = (overlay.patches ?? {}) as Partial<Record<OverlayTable, readonly Row[]>>
@@ -228,7 +228,7 @@ function applyOne(overlay: Overlay, state: State, touched: Set<OverlayParentTabl
  */
 export function applyOverlays<B extends Partial<SeedBase>>(
   base: B,
-  overlays: readonly Overlay[],
+  overlays: readonly OverlaySlice[],
 ): B {
   checkOverlayIds(overlays)
   // reason: the seed tables are walked generically as loose rows; each keeps its own seed shape
@@ -244,9 +244,47 @@ export function applyOverlays<B extends Partial<SeedBase>>(
 export function overlayTable<K extends keyof SeedBase>(
   table: K,
   rows: SeedBase[K],
-  overlays: readonly Overlay[],
+  overlays: readonly OverlaySlice[],
 ): SeedBase[K] {
   // reason: a computed key of generic type K widens to an index signature; the object IS Pick<SeedBase, K>.
   const base = { [table]: rows } as unknown as Pick<SeedBase, K>
   return applyOverlays(base, overlays)[table]
+}
+
+/**
+ * One overlay restricted to the given tables — what a per-table index (./by-table/) holds. Pure;
+ * the rows are shared, not copied. Returns null when the overlay touches none of the tables.
+ * Applying the slices of every overlay to one seed table gives exactly what applying the whole
+ * overlays gives (the applier skips tables absent from its base), which by-table.test.ts proves.
+ */
+export function sliceOverlay(
+  overlay: OverlaySlice,
+  tables: readonly OverlayTable[],
+): OverlaySlice | null {
+  const pick = (part: Partial<Record<OverlayTable, readonly unknown[]>> | undefined) => {
+    const out: Partial<Record<OverlayTable, readonly unknown[]>> = {}
+    for (const table of tables) {
+      const list = part?.[table]
+      if (list && list.length > 0) out[table] = list
+    }
+    return Object.keys(out).length > 0 ? out : undefined
+  }
+  // reason: the patch lists differ per table; `pick` only reads them as lists.
+  const patches = pick(overlay.patches as Partial<Record<OverlayTable, readonly unknown[]>>)
+  const additions = pick(overlay.additions)
+  if (!patches && !additions) return null
+  // reason: `pick` keeps each table's list as it was, so the per-table types still hold.
+  return {
+    id: overlay.id,
+    ...(patches ? { patches: patches as OverlaySlice['patches'] } : {}),
+    ...(additions ? { additions: additions as OverlaySlice['additions'] } : {}),
+  }
+}
+
+/** Every overlay's slice for the given tables, in order, overlays that touch none dropped. */
+export function sliceOverlays(
+  overlays: readonly OverlaySlice[],
+  tables: readonly OverlayTable[],
+): readonly OverlaySlice[] {
+  return overlays.flatMap((o) => sliceOverlay(o, tables) ?? [])
 }

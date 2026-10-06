@@ -5,6 +5,14 @@
 // ingredients, the nutrition and cost panels (P4.3) run the pure engines on the recipe's own
 // resolved lines — no extra fetch — and share ONE per-portion / per-recipe toggle. Unknown slug →
 // the app's NotFound. `source` is a prop (default: the app's `contentSource`) so tests can inject.
+//
+// FRAME FIRST (perf, 2026-10-06). The back link and the draft ribbon do not depend on the recipe,
+// so they paint in the FIRST frame, before the seed tables (recipes + ingredients + diets and their
+// overlays) download; the title, meta, favourite button and body arrive with the data. The ribbon
+// is the route's LCP element: painted at once it no longer waits for — and Lantern no longer charges
+// it — every seed byte. It sits ABOVE the title so its node keeps its position across loading →
+// loaded (one <main>/<header> for every state: no layout shift, no remount). Under the supabase
+// source the ribbon depends on the row's status, so it appears with the data (admins only).
 
 import { useCallback, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
@@ -59,36 +67,50 @@ export function RecipePage({ source = contentSource }: RecipePageProps) {
   const load = useCallback(() => loadRecipe(source, slug), [source, slug])
   const state = useAsyncResult(load)
 
-  if (state.status === 'loading') {
-    return (
-      <main className="mx-auto flex min-h-dvh max-w-3xl flex-col gap-6 px-4 py-10 sm:px-6">
-        <Loading variant="detail" />
-      </main>
-    )
-  }
+  if (state.status === 'ready' && state.data.recipe === null) return <NotFound />
+  const recipe = state.status === 'ready' ? state.data.recipe : null
 
-  if (state.status === 'error') {
-    return (
-      <main className="mx-auto flex min-h-dvh max-w-3xl flex-col gap-6 px-4 py-10 sm:px-6">
-        <ErrorState message={t.loadFailed} onRetry={state.reload} />
-      </main>
-    )
-  }
-
-  const { recipe, diets } = state.data
-  if (recipe === null) return <NotFound />
-  return <RecipeView recipe={recipe} diets={diets} kind={source.kind} />
+  return (
+    <main className="mx-auto flex min-h-dvh max-w-3xl flex-col gap-8 px-4 py-10 sm:px-6">
+      <header className="flex flex-col gap-4">
+        <Link to="/recipes" className="text-sm font-medium text-olive-700 hover:text-olive-900">
+          ← {t.recipesTitle}
+        </Link>
+        <DraftRibbon kind={source.kind} status={recipe?.status} />
+        {recipe !== null && <RecipeHeading recipe={recipe} />}
+      </header>
+      {state.status === 'loading' && <Loading variant="detail" />}
+      {state.status === 'error' && <ErrorState message={t.loadFailed} onRetry={state.reload} />}
+      {state.status === 'ready' && recipe !== null && (
+        <RecipeBody recipe={recipe} diets={state.data.diets} />
+      )}
+    </main>
+  )
 }
 
-function RecipeView({
-  recipe,
-  diets,
-  kind,
-}: {
-  recipe: Recipe
-  diets: Diet[]
-  kind: ContentSource['kind']
-}) {
+/** Title, meta line and favourite button — the part of the header that needs the recipe. */
+function RecipeHeading({ recipe }: { recipe: Recipe }) {
+  const { lang, t } = useLang()
+  return (
+    <>
+      <h1 className="font-display text-3xl leading-tight font-semibold text-olive-950 text-balance sm:text-4xl">
+        {recipeTitle(recipe, lang)}
+      </h1>
+      <p className="text-olive-700">
+        <span>{plural(t.portions, recipe.portions)}</span>
+        <span aria-hidden="true"> · </span>
+        <span>{plural(t.minutes, recipe.prep_min)}</span>
+        <span aria-hidden="true"> · </span>
+        <span>
+          {t.mealTypes}: {recipe.meal_types.map((meal) => t.meals[meal]).join(', ')}
+        </span>
+      </p>
+      <FavouriteButton recipeId={recipe.id} />
+    </>
+  )
+}
+
+function RecipeBody({ recipe, diets }: { recipe: Recipe; diets: Diet[] }) {
   const { lang, t } = useLang()
   const dietsBySlug = new Map(diets.map((diet) => [diet.slug, diet] as const))
   const steps = lang === 'el' ? recipe.steps_el : recipe.steps_en
@@ -112,27 +134,7 @@ function RecipeView({
   const cost = useMemo(() => computeCost(recipe, ingredientsBySlug), [recipe, ingredientsBySlug])
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-3xl flex-col gap-8 px-4 py-10 sm:px-6">
-      <header className="flex flex-col gap-4">
-        <Link to="/recipes" className="text-sm font-medium text-olive-700 hover:text-olive-900">
-          ← {t.recipesTitle}
-        </Link>
-        <h1 className="font-display text-3xl leading-tight font-semibold text-olive-950 text-balance sm:text-4xl">
-          {recipeTitle(recipe, lang)}
-        </h1>
-        <p className="text-olive-700">
-          <span>{plural(t.portions, recipe.portions)}</span>
-          <span aria-hidden="true"> · </span>
-          <span>{plural(t.minutes, recipe.prep_min)}</span>
-          <span aria-hidden="true"> · </span>
-          <span>
-            {t.mealTypes}: {recipe.meal_types.map((meal) => t.meals[meal]).join(', ')}
-          </span>
-        </p>
-        <DraftRibbon kind={kind} status={recipe.status} />
-        <FavouriteButton recipeId={recipe.id} />
-      </header>
-
+    <>
       {recipe.diet_slugs.length > 0 && (
         <section aria-labelledby="recipe-diets" className="flex flex-col gap-3">
           <h2 id="recipe-diets" className="font-display text-xl font-semibold text-olive-950">
@@ -184,7 +186,7 @@ function RecipeView({
           ))}
         </ol>
       </section>
-    </main>
+    </>
   )
 }
 

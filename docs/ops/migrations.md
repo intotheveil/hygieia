@@ -195,6 +195,23 @@ top of the base seed and that the generator turns into ONE new forward-only migr
 
 2. Add ONE line to `src/content/seed/overlays/index.ts` (`OVERLAYS`, in NNNN order). A module the
    list does not name, or a list out of order, is a generator error.
+   **Then register it per table** (perf, 2026-10-06): the bundled source does NOT import
+   `index.ts`; each seed table loader imports `overlays/by-table/<key>.ts` (key = `ingredients`,
+   `diets`, `recipes` — with `recipe_ingredients` + `recipe_diets` —, `exercises`,
+   `workout_templates` — with `workout_template_exercises` —, `health_tips`,
+   `skincare_product_types`, `skincare_routines`, `skincare_tips`; `SEED_OVERLAY_TABLES` in
+   `types.ts`), so a page downloads only the overlay rows of the tables it reads. Add the overlay's
+   slice to the index of every key it touches, in NNNN order:
+   - an overlay touching ONE key stays a single file and is imported whole:
+     `...sliceOverlays([O0005], SEED_OVERLAY_TABLES.recipes)` (see `by-table/ingredients.ts`, 0004);
+   - an overlay touching SEVERAL keys keeps each key's rows in its own module
+     `overlays/NNNN-<name>/<key>.ts` (type-only imports), the `NNNN-<name>.ts` file assembles
+     `OVERLAY` from them, and each index imports only its key's part
+     (`{ id: '0003-greek-kitchen', additions: { recipes: R0003, recipe_diets: RD0003 } }`).
+     Rolldown assigns whole modules to chunks, so importing a multi-table overlay whole would put
+     every table's rows in every loader's download.
+   `overlays/by-table.test.ts` is red if an index misses an overlay, slices it wrongly, or breaks
+   the import rule; the generator, `seed:check` and the migration are unaffected by the layout.
 3. `npm run seed:gen` writes `supabase/migrations/20261007<NNNN>00_hygieia_overlay_<name>.sql`:
    every patch as `update hygieia.<t> set … where slug = '…'`, then every addition as the base
    generator's `insert … on conflict (…) do nothing`. Nothing else in `supabase/migrations/` may

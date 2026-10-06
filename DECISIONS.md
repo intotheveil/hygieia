@@ -779,3 +779,13 @@ builder (worktree `wt/g`) from the lead's decision; BUILD_LOG entry of the same 
   self-consistent EU labels (category named, never a brand) — and `carbs_100g` stays "by difference" (EU carbohydrate + fibre) so low-carb
   totals remain comparable across USDA and EU rows. `ingredients-sanity.test.ts` pins energy ≈ 4/4/9 (±15 %) on the overlaid table with
   fibre/alcohol/polyol rows named and sourced.
+- 2026-10-06 — **Overlays load PER TABLE; a multi-table overlay is authored in per-loader part modules; the recipe page paints its
+  ribbon first (lane `wt/c`, perf).** Rolldown assigns whole modules to chunks (tree-shaking never splits one module's exports across
+  chunks), so "per-table named exports" in one overlay file cannot split its bytes — the data must live in separate modules. Each
+  bundled loader imports `overlays/by-table/<key>.ts` (that key's slices + the shared applier), never `overlays/index.ts`; an overlay
+  touching several keys keeps `NNNN-<name>/<key>.ts` parts and its `NNNN-<name>.ts` assembles `OVERLAY` (the generator, gate and
+  tests still read the whole overlay; migrations byte-identical). `by-table.test.ts` pins slices == `sliceOverlays(OVERLAYS, …)` and
+  the import rule. Rejected: a generated per-table index (a build step for 4 small files) and a Vite plugin. The split alone left
+  `recipe` at 84 after 0004 (its LCP ribbon waited for recipes + ingredients + diets): `RecipePage` now renders one `<main>`/`<header>`
+  in every state with the back link and ribbon FIRST, the ribbon moved ABOVE the title (same node loading → loaded, no shift) — a
+  small visual reorder accepted for ~6 points.

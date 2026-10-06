@@ -275,6 +275,12 @@ export interface Overlay {
   additions?: OverlayAdditions
 }
 
+/**
+ * What the applier reads of an overlay: its id (ordering, messages) and its patches/additions. A
+ * per-table slice (./by-table/) is one of these — the same overlay restricted to one loader's tables.
+ */
+export type OverlaySlice = Pick<Overlay, 'id' | 'patches' | 'additions'>
+
 /** The overlay id rule: four digits, a hyphen, a slug. */
 export const OVERLAY_ID_RE = /^(\d{4})-([a-z0-9]+(?:-[a-z0-9]+)*)$/
 
@@ -290,3 +296,21 @@ export interface SeedBase {
   skincare_routines: readonly SkincareRoutineSeed[]
   skincare_tips: readonly SkincareTipSeed[]
 }
+
+/**
+ * The overlay tables each bundled seed table carries (src/content/bundled.ts loads one SeedBase key
+ * at a time): a recipe brings its lines and diet tags, a workout template its slots. Each key has a
+ * per-table overlay index ./by-table/<key>.ts holding exactly these tables of every overlay —
+ * by-table.test.ts pins that, so the bundled loaders download only their own overlay rows.
+ */
+export const SEED_OVERLAY_TABLES = {
+  ingredients: ['ingredients'],
+  diets: ['diets'],
+  recipes: ['recipes', 'recipe_ingredients', 'recipe_diets'],
+  exercises: ['exercises'],
+  workout_templates: ['workout_templates', 'workout_template_exercises'],
+  health_tips: ['health_tips'],
+  skincare_product_types: ['skincare_product_types'],
+  skincare_routines: ['skincare_routines'],
+  skincare_tips: ['skincare_tips'],
+} as const satisfies { readonly [K in keyof SeedBase]: readonly OverlayTable[] }

@@ -3,6 +3,100 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+### PERF — overlays split per table — 2026-10-06 — DONE
+
+- **Problem:** `src/content/bundled.ts` loaded ONE lazy `overlays/index.ts` chunk for every seed table, so every content route
+  downloaded every overlay. It grew with each overlay: 2.8 kB gzip (0001) → 21.6 (0001+0003) → 39.3 (+0002) → **45.3 kB gzip / 199.0 kB
+  raw** (+0004, `381e1b7`). `/recipes` and `/recipes/:slug` sat at 85 locally. Lane `wt/c`; merged local `main` twice during the task
+  (`3b281c0` overlay 0002, `381e1b7` overlay 0004) so the split covers 0001–0004. Thresholds, block patterns and the gate are UNCHANGED.
+- **Option (b) rejected by reasoning, (a) built with per-loader part modules.** Rolldown assigns WHOLE modules to chunks; tree-shaking
+  drops unused exports but never splits one module's used exports across chunks, so per-table named exports in one `NNNN-*.ts` file
+  would still be one shared chunk. The bytes must live in separate modules:
+  - `src/content/seed/overlays/by-table/<key>.ts` — one per `SeedBase` key (9): `OVERLAYS: OverlaySlice[]` (that key's slice of every
+    overlay, NNNN order) + re-exported `overlayTable`. `SEED_OVERLAY_TABLES` (types.ts) maps key → overlay tables (recipes carry
+    `recipe_ingredients` + `recipe_diets`, workout templates their slots). Each loader in `bundled.ts` imports its own index beside its
+    base table (`overlaid(table, load, overlays)`).
+  - Multi-key overlays split into part modules, data byte-for-byte unchanged: `0001-fix-typos/{health_tips,skincare_tips}.ts`,
+    `0002-tip-sources/{health_tips,skincare_tips}.ts` (each with only the source constants it uses), `0003-greek-kitchen/{ingredients,
+    diets,recipes}.ts` (`RECIPE_DIETS` = the fasting tags). Each `NNNN-*.ts` still exports the whole `OVERLAY` (generator, gate,
+    tests); `0003` re-exports `FASTING_EXISTING_SLUGS`. 0004 touches only ingredients → imported whole by `by-table/ingredients.ts`.
+  - `apply.ts`: `sliceOverlay` / `sliceOverlays` (pure), applier params widened to `OverlaySlice` (= `Overlay` minus `summary`; type only,
+    semantics unchanged: per overlay patches then additions, NNNN order, unknown slug throws).
+  - `overlays/by-table.test.ts` (32 tests): one index per key; each index `toEqual` `sliceOverlays(OVERLAYS, key's tables)` and shares
+    the row arrays (`toBe`); index applied to its base table == full list applied, for all 9 keys; the IMPORT RULE (an index imports only
+    types/apply, its own key's part modules, or a whole overlay touching only its tables; parts have type-only imports); slicer unit
+    cases. **Sabotages, each red then green on restore:** dropping 0002 from `by-table/health_tips.ts` → 3 red; `diets.ts` re-exporting the
+    whole 0003 → the import-rule test red.
+- **Second lever (recipe page) — needed after 0004.** With the split alone, run on 0001–0003: recipes 85 → **91**, recipe **85**; after
+  merging 0004 (+6.3 kB gzip on ingredients): recipes 88, **recipe 84 (FAIL)**. The LHR showed why: the recipe page's LCP element is
+  the draft ribbon, rendered only after `getRecipe` + `listDiets` resolved (observed LCP 168 ms, every seed done by 126 ms → Lantern
+  charged ~117 kB of seeds to LCP). `src/recipes/RecipePage.tsx` now renders ONE `<main>`/`<header>` for loading / error / loaded: back
+  link + `DraftRibbon` first (bundled → visible at once), then title/meta/favourite (`RecipeHeading`) and body (`RecipeBody`) with the
+  data. **The ribbon moved ABOVE the title** so its DOM node is the same from loading to loaded (no shift, no remount); under the supabase
+  source it still appears only for a non-approved row. Observed LCP 119 ms, recipe 84 → 91. 4 new tests in `RecipePage.test.tsx`
+  (ribbon + back link while loading; SAME node loading → loaded and before the h1; ribbon with the error state; no ribbon for an
+  approved supabase row) — sabotage (ribbon only after load) → 3 red, green on restore.
+- **Chunk sizes (`npm run build`, bytes raw / gzip -9):**
+
+  | chunk | before `381e1b7` | after |
+  | --- | --- | --- |
+  | `overlays-*.js` (all overlays + applier, every content route) | 198 988 / 45 273 | — (gone) |
+  | `apply-*.js` (applier, shared) | — | 5 935 / 2 213 |
+  | `by-table/recipes` | — | 67 412 / 15 458 |
+  | `by-table/ingredients` | — | 63 038 / 6 293 |
+  | `by-table/diets` | — | 8 085 / 3 663 |
+  | `by-table/health_tips` | — | 18 727 / 7 591 |
+  | `by-table/skincare_tips` | — | 36 600 / 12 690 |
+  | `by-table/{exercises,workout_templates,skincare_product_types,skincare_routines}` | — | 89 / ~125 each |
+  | entry `index-*.js` | 232 524 / 71 800 | 232 524 / 71 806 |
+
+  Overlay bytes per route (gzip): recipes / recipe / fridge / diet **45.3 → 27.6 kB** (recipes + ingredients + diets indexes +
+  applier — all recipe-relevant); tips 45.3 → 9.8; skincare 45.3 → 15.2; workouts 45.3 → ~2.5. **LHR network list (recipes and recipe,
+  final run 2):** overlay requests = `recipes-Cl6DrzLT.js` 15 751 B, `ingredients-CiLMfaJQ.js` 6 663, `diets-CBHsI5Ob.js` 3 927, applier
+  `apply-BmreCj24.js` 2 455 + the `content-*` loader — no `health_tips` / `skincare_tips` overlay chunk.
+- **Verification (worktree `wt/c` at `381e1b7` + this change):** lint 0 errors (23 pre-existing warnings) · typecheck clean · `npm test`
+  (`--maxWorkers=2`: ComfyUI and other lanes were loading the machine) **112 files, 4436 tests: 4434 passed, 2 failed — both PRE-EXISTING**:
+  `src/home/HomeExtras.test.tsx` "<OfTheDay> shows today's recipe…" / "same pick on a re-render" fail identically on unchanged `381e1b7`
+  (scratch copy): the test picks from the base `RECIPES` (152) while the page picks from the served, overlaid list (182 since 0003) →
+  a different "recipe of the day". Not fixed here (out of scope) — fix: pick from `OVERLAID_SEED.recipes` in the test. · `seed:check` OK —
+  **11 (7 base + 4 overlay) identical**, no migration touched · `db:gate` **367 green** · `build` OK · `build:dead` OK · `check:pwa` OK ·
+  `check:bundle` OK (86 files) · `E2E_PREBUILT=1 npm run e2e` **108: 102 passed, 6 failed — all 6 PRE-EXISTING** (the same 6 fail on unchanged
+  `381e1b7` built in a scratch copy): `onboarding.spec.ts` ×3 (recipe/tip of the day ×2 widths, pre-filtered recipes), `tips.spec.ts` ×2
+  (source-pending label / `?topic=` hard load — 0002 sourced every tip), `skincare.spec.ts` ×1 (routine steps): specs pinned to content
+  that overlays 0002–0004 changed; for the lead.
+- **`check:lighthouse` × 3 on the final `dist/` (quiet machine: CPU 12 / 6 / 37 % at the start of each run; two earlier runs under
+  59–70 % load read recipes 84 once — seed chunks finished just before the observed LCP, the documented Lantern race — discarded and
+  re-run quiet):**
+
+  | route | run 1 | run 2 | run 3 |
+  | --- | --- | --- | --- |
+  | home | 91 | 91 | 91 |
+  | **recipes** | **89** | **91** | **88** |
+  | **recipe** | **89** | **92** | **91** |
+  | fridge | 88 | 88 | 92 |
+  | diets | 89 | 89 | 90 |
+  | diet | 90 | 88 | 88 |
+  | workouts | 90 | 91 | 91 |
+  | plans | 90 | 90 | 90 |
+  | tips | 91 | 92 | 91 |
+  | skincare | 90 | 91 | 90 |
+  | tasks | 90 | 90 | 91 |
+  | task-topic | 90 | 89 | 91 |
+  | auth | 93 | 93 | 93 |
+  | account | 94 | 94 | 94 |
+  | profile | 90 | 90 | 91 |
+  | admin | 94 | 94 | 94 |
+  | not-found | 94 | 94 | 94 |
+
+  Every run `check:lighthouse OK` (cold, SW blocked, verified per LHR); a11y / best-practices 100 in all 51 cells; minimum 88.
+- **Files:** new `src/content/seed/overlays/by-table/*.ts` (9), `…/overlays/by-table.test.ts`, `…/overlays/0001-fix-typos/*.ts` (2),
+  `…/0002-tip-sources/*.ts` (2), `…/0003-greek-kitchen/*.ts` (3); edited `…/overlays/{0001-fix-typos,0002-tip-sources,0003-greek-kitchen,
+  apply,types}.ts`, `src/content/bundled.ts`, `src/recipes/RecipePage{,.test}.tsx`, `docs/ops/migrations.md` ("Content overlays" — register
+  per table), `DECISIONS.md`. No migration, no dependency, no gate/threshold change. BRAIN.md not edited (lead reconciles).
+- **For the lead's BRAIN pass:** §2 ContentSource (per-table overlay indexes, `SEED_OVERLAY_TABLES`, part modules) and pages (RecipePage
+  frame first, ribbon above the title); §5 gotcha — rolldown chunks whole modules, so "named exports per table" never splits an
+  overlay's bytes; a data-dependent LCP element makes Lantern charge every seed byte to LCP; the 2 + 6 pre-existing test failures above.
+
 ### GREEK KITCHEN — fasting diet, 30 classic recipes, seasonal produce (overlay 0003) — 2026-10-06 — DONE
 
 - **Request (operator approved): "make it Greek, not just in Greek".** Lane `wt/c` from `main` `ab3d4f2`. One content overlay + one
