@@ -55,6 +55,8 @@ describe('themes ↔ src/index.css (the CSS is the source of truth; these pin th
     expect(themeBlock('dark')).toMatch(/color-scheme:\s*dark/)
     expect(themeBlock('gamer')).toMatch(/color-scheme:\s*dark/)
     expect(themeBlock('athletic')).toMatch(/color-scheme:\s*light/)
+    expect(themeBlock('rose')).toMatch(/color-scheme:\s*light/)
+    expect(themeBlock('lavender')).toMatch(/color-scheme:\s*light/)
   })
 
   it('index.html’s pre-paint script reads the same storage key and knows every non-default theme', () => {

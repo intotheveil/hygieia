@@ -1,12 +1,13 @@
-// THEMES (operator request 2026-10-06): four COSMETIC skins. The current kitchen look is `default`;
-// `dark`, `athletic` and `gamer` re-map the SAME colour variables (`--color-paper-*`, `--color-olive-*`,
+// THEMES (operator request 2026-10-06): six COSMETIC skins. The current kitchen look is `default`;
+// `dark`, `athletic`, `gamer`, `rose` and `lavender` (the last two added the same day) re-map
+// the SAME colour variables (`--color-paper-*`, `--color-olive-*`,
 // `--color-sage-*`, `--color-clay-*` in src/index.css) under `html[data-theme="…"]`, so every
 // Tailwind utility the pages already use follows the theme and no component changes. Nothing
 // here is React: e2e/local/a11y-matrix.spec.ts and the dictionary module import this file, and
 // scripts/check-lighthouse.mjs reaches it through e2e/support/routes.ts under node type-stripping,
 // so the syntax must stay erasable (no enums, explicit `.ts` extensions in importers).
 
-export const THEMES = ['default', 'dark', 'athletic', 'gamer'] as const
+export const THEMES = ['default', 'dark', 'athletic', 'gamer', 'rose', 'lavender'] as const
 export type Theme = (typeof THEMES)[number]
 
 export const DEFAULT_THEME: Theme = 'default'
@@ -24,6 +25,8 @@ export const THEME_COLOR: Record<Theme, string> = {
   dark: '#15181a',
   athletic: '#f4f6f8',
   gamer: '#0b0b12',
+  rose: '#fbf1f3',
+  lavender: '#f5f2fb',
 }
 
 /** Narrow an unknown value to a supported theme, or null. */

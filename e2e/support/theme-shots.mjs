@@ -1,4 +1,4 @@
-// Four screenshots of the home page, one per theme, from the production build in dist/ served with
+// One screenshot of the home page per theme (all six), from the production build in dist/ served with
 // GitHub Pages semantics (same server the e2e `local` project uses). Not a test: evidence for the
 // operator and the BUILD_LOG. Run after `npm run build`:
 //   node e2e/support/theme-shots.mjs [outDir] [route]
@@ -9,7 +9,7 @@ import { startPagesServer } from './pages-server.mjs'
 
 const outDir = resolve(process.argv[2] ?? 'theme-shots')
 const route = process.argv[3] ?? '/'
-const THEMES = ['default', 'dark', 'athletic', 'gamer']
+const THEMES = ['default', 'dark', 'athletic', 'gamer', 'rose', 'lavender']
 mkdirSync(outDir, { recursive: true })
 
 const PORT = 4299
