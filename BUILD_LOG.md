@@ -3,6 +3,46 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+### BRAIN.md rewritten to current state (review item 1) — 2026-10-06 — DONE (builder, worktree `wt/a`; records only, uncommitted for the lead)
+
+**Scope:** `BRAIN.md` only (+ this entry). Closes P1/P2 REVIEW required fix 1 and the P3/P4 reviewer's answer (8); both reviews scored the
+records line 1 because the brain still read "P0 scaffold". Rewritten against PLAN §0–§2, every DECISIONS.md entry (ADR-0001..0005 + dated
+entries), the BUILD_LOG lane entries, README, `docs/ops/{migrations,admin}.md`, the code map and the lead's live facts of 2026-10-06.
+
+- **Header:** Last updated 2026-10-06 (lead, Fable 5.1, Zeus session); status "P1–P6 built, P1–P4 QA VALIDATED, deploy pending the perf gate";
+  repo + lane worktrees + deployed line (still the P0 shell).
+- **§1:** intent quote and six modules kept verbatim; one "what works today" paragraph (local-only vs configured mode).
+- **§2 (rewritten):** stack · code map · DB toolchain (`db:check` → `db:gate` 227 → `prove-red` 25 → `db:apply` dry-run default, ledger
+  `hygieia.schema_migrations` → `db:live-check`; `seed:gen`/`seed:check`, md5 ids) · schema `hygieia` (14 tables, per-role policies, column
+  grants, explicit EXECUTE revokes) · `ContentSource` (bundled lazy chunks vs supabase, pinned `db.schema`, `md5.ts`, ribbon) · auth · user
+  data · engines + the unit invariant · pages/Layout/routes + the "new route goes in `routes.tsx` AND `e2e/support/routes.ts`" rule · i18n
+  (base + 7 feature modules, one owner per key, `fill`/plural) · `useAsync`/`useAsyncResult` · `AsyncState` · e2e (Pages-semantics server,
+  local + dead-backend, a11y matrix, offline; 66) · gates · telemetry (Enodia lift, golden fingerprints) · CI two builds + variables · PWA ·
+  env NAMES · records.
+- **§3 (rewritten):** gate counts on `fecacfa` (3196 tests, 66 e2e, gate 227, prove-red 25/25, lint 0 errors); Lighthouse RED on content
+  routes (CI 77–84 vs 85) with the two remaining levers; live site = P0 shell; **live DB: ledger holds 000100–000400, seeds applying (see the
+  OPERATOR-P1 entry when written — no live row counts asserted), Data API exposure unconfirmed (O1)**; QA/review verdicts; next steps in order.
+- **§4 (rebuilt, same table shape, no `|` in cells):** O1, O2 kept; added PERF, REVIEW-P12 (fix landed = this file), REVIEW-P34 (fixes landed,
+  re-review owed), OP2, OP4, OP6. Closed and moved to §6: Q1, Q2, F3 (already), F1 (e2e exists), F2 (client wired; live half is OP6).
+- **§5:** every pre-existing line kept verbatim — checked mechanically against `git show HEAD:BRAIN.md` (47/47 non-blank lines present);
+  **21 → 42 bullets**. Added the lane hand-offs: CRLF/prettier; `npm ci` per worktree after a dependency merge; `MSYS_NO_PATHCONV=1` +
+  native root + stray server; vitest v8 text reporter / `@vitest/coverage-v8 --no-save`; esbuild for scratch seed scripts; supabase-js
+  4× retries (~7 s); Chromium unsafe port 9; `baseURL` vs `page.goto`, `/hygieia/?# BUILD LOG — Hygieia (`hygieia`)
+
+The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
+, locale `el-GR`; 63-render budget; gradient → axe
+  INCOMPLETE + `clay-700`; NBSP before €; `--only-shell` on ubuntu; never two Lighthouse jobs; `script-defer` kills implicit `clientsClaim`;
+  format hook vs record files; `type` aliases for `Database` + adapters; no `node:crypto` in jsdom tests; PEM literal / `sb_secret_`
+  literal; lazy pages → `findByRole`; no `process.exit()` in the PGlite script; `lang` not an allow-listed fleet key.
+- **§6:** seven new entries (gates + review fixes + first live apply; P6; P5; P4; P3; P2; P1), each Did/Decided/Resolved/Left off pointing
+  at BUILD_LOG; the two P0 entries kept below.
+- **§7:** one dated line per DECISIONS.md entry (ADR-0001..0005 and every dated entry, 2026-10-05/06), pointing at `DECISIONS.md`; the two
+  pre-existing interview / default-language lines kept.
+- **§8:** ledger header kept; notes the client is wired but OFF until OP6.a; no rows.
+
+**Checks:** `node -e "…8 section headings…"` → `8 sections ok`; HEAD §5 verbatim check 47/47; §4 rows all 7 pipes. `BRAIN.md` is in
+`.prettierignore` (no prettier check required). No code, test, migration or gate touched. **Next:** lead merges `wt/a`; P1/P2 reviewer flips
+to PASS (REVIEW-P12); OPERATOR-P1 entry closes the seed apply and, after OP1.b, O1.
 ### P3/P4 REVIEW fixes 1–4 — 2026-10-06 — DONE (builder, worktree `wt/c`; uncommitted for the lead; every gate green, 66/66 e2e)
 
 **Scope: exactly the four REQUIRED FIXES of the P3.REVIEW + P4.REVIEW entry below; nothing else touched.** 13 files, all under `src/`
