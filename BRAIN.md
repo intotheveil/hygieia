@@ -323,6 +323,8 @@ table (14)` is right; P1.QA.2's `(13)` is the typo.
 - **Git Bash mangles `/hygieia/...` CLI arguments into Windows paths** for scratch scripts and
   `pages-server --base`; prefix the command with `MSYS_NO_PATHCONV=1`.
 
+- **`page.route('**/sw.js', r => r.abort())` does NOT block a service worker in Playwright/Chromium (2026-10-06, review fix 2).** The SW script is fetched outside page interception, so that sabotage stays GREEN and proves nothing. The only valid "no SW" sabotage is `test.use({ serviceWorkers: 'block' })` — then the offline spec fails at step 1 (no controller), as it should. Treat any earlier "blocked sw.js → test went red" claim with suspicion unless it says how.
+
 ## 6. CHANGELOG (append-only — what happened, newest first)
 
 ### 2026-10-06 (late) — seeds LIVE (10/10), P5/P6 QA VALIDATED on the cold gate, full app DEPLOYED local-only (lead, Fable 5.1)

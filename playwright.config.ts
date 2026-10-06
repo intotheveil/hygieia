@@ -8,7 +8,7 @@ import { defineConfig, devices } from '@playwright/test'
  *   the project-site base `/hygieia/` (Vite `base`). Not `vite preview`: its SPA rewrite answers
  *   every deep link with index.html + 200, which would hide a missing 404.html (PLAN §4). No
  *   backend: the build has no Supabase env, so the app runs in local-only mode and no request
- *   leaves the machine (apart from the Google Fonts stylesheet index.html links).
+ *   leaves the machine (fonts are self-hosted since P5.3; every byte comes from this server).
  *
  * - `dead-backend` (e2e/dead-backend): a SECOND build (`dist-dead/`, `npm run build:dead`,
  *   scripts/build-dead.mjs) in CONFIGURED mode against `http://127.0.0.1:9/`, where nothing
