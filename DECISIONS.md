@@ -602,6 +602,7 @@ otherwise. Named in `.claude/CLAUDE.project.md` §2 "Deviations".
   fails on any duplicate), and the nutrition panel surfaces the engine's `unitMismatch` warnings as a footnote so an
   admin-side `unit` / `grams_per_unit` edit is visible on the page it distorts, with the seed test pinning the invariant
   `line.unit ∈ {g, ml, ingredient.unit}` both engines rest on.
+
 ## 2026-10-06 — P5.3 perf follow-up (last): footer below the fold, lazy supabase-js, fallback font metrics
 
 - **The Layout content slot is `min-h-dvh`, so the disclaimer footer starts BELOW the first viewport on every
@@ -670,3 +671,41 @@ import('@supabase/supabase-js'), 'createClient'>` — a type query, erased at bu
   audits that (measured here: home 88, admin 85 on an otherwise identical tree). Always `npm run build` (or
   `check:lighthouse -- --build`) after `npm test`; the fix belongs to that test (`NODE_ENV: 'production'` in the spawn
   env, or a temp `--outDir`).
+
+## ADR-0006 — 2026-10-06 — The Lighthouse gate measures the COLD first visit, deterministically; bar 85/90/90, no CI tolerance
+
+**Decision.** `npm run check:lighthouse` audits every route with Lighthouse `blockedUrlPatterns: ['*/registerSW.js',
+'*/sw.js']`, so the service worker never registers during an audit and every byte the page needs is fetched over the
+simulated slow-4G network — a cold first visit **by construction**, and the script proves it from each LHR
+(`verifyColdVisit`: `sw.js` never requested, `registerSW.js` never delivered, every `/assets/*.js` request with a
+non-zero `transferSize`; a run where the SW got through exits 2 — not a valid measurement, neither pass nor fail). The
+gating thresholds become **performance ≥ 85, accessibility ≥ 90, best-practices ≥ 90 — the same locally and in CI**;
+the `CI`-only −5 performance tolerance (`CI_PERFORMANCE_TOLERANCE`, `effectiveThresholds`) is removed with its header and
+workflow text. **90 performance stays the recorded TARGET** (PLAN §1 item 10, amended), not the gate.
+
+**Why.** P5/P6 QA (BUILD_LOG 2026-10-06 FAILURES) read it from the LHRs: within a single audit the SW installs about
+300 ms in, and whichever lazily-imported seed chunks the route requests AFTER that moment are served from its precache
+(`transferSize 0`) — LCP 2.9 s, performance 91 — while the same chunks over the network give LCP 3.5 s and 87. Which
+side of that race a run lands on is decided inside the audit, not by the artifact: 3 of 7 runs red on an unchanged
+build, each time on a different route. A gate must be a function of the artifact alone; a repeat-visit number that
+depends on a race is not one. The honest cold first-visit performance of every content route is 87–88 (QA's reading,
+confirmed here: `recipes`/`recipe`/`fridge`/`diet` 87, LCP 3.5 s, FCP 2.6 s), so the bar is set at the measured cold
+floor with a small margin, 85. The CI tolerance existed to absorb runner CPU noise on top of a number that was itself
+noisy; a deterministic measurement needs none — if GitHub's runners measure lower than 85, the gate should say so
+honestly rather than hide it behind −5. Accessibility and best-practices are checklists, unaffected by the SW, and keep 90. **Enodia's 96–97** is not the comparable: it is a demo with no content payload — no seed chunk on the LCP path —
+so its number says nothing about where a content route with 60–90 kB of gzipped seed data behind its first paint
+should land.
+
+**Alternatives rejected.** (a) Warm the SW before each audit and declare the gate a repeat-visit measurement: a stable
+number, but the WRONG one for a first-visit product, and it would hide every cold-path regression. (b) Keep 90 and
+retry until green: a flaky gate with a loop around it is still a flaky gate. (c) Make the artifact score 90 cold today:
+the lever is seed bytes behind LCP on content routes (render the above-the-fold frame before the seed `import()`
+resolves) and, later, server-side content once configured mode ships — real work, tracked as the target, not something
+to fake with a threshold.
+
+**Consequence.** The three-run determinism proof is a documented command, not part of the script (header of
+`scripts/check-lighthouse.mjs`: `for i in 1 2 3; do npm run check:lighthouse || echo "RUN $i FAILED"; done`, tables
+within ±1). The SW's offline / repeat-visit behaviour stays proven by `npm run e2e` (`offline.spec.ts`), untouched.
+Lighthouse 12 carries no `service-worker` audit and no `fromServiceWorker` field on `network-requests` items (both left
+with the PWA category), so `transferSize` is the signal the proof uses. Recorded 2026-10-06 by the gate-correctness
+builder (worktree `wt/g`) from the lead's decision; BUILD_LOG entry of the same date has the three tables.

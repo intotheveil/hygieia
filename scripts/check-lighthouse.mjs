@@ -5,7 +5,7 @@
 // project base `/hygieia/` (e2e/support/pages-server.mjs, the same server the e2e suite uses) for
 // every route in e2e/support/routes.ts, and fails when a category score is below threshold:
 //
-//   performance     >= 90   (CI: >= 85, see below)
+//   performance     >= 85   (locally AND in CI — one bar, no tolerance; ADR-0006, below)
 //   accessibility   >= 90
 //   best-practices  >= 90
 //   seo             informational only (printed, never gating; a project site under a user's
@@ -14,14 +14,29 @@
 // Lighthouse 12 removed the PWA category, so the spec's "PWA/perf >= 90" is encoded as the three
 // thresholds above; installability stays `npm run check:pwa` (manifest, icons, service worker).
 //
-// CI TOLERANCE (performance only): when `process.env.CI` is set the performance threshold is
-// lowered by CI_PERFORMANCE_TOLERANCE (5 points). Performance is the only category whose score is
-// a MEASUREMENT (LCP, TBT, Speed Index, …) rather than a pass/fail checklist: the simulated
-// throttling model still anchors on observed CPU time, and shared GitHub-hosted runners have
-// noisy, slower CPUs than a developer machine, so the same build scores a few points lower there
-// and varies run to run. Accessibility and best-practices are deterministic checklists and get no
-// tolerance. The local run (no CI env) holds the full 90, which is the number recorded in
-// BUILD_LOG.md.
+// COLD FIRST VISIT, BY CONSTRUCTION (ADR-0006, DECISIONS.md 2026-10-06). Every audit runs with
+// Lighthouse's `blockedUrlPatterns` set to BLOCKED_URL_PATTERNS (`*/registerSW.js`, `*/sw.js`), so
+// the service worker never registers during an audit and every byte the page needs comes over the
+// (simulated slow-4G) network. Why: with the SW allowed, it installs ~300 ms into the audit and the
+// route's lazily-imported seed chunks requested AFTER that moment are served from its precache
+// (transferSize 0 in the LHR) — LCP 2.9 s, performance 91 — while the same chunks served from the
+// network give LCP 3.5 s and 87. Which side of the race a run lands on is decided inside the
+// audit, not by the artifact: P5/P6 QA saw 3 of 7 runs red on an unchanged build. A gate must be a
+// function of the artifact alone, so the gate measures the cold visit — the honest first-visit
+// number of every content route today, 87–88 — and its performance bar is set at that measured
+// cold floor, 85, identical locally and in CI (a deterministic measurement needs no CI
+// tolerance; if shared runners measure lower, the gate says so honestly instead of hiding it
+// behind −5). 90 performance remains the recorded TARGET (PLAN §1 item 10; levers: seed bytes
+// behind LCP on content routes, server-side content once configured mode ships). Accessibility
+// and best-practices are deterministic checklists and keep 90. Every LHR is checked for the cold
+// property (`verifyColdVisit`): `sw.js` never requested, `registerSW.js` never delivered, every
+// `/assets/*.js` request with a non-zero transferSize; a run where the SW got through is NOT a
+// valid measurement and exits 2, not 0 or 1. (Lighthouse 12 carries no `service-worker` audit and
+// no `fromServiceWorker` flag on `network-requests` items, so transferSize is the signal.) The
+// offline / repeat-visit behaviour of the SW stays proven by `npm run e2e` (offline.spec.ts).
+// Determinism proof (documented, not scripted — run after a fresh `npm run build`):
+//   for i in 1 2 3; do npm run check:lighthouse || echo "RUN $i FAILED"; done
+// The three tables must agree within ±1 on every cell.
 //
 // Chrome: CHROME_PATH, else PLAYWRIGHT_CHROMIUM, else the FULL Chromium Playwright installed
 // (`@playwright/test` → chromium.executablePath()), else Playwright's headless shell, whose binary
@@ -62,8 +77,9 @@
 // failing route/category is named with its top 3 failing audits (highest weight first).
 //
 // Exit codes: 0 every route at or above every threshold · 1 at least one below (or a category that
-// produced no score) · 2 setup failed (no Chrome, build failed, port 4175 taken). The CLI sets
-// `process.exitCode` and never calls `process.exit()`.
+// produced no score) · 2 setup or run failed (no Chrome, build failed, port 4175 taken, or an audit
+// that was not a cold visit — see `verifyColdVisit`). The CLI sets `process.exitCode` and never
+// calls `process.exit()`.
 //
 // Usage: node scripts/check-lighthouse.mjs [--build]   (builds when dist/index.html is missing, or
 // always with --build; the build is local-only: the Supabase env names are blanked like
@@ -107,15 +123,29 @@ export const BASE = ROUTE_BASE
 /** @type {readonly Category[]} */
 export const CATEGORIES = ['performance', 'accessibility', 'best-practices', 'seo']
 
-/** Gating thresholds (0–100). `seo` is absent on purpose: informational. */
+/**
+ * Gating thresholds (0–100), the same locally and in CI. `seo` is absent on purpose:
+ * informational. Performance 85 = the measured cold-visit floor (ADR-0006, header); 90 is the target.
+ */
 export const THRESHOLDS = Object.freeze({
-  performance: 90,
+  performance: 85,
   accessibility: 90,
   'best-practices': 90,
 })
 
-/** Points taken off the PERFORMANCE threshold only, only when `CI` is set (header: why). */
-export const CI_PERFORMANCE_TOLERANCE = 5
+/** The target the artifact is still working towards on performance (PLAN §1 item 10). Not gating. */
+export const PERFORMANCE_TARGET = 90
+
+/**
+ * Lighthouse `blockedUrlPatterns` for every audit: the service-worker registration script and the
+ * worker itself (vite-plugin-pwa emits both at the Pages base). Blocked → no SW during an audit →
+ * a cold first visit by construction (header: why). Patterns are Chrome `Network.setBlockedURLs`
+ * wildcards.
+ */
+export const BLOCKED_URL_PATTERNS = Object.freeze(['*/registerSW.js', '*/sw.js'])
+
+/** The startup line that names the measurement mode (header). */
+export const MODE_LINE = `mode: cold first visit (service worker blocked: ${BLOCKED_URL_PATTERNS.join(', ')})`
 
 /** How many failing audits to name per failing route/category. */
 export const TOP_AUDITS = 3
@@ -171,31 +201,18 @@ export function parseRoutes(list, base = BASE) {
 }
 
 /**
- * The thresholds in force: THRESHOLDS, with the CI tolerance applied to performance only.
- * @param {{ ci: boolean }} opts
- * @returns {Record<keyof typeof THRESHOLDS, number>}
- */
-export function effectiveThresholds({ ci }) {
-  return {
-    ...THRESHOLDS,
-    performance: ci ? THRESHOLDS.performance - CI_PERFORMANCE_TOLERANCE : THRESHOLDS.performance,
-  }
-}
-
-/**
  * Every (route, gating category) pair whose score is below its threshold, or missing (null: the
- * category produced no score, which must not pass silently). `seo` never fails.
+ * category produced no score, which must not pass silently). `seo` never fails. One set of
+ * thresholds everywhere — there is no CI variant (ADR-0006).
  * @param {Array<{ route: Route, scores: Scores }>} results
- * @param {{ ci: boolean }} opts
  * @returns {Failure[]}
  */
-export function evaluate(results, { ci }) {
-  const thresholds = effectiveThresholds({ ci })
+export function evaluate(results) {
   /** @type {Failure[]} */
   const failures = []
   for (const { route, scores } of results) {
-    for (const category of /** @type {(keyof typeof THRESHOLDS)[]} */ (Object.keys(thresholds))) {
-      const threshold = thresholds[category]
+    for (const category of /** @type {(keyof typeof THRESHOLDS)[]} */ (Object.keys(THRESHOLDS))) {
+      const threshold = THRESHOLDS[category]
       const score = scores[category]
       if (score === null || score === undefined || Number.isNaN(score) || score < threshold) {
         failures.push({ route, category, score: score ?? null, threshold })
@@ -203,6 +220,71 @@ export function evaluate(results, { ci }) {
     }
   }
   return failures
+}
+
+/**
+ * The Lighthouse flags every audit runs with: mobile preset spelled out (so the gate does not move
+ * if Lighthouse's defaults do), the four categories, both report formats, and the service-worker
+ * block that makes the audit a cold first visit (header, ADR-0006). Pure, so the test can assert
+ * the block is present in what the script actually passes to Lighthouse.
+ * @param {{ port: number }} opts
+ */
+export function lighthouseFlags({ port }) {
+  return {
+    port,
+    output: ['html', 'json'],
+    logLevel: 'error',
+    onlyCategories: [...CATEGORIES],
+    formFactor: 'mobile',
+    screenEmulation: {
+      mobile: true,
+      width: 412,
+      height: 823,
+      deviceScaleFactor: 1.75,
+      disabled: false,
+    },
+    throttlingMethod: 'simulate',
+    blockedUrlPatterns: [...BLOCKED_URL_PATTERNS],
+  }
+}
+
+/**
+ * @typedef {{ url: string, transferSize?: number, statusCode?: number, finished?: boolean }} NetworkItem
+ * @typedef {{ ok: true, assets: number } | { ok: false, reasons: string[] }} ColdVerdict
+ */
+
+/**
+ * Prove from an LHR that the audit was a cold first visit, i.e. the service worker never took part:
+ *   - no request for `sw.js` at all (the worker was never fetched);
+ *   - `registerSW.js` was never DELIVERED (absent, or blocked: not status 200 / transferSize 0);
+ *   - every `/assets/*.js` request (the entry, the route chunk, the lazily-imported seed chunks)
+ *     has a non-zero transferSize — the signature of the SW serving a chunk is transferSize 0 with
+ *     status 200 (P5/P6 QA's LHR evidence; Lighthouse 12 has no `fromServiceWorker` field).
+ * A missing `network-requests` audit is a failure too: no evidence is not evidence.
+ * @param {{ audits: Record<string, { details?: { items?: NetworkItem[] } }> }} lhr
+ * @returns {ColdVerdict}
+ */
+export function verifyColdVisit(lhr) {
+  const items = lhr.audits['network-requests']?.details?.items
+  if (!Array.isArray(items)) return { ok: false, reasons: ['network-requests audit has no items'] }
+  /** @type {string[]} */
+  const reasons = []
+  let assets = 0
+  for (const item of items) {
+    const file = item.url.split('?')[0].split('/').pop() ?? ''
+    if (file === 'sw.js') reasons.push(`sw.js was requested (${item.url})`)
+    if (file === 'registerSW.js' && item.statusCode === 200 && (item.transferSize ?? 0) > 0)
+      reasons.push(`registerSW.js was delivered (status 200, ${item.transferSize} bytes)`)
+    if (/\/assets\/[^/]+\.js$/.test(item.url.split('?')[0])) {
+      assets += 1
+      if (!((item.transferSize ?? 0) > 0))
+        reasons.push(
+          `${file} transferSize ${item.transferSize ?? 'missing'} (served by a service worker?)`,
+        )
+    }
+  }
+  if (assets === 0) reasons.push('no /assets/*.js request recorded')
+  return reasons.length === 0 ? { ok: true, assets } : { ok: false, reasons }
 }
 
 /**
@@ -544,22 +626,7 @@ function build(io) {
  */
 export async function auditUrl(url, { port, outDir, name }) {
   const { default: lighthouse } = await import('lighthouse')
-  const result = await lighthouse(url, {
-    port,
-    output: ['html', 'json'],
-    logLevel: 'error',
-    onlyCategories: [...CATEGORIES],
-    // Lighthouse 12's mobile defaults, spelled out so the gate does not move if the defaults do.
-    formFactor: 'mobile',
-    screenEmulation: {
-      mobile: true,
-      width: 412,
-      height: 823,
-      deviceScaleFactor: 1.75,
-      disabled: false,
-    },
-    throttlingMethod: 'simulate',
-  })
+  const result = await lighthouse(url, lighthouseFlags({ port }))
   if (!result) throw new Error(`lighthouse returned no result for ${url}`)
   const [html, json] = /** @type {string[]} */ (result.report)
   mkdirSync(outDir, { recursive: true })
@@ -604,6 +671,7 @@ export async function main(
     // The startup self-check (header): what will be launched, before it is.
     io.log(`  chrome: ${chromePath}`)
     io.log(`  flags:  ${flags.join(' ')}${ci ? '  (CI: sandbox off, /dev/shm off)' : ''}`)
+    io.log(`  ${MODE_LINE}`)
     for (const route of routes) {
       // A FRESH Chrome (new temp profile) per route: the first route must not pay the cold DNS/TLS
       // to fonts.googleapis.com alone while later ones ride the warm connection (Lighthouse's model
@@ -613,9 +681,20 @@ export async function main(
       try {
         const url = `http://127.0.0.1:${PORT}${route.path}`
         const lhr = await auditUrl(url, { port: chrome.port, outDir: REPORT_DIR, name: route.name })
+        // The measurement is only valid if it was the cold visit the gate claims to measure.
+        const cold = verifyColdVisit(
+          /** @type {Parameters<typeof verifyColdVisit>[0]} */ (/** @type {unknown} */ (lhr)),
+        )
+        if (!cold.ok) {
+          throw new Error(
+            `${url} was not a cold visit — the service worker took part:\n    ${cold.reasons.join('\n    ')}`,
+          )
+        }
         const summary = summarise(lhr)
         results.push({ route, ...summary })
-        io.log(`  audited ${url} → lighthouse-report/${route.name}.{html,json}`)
+        io.log(
+          `  audited ${url} → lighthouse-report/${route.name}.{html,json}  (cold: ${cold.assets} /assets/*.js from the network, no SW)`,
+        )
         for (const w of lhr.runWarnings ?? []) io.log(`    warning: ${w}`)
       } finally {
         await chrome.kill()
@@ -631,15 +710,10 @@ export async function main(
   io.log('')
   for (const line of formatTable(results)) io.log(line)
   io.log('')
-  const thresholds = effectiveThresholds({ ci })
   io.log(
-    `thresholds (mobile): performance >= ${thresholds.performance}${
-      ci
-        ? ` (CI: ${THRESHOLDS.performance} − ${CI_PERFORMANCE_TOLERANCE} tolerance, see header)`
-        : ''
-    } · accessibility >= ${thresholds.accessibility} · best-practices >= ${thresholds['best-practices']} · seo informational`,
+    `thresholds (mobile, cold first visit, same locally and in CI — ADR-0006): performance >= ${THRESHOLDS.performance} (target ${PERFORMANCE_TARGET}) · accessibility >= ${THRESHOLDS.accessibility} · best-practices >= ${THRESHOLDS['best-practices']} · seo informational`,
   )
-  const failures = evaluate(results, { ci })
+  const failures = evaluate(results)
   if (failures.length === 0) {
     io.log(
       `check:lighthouse OK — ${results.length} route(s) at or above every threshold; reports in lighthouse-report/`,

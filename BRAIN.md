@@ -5,9 +5,11 @@
 > intent; rewritten 2026-10-06 to the P1–P6 state (P1/P2 review item 1). Genuine unknowns are
 > marked **❓ needs human input**.
 
-**Last updated:** 2026-10-06 by the lead (Claude Code, Fable 5.1, Zeus session) — consolidated rewrite after P1–P6.
-**Status:** in-development — P1–P6 built on `main` (`fecacfa`); P1/P2 and P3/P4 QA VALIDATED; deploy of the full app
-pending the perf gate (the live site still serves the P0 shell).
+**Last updated:** 2026-10-06 by the gate-correctness builder (Claude Code, Fable 5.1, worktree `wt/g`) — ADR-0006 Lighthouse cold gate;
+previous: the lead's consolidated rewrite after P1–P6 (same day).
+**Status:** in-development — P1–P6 built on `main` (`9295637`); P1/P2 and P3/P4 QA VALIDATED and re-reviewed PASS; P5/P6 QA
+**FAILURES** on one criterion (the Lighthouse gate's non-determinism) — answered by ADR-0006 in `wt/g`, re-QA owed. The full app
+is live on Pages in local-only mode (deployed from `b14b2f9` by CI).
 **Repo:** `intotheveil/hygieia` (public) · `D:\projects\hygieia` (lane worktrees `D:\projects\hygieia-wt\a..g`, branches `wt/a..g`) ·
 **Deployed:** https://intotheveil.github.io/hygieia/ (GitHub Pages, from `main` via CI — today the P0 shell, see §3)
 
@@ -111,8 +113,9 @@ pending|approved|rejected` stamped by `stamp_review()` BEFORE UPDATE · per-user
   configured against `http://127.0.0.1:9/`, port 4174, 9 error-state specs, `expect 20 s`). `fixtures.ts` console watchdog fails any test
   that logged a console/page error. `E2E_PREBUILT=1` skips the builds. Total today: **66**.
 - **Gates (all in CI):** `G0` = lint + typecheck + test + build + `check:pwa`; `check:bundle` (dist secret scan; prefix + ≥ 1 key char);
-  `check:lighthouse` (mobile, 12 routes, performance/accessibility/best-practices ≥ 90, CI −5 on performance only; own gzip server;
-  one Chrome per route); `smoke:live` (HTTP, read-only probes of the deployed site; backend probes when the anon env is in the shell).
+  `check:lighthouse` (mobile, 12 routes, **cold first visit by construction** — the SW is blocked for every audit and each LHR is
+  checked for it — performance ≥ 85 / accessibility ≥ 90 / best-practices ≥ 90, the SAME locally and in CI, no tolerance; 90 performance
+  is the target, not the gate — ADR-0006; own gzip server; one Chrome per route); `smoke:live` (HTTP, read-only probes of the deployed site; backend probes when the anon env is in the shell).
   `db:check`, `db:gate`, `db:gate:prove-red`, `seed:check` as above.
 - **Telemetry (P6.1):** `src/telemetry.ts` `startTelemetry()` reads `VITE_FLEET_URL`, `VITE_FLEET_KEY`, `VITE_FLEET_PRODUCT_ID`; any blank →
   no-op disposer, zero side effects. On: Enodia's `src/lib/telemetry/*` byte-identical (scrub → `fingerprint` over scrubbed message + top
@@ -140,9 +143,12 @@ pending|approved|rejected` stamped by `stamp_review()` BEFORE UPDATE · per-user
   **`db:gate` 227** · **prove-red 25/25** · `seed:check` OK · `check:bundle` OK · `check:pwa` OK · entry chunk 235 kB / 74 kB gzip
   (was 1,264 / 319 before route splitting). Archive: 10 migrations (4 schema + 6 seed). Seed rows: 322 ingredients · 16 diets ·
   152 recipes · 136 exercises · 63 workout templates · 75 tips, all `pending`.
-- **`check:lighthouse` is RED** — performance only (a11y / best-practices / SEO 100 on all 12 routes): content routes 77–84 on GitHub
-  runners vs the CI bar 85 (locally 85–91; `diet` lowest). Remaining levers (BUILD_LOG P5.3 follow-up): lazy-load supabase-js
-  (`src/lib/supabase.ts` + consumers; ~40 kB gzip off every first paint) and the Layout footer CLS 0.102. **A perf lane is on it.**
+- **`check:lighthouse` is a deterministic COLD-visit gate, 85/90/90 (ADR-0006, 2026-10-06, worktree `wt/g`, uncommitted for the
+  lead):** the SW is blocked for every audit, so the number is the artifact's. Measured cold on the production build: `recipes` /
+  `recipe` / `fridge` / `diet` **87** (LCP 3.5 s, FCP 2.6 s — the seed chunks on the LCP path), `diets` / `workouts` / `tips` 90,
+  `home` 92, `auth` 93, `account` / `admin` / `not-found` 94; a11y / best-practices / SEO 100 everywhere; three consecutive runs
+  identical. P5/P6 QA's single red criterion answered; **re-QA of P5/P6 owed** on this change. 90 performance remains the target
+  (lever: render the above-the-fold frame before the seed `import()` resolves; later, server-side content in configured mode).
 - **Deployed:** the live Pages site **still serves the P0 shell** — no push of the full app has passed CI because of the Lighthouse step.
   When CI goes green the deploy will be in **local-only mode** (bundled drafts + ribbon, no sign-in) until OP2.c sets the variables.
 - **Live DB (shared project, schema `hygieia`) — 2026-10-06, operator's go:** ledger `hygieia.schema_migrations` holds versions
@@ -300,10 +306,34 @@ table (14)` is right; P1.QA.2's `(13)` is the typo.
 - **A cold first visit of a content route scores ~87–88; the 90 is met when the service worker serves the
   seed chunks** (20 of 21 audits). Lighthouse charges the network round-trip of the seed chunk to LCP;
   pre-warming the chunks was measured and rejected (it moves the cost into FCP).
+  **→ Superseded conclusion (ADR-0006, 2026-10-06):** whether the SW "wins" is a race INSIDE the audit (it installs ~300 ms in;
+  chunks requested after that come from its precache at `transferSize 0`), so a gate that lets the SW register is red on an
+  unchanged artifact ~40 % of the time (P5/P6 QA: 3 of 7). The gate now BLOCKS the SW (`blockedUrlPatterns`), measures the cold
+  visit, proves it per LHR (`verifyColdVisit`) and gates at 85. Never re-enable the SW in the audit to "get the 90 back" — that is
+  the race, not a score. Lighthouse 12 has no `service-worker` audit and no `fromServiceWorker` on `network-requests` items;
+  `transferSize 0` with status 200 on an `/assets/*.js` request is the SW signature; a blocked request shows `statusCode -1`.
+- **Record files and the `format.sh` hook (2026-10-06):** this repo's `.prettierignore` lists `BRAIN.md`/`BUILD_LOG.md`/`DECISIONS.md`,
+  but a session whose project dir is ANOTHER repo (Zeus dispatching into a worktree here) runs prettier from that cwd, so the ignore
+  file is not consulted and an `Edit` of a record file reformats it (list markers, table padding, indents). Also: several `Edit`s of
+  ONE file in a single turn race the formatter and can silently lose an edit. Rule: edit record files with a script (`node -e`) or one
+  `Edit` per turn, and `git diff -U0 | grep ^@@` afterwards to confirm only your hunks exist.
 - **Git Bash mangles `/hygieia/...` CLI arguments into Windows paths** for scratch scripts and
   `pages-server --base`; prefix the command with `MSYS_NO_PATHCONV=1`.
 
 ## 6. CHANGELOG (append-only — what happened, newest first)
+
+### 2026-10-06 — Lighthouse gate correctness: cold first visit, deterministic, 85/90/90 (builder, Fable 5.1, worktree `wt/g`; detail: BUILD_LOG entry of the same name, DECISIONS ADR-0006)
+
+- Did: answered P5/P6 QA's one red criterion. `scripts/check-lighthouse.mjs` blocks `*/registerSW.js` and `*/sw.js` in every
+  audit (`BLOCKED_URL_PATTERNS`, `lighthouseFlags`), proves the cold property from each LHR (`verifyColdVisit`; a SW-served chunk
+  → exit 2), prints `mode: cold first visit (service worker blocked …)`, thresholds 85/90/90 with the CI tolerance code path,
+  header and workflow text removed; `PERFORMANCE_TARGET = 90` exported and printed. Test file rewritten for the new contract
+  (56 tests). `deploy.yml` step comment, PLAN §1 item 10 amended, BRAIN §2/§3/§5/§7. Three consecutive runs on one fresh build:
+  identical tables, all exit 0 (content routes 87 cold; the rest 90–94).
+- Decided: ADR-0006 (gate = function of the artifact alone; cold floor 85; 90 is the target; Enodia 96–97 not comparable).
+- Resolved: P5/P6 QA failure 1 (non-deterministic gate). Not resolved: the artifact's cold 87 vs the 90 target (backlog).
+- Left off: this change is uncommitted in `wt/g` for the lead → test-writer / reviewer → merge → CI (the gate's first CI run on
+  the one 85 bar is the honest runner reading) → P5/P6 re-QA. Operator items unchanged (O1, OP2, OP4, OP6).
 
 ### 2026-10-06 — Phase gates, review fixes, records, first live apply (lead, Fable 5.1; detail: BUILD_LOG top ~500 lines)
 
@@ -427,6 +457,7 @@ table (14)` is right; P1.QA.2's `(13)` is the typo.
 - **2026-10-05 (P2.1–P2.3):** `?next=` in `sessionStorage` `hygieia.auth.next`, in-app paths only; callback failure is a 15 s timeout; `profileClientFor` adapter.
 - **2026-10-05 (P2.6):** `db:live-check` redacts the anon key too; three independent probes; PGRST106 (schema not exposed) ≠ PGRST205 (table missing).
 - **2026-10-06 ADR-0005:** P1–P6 built in parallel worktree lanes with G0 per lane, QA + review after merge, checkpoints waived — binds for this build only; §9 gates still must pass before a phase is claimed.
+- **2026-10-06 ADR-0006:** `check:lighthouse` measures the COLD first visit by construction (SW blocked per audit, proven per LHR) at 85/90/90, one bar locally and in CI, no tolerance; 90 performance is the target, not the gate; a score that depends on a race inside the audit is not a gate.
 - **2026-10-06 (P5.2):** axe WCAG 2.0/2.1 A+AA, gate on serious/critical only; language seeded via localStorage; `routes.ts` carries `h1`/`ready`; body wash is `body::before`; `clay-700` is the text shade.
 - **2026-10-06 (P5.1):** one shared `Loading`/`ErrorState`/`EmptyState`, pages keep their keys; skeletons with reserved height; `dead-backend` Playwright project against port 9.
 - **2026-10-06 (P5.3 follow-up):** every page but home is a lazy chunk under one `Suspense`; seeds lazy per table; full Chromium in CI; no seed pre-warming (measured); footer CLS left as a design call.
