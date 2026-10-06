@@ -7,7 +7,7 @@
 
 **Last updated:** 2026-10-06 (evening, session saved by the operator) by the lead (Claude Code, Opus 5.5) — live: skincare + nails (P7,
 approved), /profile (P8.1/P8.2), workout plans (P8.3), six themes incl. Rose + Lavender; Tasks Advisor (P9) IN FLIGHT, uncommitted in `wt/d`.
-**Status:** LIVE in configured mode at https://intotheveil.github.io/hygieia/ — `main` `5b832ab` (CI green + deployed). P1–P6 claimed;
+**Status:** LIVE in configured mode at https://intotheveil.github.io/hygieia/ — `main` `bf3660f` (CI run 37488871183 green + deployed; Tasks Advisor live). P1–P6 claimed;
 P7 skincare + nails QA VALIDATED + REVIEW PASS, content live and ALL approved; P8 profile (entries, goals, achievements, saved items) +
 workout plans (builder, session logger, PRs) deployed, P8 QA/REVIEW NOT YET RUN; P9 Tasks Advisor being built in `wt/d` (see §3).
 **Repo:** `intotheveil/hygieia` (public) · `D:\projects\hygieia` (lane worktrees `D:\projects\hygieia-wt\a..g`, branches `wt/a..g`) ·
@@ -156,6 +156,11 @@ pending|approved|rejected` stamped by `stamp_review()` BEFORE UPDATE · per-user
   - **P9 Tasks Advisor DONE + merged (`63aa5b1`)**: 11 topics, 479 bundled tasks (el/en), questionnaire → deterministic daily/weekly/monthly
     plan (`src/tasks/generate.ts`, all 17,424 answer combinations tested), ticks in localStorage `hygieia:tasks:<topic>`, `/tasks` +
     `/tasks/:topic`, eighth home card. Gates at `63aa5b1`: 3739 tests / 86 files, e2e 99, db:gate 361, prove-red 31/31.
+  - **PERF restored (`bf3660f`, CI run 37488871183):** CI had failed `diet 84 < 85` at `c1d5929`. Lazy pages swap without the React 19
+    Suspense reveal throttle (`src/routes/lazyPage.tsx`), seed imports start after first paint (`src/lib/afterPaint.ts`), dictionary split
+    (`src/i18n/app.ts` eager + `features/routeFeatures.ts` per route, `useLang(copy)`), two-stage DietPage/FridgePage, configured-only code off
+    the local-only path. Entry 238.6 → 229.3 kB. CI cold: recipe 88, diet 89, fridge 90, all 17 routes OK. Known lever left: the two variable
+    webfonts cost ~9–10 points per route (load after first paint or subset) — operator/design call, not taken.
   - **SECURITY FIX (P8.QA finding, 2026-10-06):** exposing schema `hygieia` in the Dashboard (O1) had granted ALL to anon/authenticated on
     the 16 tables that existed then — `profiles.is_admin` was self-writable by any signed-in user. Verified unexploited (0 profiles).
     New migration `20261006001400_hygieia_regrant.sql` re-asserts the original grants; applied live (ledger 14/14); live grants re-read and
