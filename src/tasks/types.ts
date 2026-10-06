@@ -61,6 +61,11 @@ export interface Task {
   readonly weight: number
   /** A one-off first-week task, only planned when the start is gentle. */
   readonly kickoff?: boolean
+  /**
+   * Millilitres of water the task stands for (drink-water, a measurable glass only). The `water`
+   * entry's value when the plan logs ticks to the profile (../track.ts); absent = no value.
+   */
+  readonly ml?: number
 }
 
 export interface TopicMeta {

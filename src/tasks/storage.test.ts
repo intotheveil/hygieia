@@ -4,6 +4,7 @@ import {
   defaultTasksState,
   isTicked,
   loadTasksState,
+  logsToProfile,
   parseTasksState,
   saveTasksState,
   serializeTasksState,
@@ -104,5 +105,38 @@ describe('local calendar helpers', () => {
     const edge = weekDates(new Date(2026, 9, 1))
     expect(dateKey(edge.mon)).toBe('2026-09-28')
     expect(dateKey(edge.sun)).toBe('2026-10-04')
+  })
+})
+
+describe('tasks storage — routine + log extras (connect the features, 2026-10-06)', () => {
+  it('round-trips a routine slug and logging switched off', () => {
+    const state = { answers: { skin: ['dry'] }, ticks: {}, routine: 'face-dry-pm', log: false }
+    expect(parseTasksState(serializeTasksState(state))).toEqual(state)
+  })
+
+  it('omits unset extras, so v1 data reads back unchanged', () => {
+    const raw = serializeTasksState({
+      answers: null,
+      ticks: {},
+      routine: undefined,
+      log: undefined,
+    })
+    expect(JSON.parse(raw)).toEqual({ v: 1, answers: null, ticks: {} })
+    expect(parseTasksState(raw)).toEqual(defaultTasksState())
+  })
+
+  it('drops a malformed slug and any log value but false', () => {
+    const parsed = parseTasksState({ v: 1, answers: null, ticks: {}, routine: '../x', log: 'no' })
+    expect(parsed).toEqual(defaultTasksState())
+    expect(parseTasksState({ v: 1, answers: null, ticks: {}, log: true })).toEqual(
+      defaultTasksState(),
+    )
+  })
+
+  it('logsToProfile defaults on; toggling a tick keeps the extras', () => {
+    expect(logsToProfile(defaultTasksState())).toBe(true)
+    const off = { ...defaultTasksState(), log: false, routine: 'r1' }
+    expect(logsToProfile(off)).toBe(false)
+    expect(toggleTick(off, '2026-10-06', 'a')).toMatchObject({ log: false, routine: 'r1' })
   })
 })

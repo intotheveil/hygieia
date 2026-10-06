@@ -93,6 +93,49 @@ The human reads this first on return (CLAUDE.md §5).
   wt/g before its next commit. Rule: never `git stash` in a multi-worktree repo; use a scratch worktree or `git diff > patch`.
 - **Next:** lead applies `20261007000100` live; lanes write overlays per the API in the runbook. Note: once an overlay is live, a new
   schema migration must be numbered after it (`20261008…`) or `db:apply` refuses it OUT OF ORDER.
+### CONNECTED — tasks ↔ profile ↔ skincare ↔ plans — 2026-10-06 — DONE
+
+Operator: "connect the features" (lane `wt/e`, builder). No DB change, no migration, no new route.
+
+- **Tasks → profile entries (signed in only).** `src/tasks/track.ts` (pure): topic + explicit task list → entry kind —
+  workout-routine sessions (`session-*`) + weekly movement → `workout` (value = task minutes, `min`); drink-water drinks → `water`
+  (value = the task's new optional `ml` metadata — `wake-glass`, `desk-glass` = 250 — else none); better-sleep `sleep-log` only →
+  `sleep`; skincare-habit nail tasks → `nails`, daily care + weekly face care → `skincare`; routine steps `routine-face-*` /
+  `routine-nails-*` → `skincare` / `nails`; every other topic, monthly tasks and kick-offs (except `ko-walk`) → no entry. Payload
+  `{ source: 'tasks', topic, task_id, date }` (`date` = tick day = `entry_date`). `src/tasks/sync.ts` `syncTick`: reads the day,
+  adds only if no entry of that task+date exists (idempotent), un-tick deletes every matching entry (even with logging off), never
+  throws; `createQueue` serialises tick → un-tick. `TasksPage`: "Log ticked tasks to my profile" toggle (default ON, stored as
+  `log: false` only when off), shown only when user data is enabled AND the plan has trackable tasks; failed write → `role="alert"`
+  note, the local tick stays (local ticks remain the source of truth).
+- **Skincare routine → task plan.** `RoutineCard` gets "Make it a daily habit →" = `habitLink(routine)` →
+  `/tasks/skincare-habit?routine=<slug>&skin=<type>&time=<am|pm|weekly>&area=<face|nails>`. The page pre-fills the questionnaire
+  (`answersFromParams`: skin type, nails care for a nail routine; note `tasksPrefilled`), persists the routine slug in the topic's
+  storage (`routine`, optional v1 field), and renders `fromSkincareRoutine(routine, types)` (pure, `src/tasks/routine.ts`) as a
+  "Your routine" checklist ABOVE the generated plan (`RoutineSection.tsx`, ticks in the same state, optional steps marked, Remove).
+  The generator is untouched. The routine is fetched through a dynamic `import('../content/index.ts')`.
+- **Achievements:** `tasks-first`, `tasks-streak-7`, `tasks-50` (19 badges), counting only `payload.source === 'tasks'` entries.
+- **Workout plan ↔ Tasks:** workout-routine plan shows "Turn this into a workout plan →" → `/workouts/plans?type=&level=&intensity=`
+  (`src/tasks/links.ts`: home/gym/outdoors → home/gym/running; new/returning → beginner+low, regular → intermediate+moderate).
+  `PlansPage` reads the cell (`cellFromParams` / `templateIdForCell` in `builder.ts`), opens the builder pre-selected (signed in).
+- **Profile:** `TaskPlansPanel` "Your task plans" — topics with saved answers in this browser, today's progress
+  (`src/tasks/progress.ts`), a link each; signed in AND signed out (local data); renders nothing without plans.
+- **Strings:** tasks / skincare / profile ROUTE dictionaries only (el + en); nothing added to `app.ts` / app features.
+- **Files:** new `src/tasks/{track,sync,routine,links,progress}.ts`, `src/tasks/RoutineSection.tsx`, `src/profile/TaskPlansPanel.tsx`;
+  changed `src/tasks/{TasksPage,PlanView,Questionnaire}.tsx`, `src/tasks/{storage,types}.ts`, `src/tasks/content/{build,drink-water}.ts`,
+  `src/profile/{achievements.ts,AchievementsGrid.tsx,ProfilePage.tsx}`, `src/skincare/cards.tsx`, `src/workouts/plans/{PlansPage.tsx,builder.ts}`,
+  `src/i18n/features/{tasks,skincare,profile}.ts`. Tests: new `src/tasks/{track,sync,routine,links,progress}.test.ts`,
+  `src/tasks/TasksConnect.test.tsx`, `src/profile/{achievements-tasks.test.ts,TaskPlansPanel.test.tsx}`,
+  `src/workouts/plans/PlansPreselect.test.tsx`, storage extras in `storage.test.ts`; e2e `e2e/local/connect.spec.ts` (2).
+  `SkincarePage.test.tsx` "every link is external" now scoped: tip links external, every other link must be a routine habit link.
+- **Gates (this worktree):** lint 0 errors (23 pre-existing warnings) · typecheck clean · **tests 3830 / 97 files green**
+  (`--maxWorkers=2`; the default-worker run hit 1–5 random 5 s timeouts in UNRELATED files — PGlite, App, Recipes — each pass alone; the
+  machine was shared with other lanes) · build OK, **entry `index-*.js` 229.27 → 229.35 kB / 71.64 → 71.69 kB gzip (+0.05 kB)** ·
+  build:dead OK · check:pwa OK · check:bundle OK · **e2e 101 passed** (99 + 2) · **check:lighthouse OK, 17 routes**: tasks 92/100/100,
+  task-topic 90/100/100, profile 90/100/100, skincare 91/100/100 (recipe 85, untouched route — floor; machine shared).
+- **Chunks:** /tasks now also loads `useUserData` (~3 kB gzip) and a shared tasks chunk (topics + generator + storage + track, shared
+  with /profile); TasksPage 9.91 → 8.46 kB gzip + shared 5.35 kB. Lighthouse unchanged on the tasks rows.
+- **Left off:** merge `wt/e`; a signed-in manual check of a tick → /profile history on the live configured build (not exercised here:
+  no sign-in flows in e2e by brief).
 
 ### PERF — restore Lighthouse margin after P7–P9 (CI diet 84) — 2026-10-06 — PARTIAL (16/17 routes ≥ 88 in all three runs; `recipe` 86–87 — residual is the webfonts, a design call for the lead)
 

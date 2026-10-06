@@ -42,6 +42,7 @@ import { PlanBuilder } from './PlanBuilder'
 import { ProgressPanel } from './ProgressPanel'
 import { SessionHistory } from './SessionHistory'
 import { SessionLogger } from './SessionLogger'
+import { cellFromParams, templateIdForCell } from './builder'
 import { detectPRs } from './progress'
 
 interface Loaded {
@@ -87,7 +88,9 @@ export function PlansPage({ source, content = contentSource, today }: PlansPageP
   const userData = source ?? fromHook
   const todayIso = today ?? localIsoDate(new Date())
   const [params, setParams] = useSearchParams()
-  const templateParam = params.get('template')
+  // `?template=<id>` (a /workouts card) or `?type=&level=&intensity=` (a task plan) pre-selects.
+  const cellParam = useMemo(() => cellFromParams(params), [params])
+  const preselect = params.get('template') !== null || cellParam !== null
 
   const load = useCallback(() => loadAll(userData, content), [userData, content])
   const state = useAsyncResult(load)
@@ -124,11 +127,11 @@ export function PlansPage({ source, content = contentSource, today }: PlansPageP
       if (result.ok) {
         patch((c) => ({ ...c, plans: [result.data, ...c.plans] }))
         setBuilderOpen(false)
-        if (templateParam !== null) setParams({}, { replace: true })
+        if (preselect) setParams({}, { replace: true })
       }
       return result
     },
-    [userData, patch, templateParam, setParams],
+    [userData, patch, preselect, setParams],
   )
 
   const setStatus = useCallback(
@@ -182,7 +185,10 @@ export function PlansPage({ source, content = contentSource, today }: PlansPageP
 
   const active = data?.plans.filter((p) => p.status === 'active') ?? []
   const past = data?.plans.filter((p) => p.status !== 'active') ?? []
-  const showBuilder = builderOpen ?? (templateParam !== null || active.length === 0)
+  const showBuilder = builderOpen ?? (preselect || active.length === 0)
+  const templateParam =
+    params.get('template') ??
+    (cellParam === null || data === null ? null : templateIdForCell(data.templates, cellParam))
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-4xl flex-col gap-6 px-4 py-10 sm:px-6">

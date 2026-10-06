@@ -4,7 +4,12 @@
 // `progress` in 0..1 so the grid can show how far along an unearned one is, and `earnedOn` (the
 // `entry_date` that completed it) when the data says. All badges are positive and health-neutral:
 // they reward showing up, never a number on the scale.
+//
+// Task-plan badges (connect the features, 2026-10-06): `tasks-*` count only the entries a task
+// plan wrote (`payload.source === 'tasks'`, src/tasks/track.ts) — whatever their kind — so a
+// ticked task earns them and a hand-typed entry does not.
 
+import { isTasksEntry } from '../tasks/track'
 import type { Entry, EntryKind, Goal, SavedItem } from '../user/source'
 import {
   dayNumber,
@@ -33,6 +38,9 @@ export const BADGE_IDS = [
   'meals-30',
   'collector-10',
   'all-rounder',
+  'tasks-first',
+  'tasks-streak-7',
+  'tasks-50',
 ] as const
 export type BadgeId = (typeof BADGE_IDS)[number]
 
@@ -127,6 +135,9 @@ export function computeAchievements(input: AchievementInput): Achievement[] {
   const mood = dayStreak(valid, 7, 'mood')
   const kinds = new Set(valid.map((e) => e.kind))
   const collected = favouritesCount + savedItems.length
+  const fromTasks = valid.filter(isTasksEntry)
+  const taskDates = fromTasks.map((e) => e.entry_date).sort()
+  const tasks7 = dayStreak(fromTasks, 7)
 
   return [
     badge('first-entry', valid.length, 1, firstDate),
@@ -145,5 +156,8 @@ export function computeAchievements(input: AchievementInput): Achievement[] {
     badge('meals-30', countOf(valid, 'meal'), 30, nthDate(valid, 'meal', 30)),
     badge('collector-10', collected, 10, null),
     badge('all-rounder', kinds.size, 9, null),
+    badge('tasks-first', fromTasks.length, 1, taskDates[0] ?? null),
+    badge('tasks-streak-7', tasks7.have, 7, tasks7.on),
+    badge('tasks-50', fromTasks.length, 50, taskDates[49] ?? null),
   ]
 }

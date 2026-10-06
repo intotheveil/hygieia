@@ -339,8 +339,15 @@ describe('<SkincarePage> with the bundled source', () => {
     expect(screen.getAllByText(en.sourcePending)).toHaveLength(
       FACE_TIPS.filter((t) => t.needs_source).length,
     )
+    // Every link is an external tip source, except each routine card's in-app "Make it a daily
+    // habit" link (connect the features, 2026-10-06).
     for (const anchor of screen.getAllByRole('link')) {
-      expect(anchor.getAttribute('href')).toMatch(/^https?:\/\//)
+      if (anchor.closest('[data-tip]') !== null) {
+        expect(anchor.getAttribute('href')).toMatch(/^https?:\/\//)
+      } else {
+        expect(anchor).toHaveAttribute('data-testid', 'routine-habit')
+        expect(anchor.getAttribute('href')).toMatch(/^\/tasks\/skincare-habit\?routine=/)
+      }
     }
   })
 })

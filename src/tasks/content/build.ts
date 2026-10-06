@@ -48,6 +48,8 @@ export interface TaskOptions {
   times?: number
   kickoff?: boolean
   detail?: Pair
+  /** Millilitres of water the task stands for (drink-water: one measurable glass). */
+  ml?: number
 }
 
 function make(
@@ -69,6 +71,7 @@ function make(
     ...(o.day ? { day: o.day } : {}),
     ...(o.times ? { times: o.times } : {}),
     ...(o.kickoff ? { kickoff: true } : {}),
+    ...(o.ml !== undefined ? { ml: o.ml } : {}),
   }
 }
 

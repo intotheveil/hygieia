@@ -5,7 +5,9 @@
 //   a disclosure button (`aria-expanded` + `aria-controls`) that reveals the ORDERED steps: the
 //   product type's name (or, when no visible type has the slug — pending under RLS — the slug
 //   muted with "not available yet"), the step's note, and an "optional" mark. Local state, not
-//   `<details>`: the button's expanded state is what tests and assistive tech read.
+//   `<details>`: the button's expanded state is what tests and assistive tech read. "Make it a daily
+//   habit" (connect the features, 2026-10-06) links to the skincare-habit task plan with the
+//   routine in the URL (src/tasks/routine.ts `habitLink`).
 // - `ProductTypeCard`: name, chips (category · when · price band), description, key ingredients,
 //   "do not combine with" cautions (only when the row has any), where it is typical, and the
 //   regulatory note.
@@ -14,11 +16,13 @@
 //   never pretends to have a source (PLAN.md §0).
 
 import { useId, useState } from 'react'
+import { Link } from 'react-router-dom'
 import type { SkincareProductType, SkincareRoutine, SkincareTip } from '../content'
 import type { Lang } from '../i18n/app'
 import { SaveButton } from '../components/SaveButton'
 import { useLang } from '../i18n/LangProvider'
 import { skincareCopy } from '../i18n/features/skincare.ts'
+import { habitLink } from '../tasks/routine'
 import { isUrl, resolveSteps, sourceLabel } from './select'
 
 const CARD =
@@ -84,6 +88,14 @@ export function RoutineCard({ routine, types }: RoutineCardProps) {
         itemId={routine.id}
         label={pick(lang, routine.name_el, routine.name_en)}
       />
+      <Link
+        to={habitLink(routine)}
+        data-testid="routine-habit"
+        aria-describedby={`${id}-title`}
+        className="self-start text-sm font-medium text-sage-700 underline-offset-2 hover:underline"
+      >
+        {t.skincareMakeHabit} →
+      </Link>
       <button
         type="button"
         aria-expanded={open}
