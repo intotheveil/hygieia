@@ -38,4 +38,15 @@ if (!/registerSW|serviceWorker/.test(html + readFileSync(resolve(dist, 'sw.js'),
   fail('no service-worker registration found')
 }
 
-console.log(`check:pwa OK — ${m.name}, ${m.icons.length} icons, sw.js present`)
+// Recipe photos (public/recipes/) must stay OUT of the precache — an install would otherwise pull
+// every photo — and be served by the runtime CacheFirst rule instead (vite.config.ts).
+const sw = readFileSync(resolve(dist, 'sw.js'), 'utf8')
+const precached = [...sw.matchAll(/url:"([^"]+)"/g)].map((match) => match[1])
+if (precached.length === 0) fail('could not read the precache manifest from sw.js')
+const photos = precached.filter((url) => url.startsWith('recipes/'))
+if (photos.length > 0) fail(`${photos.length} recipe photos are precached (e.g. ${photos[0]})`)
+if (!sw.includes('recipe-images')) fail('sw.js has no recipe-images runtime cache')
+
+console.log(
+  `check:pwa OK — ${m.name}, ${m.icons.length} icons, sw.js present, ${precached.length} precache entries (0 recipe photos)`,
+)

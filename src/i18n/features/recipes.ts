@@ -25,6 +25,8 @@ export interface RecipesDictionary {
   addToFavourites: string
   removeFromFavourites: string
   favouriteFailed: string
+  /** Alt text of a recipe photo; `{title}` is the localized recipe title. */
+  recipePhotoAlt: string
   // Nutrition + cost panels (P4.3). `{min}`/`{max}`/`{date}`/`{items}` and the three macro
   // percentages are filled by `src/i18n/fill.ts`.
   nutritionTitle: string
@@ -67,6 +69,7 @@ export const recipesEn: RecipesDictionary = {
   addToFavourites: 'Add to favourites',
   removeFromFavourites: 'Remove from favourites',
   favouriteFailed: 'The change to your favourites could not be saved. Try again.',
+  recipePhotoAlt: '{title} — photo',
   nutritionTitle: 'Nutrition',
   costTitle: 'Estimated cost',
   kcal: 'kcal',
@@ -123,6 +126,7 @@ export const recipesEl: RecipesDictionary = {
   addToFavourites: 'Προσθήκη στα αγαπημένα',
   removeFromFavourites: 'Αφαίρεση από τα αγαπημένα',
   favouriteFailed: 'Η αλλαγή στα αγαπημένα δεν αποθηκεύτηκε. Δοκίμασε ξανά.',
+  recipePhotoAlt: '{title} — φωτογραφία',
   nutritionTitle: 'Διατροφική αξία',
   costTitle: 'Εκτιμώμενο κόστος',
   kcal: 'kcal',
