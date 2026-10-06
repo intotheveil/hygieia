@@ -27,6 +27,7 @@ const EXPECTED_HREFS: Record<(typeof NAV_IDS)[number], string> = {
   workouts: '/workouts',
   tips: '/tips',
   skincare: '/skincare',
+  tasks: '/tasks',
 }
 
 const LANGS: ReadonlyArray<[Lang, typeof en]> = [
@@ -38,7 +39,7 @@ describe('SiteHeader', () => {
   beforeEach(() => window.localStorage.clear())
 
   it.each(LANGS)(
-    'is the banner with a brand link home and the six module links (%s)',
+    'is the banner with a brand link home and the seven module links (%s)',
     (lang, t) => {
       renderAt('/', lang)
       const header = screen.getByRole('banner')
@@ -69,6 +70,8 @@ describe('SiteHeader', () => {
     ['/tips', 'tips'],
     ['/skincare', 'skincare'],
     ['/skincare?area=nails&region=kr', 'skincare'],
+    ['/tasks', 'tasks'],
+    ['/tasks/clean-home', 'tasks'],
     ['/auth', null],
     ['/nothing-here', null],
   ] as const)('at %s marks %s with aria-current="page" and nothing else', (path, active) => {

@@ -8,6 +8,7 @@ import { plansEn } from './features/plans.ts'
 import { profileEn } from './features/profile.ts'
 import { recipesEn } from './features/recipes.ts'
 import { skincareEn } from './features/skincare.ts'
+import { tasksEn } from './features/tasks.ts'
 import { themeEn } from './features/theme.ts'
 import { tipsEn } from './features/tips.ts'
 import { workoutPlansEn } from './features/workoutPlans.ts'
@@ -22,6 +23,7 @@ const FEATURE_MODULES: Readonly<Record<string, object>> = {
   profile: profileEn,
   recipes: recipesEn,
   skincare: skincareEn,
+  tasks: tasksEn,
   theme: themeEn,
   tips: tipsEn,
   workoutPlans: workoutPlansEn,
@@ -92,7 +94,7 @@ describe('bilingual dictionary', () => {
     }
   })
 
-  it('describes all seven modules (six from the intent + skincare), in both languages', () => {
+  it('describes all eight modules (six from the intent + skincare + tasks), in both languages', () => {
     expect(MODULE_IDS).toEqual([
       'tips',
       'diets',
@@ -101,6 +103,7 @@ describe('bilingual dictionary', () => {
       'calories',
       'workouts',
       'skincare',
+      'tasks',
     ])
     for (const dict of [en, el] as Dictionary[]) {
       for (const id of MODULE_IDS) {

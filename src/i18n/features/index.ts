@@ -18,6 +18,7 @@ import { plansEl, plansEn, type PlansDictionary } from './plans.ts'
 import { profileEl, profileEn, type ProfileDictionary } from './profile.ts'
 import { recipesEl, recipesEn, type RecipesDictionary } from './recipes.ts'
 import { skincareEl, skincareEn, type SkincareDictionary } from './skincare.ts'
+import { tasksEl, tasksEn, type TasksDictionary } from './tasks.ts'
 import { themeEl, themeEn, type ThemeDictionary } from './theme.ts'
 import { tipsEl, tipsEn, type TipsDictionary } from './tips.ts'
 import { workoutPlansEl, workoutPlansEn, type WorkoutPlansDictionary } from './workoutPlans.ts'
@@ -33,6 +34,7 @@ export interface FeatureDictionary
     ProfileDictionary,
     RecipesDictionary,
     SkincareDictionary,
+    TasksDictionary,
     ThemeDictionary,
     TipsDictionary,
     WorkoutPlansDictionary,
@@ -46,6 +48,7 @@ export const featuresEn: FeatureDictionary = {
   ...profileEn,
   ...recipesEn,
   ...skincareEn,
+  ...tasksEn,
   ...themeEn,
   ...tipsEn,
   ...workoutPlansEn,
@@ -60,6 +63,7 @@ export const featuresEl: FeatureDictionary = {
   ...profileEl,
   ...recipesEl,
   ...skincareEl,
+  ...tasksEl,
   ...themeEl,
   ...tipsEl,
   ...workoutPlansEl,

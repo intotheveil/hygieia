@@ -1,5 +1,6 @@
 // SITE HEADER (P3.5): the one `<header>` (banner landmark) every route shares, rendered by
-// Layout. Brand link home · primary nav (Recipes · Fridge · Diets · Workouts · Tips · Skincare) ·
+// Layout. Brand link home · primary nav (Recipes · Fridge · Diets · Workouts · Tips · Skincare ·
+// Task plans) ·
 // AccountMenu · ThemeSwitch · LangSwitch. `NavLink` sets `aria-current="page"` on the active item;
 // the match is by prefix, so `/recipes/<slug>` keeps "Recipes" current. On narrow screens the nav
 // wraps onto its own row of chips (`order-last w-full` below `lg`); no disclosure, nothing hidden.
@@ -25,6 +26,7 @@ const NAV_PATHS: Record<NavId, string> = {
   workouts: '/workouts',
   tips: '/tips',
   skincare: '/skincare',
+  tasks: '/tasks',
 }
 
 const PILL =
@@ -82,7 +84,8 @@ export function ThemeSwitch() {
 export function SiteHeader() {
   const { t } = useLang()
   return (
-    <header className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 py-5">
+    // `print:hidden`: the task plans' Print button (P9) prints the page, not the site chrome.
+    <header className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 py-5 print:hidden">
       <Link to="/" className="flex items-baseline gap-2">
         <span className="font-display text-2xl font-bold tracking-tight text-olive-950">
           Hygieia

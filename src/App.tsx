@@ -1,9 +1,9 @@
-// HOME `/` (P0 shell, wired in P3.5). Hero + status box + the seven module cards, each a link into
+// HOME `/` (P0 shell, wired in P3.5). Hero + status box + the eight module cards, each a link into
 // its module: tips → /tips · diets → /diets · recipes → /recipes (with a secondary link to /fridge)
 // · cost and calories → /recipes with a note (their panels sit on every recipe page since P4.3)
-// · workouts → /workouts · skincare → /skincare (P7.2). The header and footer are Layout's
+// · workouts → /workouts · skincare → /skincare (P7.2) · tasks → /tasks (P9). The header and footer are Layout's
 // (src/components/Layout.tsx); this is the `<main>`. The `roadmap` badge is gone: every module has
-// a live route. Seven cards on a 3-column grid leave one short row (3 + 3 + 1); accepted.
+// a live route. Eight cards on a 3-column grid leave one short row (3 + 3 + 2); accepted.
 
 import { Link } from 'react-router-dom'
 import { MODULE_IDS, type ModuleId } from './i18n/dictionary'
@@ -19,6 +19,7 @@ const ICONS: Record<ModuleId, string> = {
   calories: '⚖',
   workouts: '⟳',
   skincare: '❋',
+  tasks: '☑',
 }
 
 /** Where each card leads. cost/calories are panels on recipe pages, so they open the recipes list. */
@@ -30,6 +31,7 @@ const MODULE_ROUTES: Record<ModuleId, string> = {
   calories: '/recipes',
   workouts: '/workouts',
   skincare: '/skincare',
+  tasks: '/tasks',
 }
 
 /** Modules that are a panel inside another page rather than a page of their own: they carry `panelsNote`. */

@@ -1030,3 +1030,44 @@ the VERBATIM contract P8.2 / P8.3 build against):**
 - **Depends on:** P8.QA (VALIDATED). **Rubric:** CLAUDE.md §6.
 
 ### CHECKPOINT P8 — surface summary to human, wait for gate approval
+
+## P9 Tasks Advisor (operator + spouse request 2026-10-06)
+
+Operator, verbatim: _"We place some topics which open a questionnaire, and it creates weekly or daily task lists. E.g. to clean house
+and keep it clean, to start a workout routine, etc. Not AI powered — pre-prepare the task lists."_ Bundled content only — **no database,
+no migration**; works for everyone, signed in or not.
+
+**Model (`src/tasks/types.ts`):** a TOPIC = `{ id, icon, title, blurb, questions, tasks }` (bilingual `{ el, en }` on every string). A
+QUESTION is `single` (radios) or `multi` (checkboxes) with stable option ids; the one question whose options carry `minutes` is the
+daily time budget; an option flagged `gentle` (a chaotic home, a beginner, "hardly any water") switches on the start-gently week. A
+TASK = `{ id, title, detail?, minutes, cadence daily | weekly | monthly, day?, times?, when, weight, kickoff? }`; `when` = every listed
+question has one of the listed options selected (empty = always).
+
+### P9.1 Tasks Advisor — topics, questionnaires, generated daily/weekly plans — DONE 2026-10-06 (lane `wt/d`)
+
+- **Files:** `src/tasks/{types,generate,storage,dates,text}.ts`, `src/tasks/{TasksPage,Questionnaire,PlanView}.tsx`,
+  `src/tasks/content/{topics,build,index}.ts` + eleven topic files (one lazy chunk each), tests `src/tasks/{generate,storage,text}.test.ts`,
+  `src/tasks/TasksPage.test.tsx`, `src/tasks/content/content.test.ts`, `e2e/local/tasks.spec.ts`; wiring `src/routes/routes.tsx` (lazy
+  `/tasks` + `/tasks/:topic`), `src/i18n/features/tasks.ts` (+ `features/index.ts`), `src/i18n/dictionary.ts` (`MODULE_IDS` +
+  `NAV_IDS` gain `tasks`, `modules.tasks`, `nav.tasks`, status copy "eight modules"), `src/App.tsx` (eighth card), `src/components/SiteHeader.tsx`
+  (nav link + `print:hidden`), `e2e/support/routes.ts` + `scripts/check-lighthouse.test.ts` (`tasks`, `task-topic`), count updates in
+  `src/App.test.tsx`, `src/components/SiteHeader.test.tsx`, `src/i18n/dictionary.test.ts`, `e2e/local/smoke.spec.ts`.
+- **Generator (`generate.ts`, pure, deterministic):** eligible by `when` (kick-offs only when gentle) → budget (gentle = ~70 %, rounded
+  to 5, ≥ 10) → ANCHORS (weight ≥ 6: a workout session, a study block) placed first → daily habits into a third of the budget → the
+  rest in one pass by weight (weekly first among equals; weekly longer-first; `times` repeats on a spaced, rotated pattern; `day` hint
+  wins when it fits; ≤ 2 non-anchor jobs a day) → monthly (≤ the full budget, ≤ 6). Invariant: every day's minutes ≤ the plan budget.
+- **Acceptance (met — BUILD_LOG entry of the same date has the numbers):** ≥ 10 topics (11), 3–6 questions each, ≥ 25 tasks per topic and
+  ≥ 40 on average; every topic × EVERY answer combination (17 424 plans) yields a non-empty plan within budget and every task is
+  reachable; `/tasks` + `/tasks/clean-home` in both route lists; a11y cells green both languages; Lighthouse cold ≥ 85 / 90 / 90; e2e
+  questionnaire → tick → reload keeps it, both languages; `G0` green. Dead-backend spec: not applicable (no backend read).
+
+### P9.QA — QA & Validation (agent: qa)
+
+- Fresh clone: `G0` + e2e both projects + `check:lighthouse` incl. `tasks` / `task-topic`; open `/tasks/<topic>` for three topics in
+  both languages, answer, tick, reload; confirm nothing is sent over the network on tick (local only); print preview hides the header.
+
+### P9.REVIEW — Quality review (agent: reviewer)
+
+- **Depends on:** P9.QA (VALIDATED). **Rubric:** CLAUDE.md §6.
+
+### CHECKPOINT P9 — surface summary to human, wait for gate approval

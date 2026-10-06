@@ -20,7 +20,8 @@
  * Detail pages use a representative BUNDLED slug (src/content/seed/**): the audits run on the
  * local-only build, so the slug must exist in the seed. `/account` and `/admin` render the
  * sign-in-unavailable state in local-only mode; `/profile` (P8.2) and `/workouts/plans` (P8.3) are
- * not guarded and render their own signed-out note (`role="note"`) under the H1; `not-found` is the `*` route. `/auth/callback` is
+ * not guarded and render their own signed-out note (`role="note"`) under the H1; `/tasks/clean-home` (P9)
+ * is the questionnaire's first step (fresh storage); `not-found` is the `*` route. `/auth/callback` is
  * deliberately absent: it only ever follows a Supabase redirect and times out to its failure copy.
  *
  * This file is imported by node (`check-lighthouse.mjs`, type-stripping): erasable syntax only,
@@ -29,6 +30,7 @@
 import { DIETS } from '../../src/content/seed/diets.ts'
 import { RECIPES } from '../../src/content/seed/recipes.ts'
 import type { Dictionary, Lang } from '../../src/i18n/dictionary.ts'
+import { TOPICS } from '../../src/tasks/content/topics.ts'
 
 export type AuditRoute = {
   readonly path: string
@@ -42,6 +44,7 @@ export const ROUTE_BASE = '/hygieia'
 
 const RECIPE_SLUG = 'carnivore-bacon-and-eggs'
 const DIET_SLUG = 'keto'
+const TASK_TOPIC = 'clean-home'
 
 function seedRow<T extends { slug: string }>(rows: readonly T[], slug: string, table: string): T {
   const row = rows.find((r) => r.slug === slug)
@@ -97,6 +100,13 @@ export const ROUTES: readonly AuditRoute[] = [
     name: 'skincare',
     h1: (t) => t.skincareTitle,
     ready: '#skincare-routines li',
+  },
+  { path: '/hygieia/tasks', name: 'tasks', h1: (t) => t.tasksTitle, ready: '#tasks-topics li' },
+  {
+    path: `/hygieia/tasks/${TASK_TOPIC}`,
+    name: 'task-topic',
+    h1: (_t, lang) => TOPICS[TASK_TOPIC].title[lang],
+    ready: '#tasks-question',
   },
   { path: '/hygieia/auth', name: 'auth', h1: (t) => t.signInUnavailableTitle },
   { path: '/hygieia/account', name: 'account', h1: (t) => t.signInUnavailableTitle },
