@@ -219,7 +219,7 @@ describe('supabaseSource', () => {
     ])
   })
 
-  it('fridge lists: save upserts { name, ingredient_slugs } with id only when given; remove by id', async () => {
+  it('fridge lists: create INSERTs and rename UPDATEs … WHERE id, never sending id or user_id; remove by id', async () => {
     const fake = fakeClient()
     const source = bound(fake)
     const created = await source.fridgeLists.save({ name: 'Weekend', ingredient_slugs: ['feta'] })
@@ -232,14 +232,34 @@ describe('supabaseSource', () => {
         updated_at: '2026-10-05T12:00:00.000Z',
       },
     })
-    await source.fridgeLists.save({ id: 'fl-9', name: 'Renamed', ingredient_slugs: [] })
+    const renamed = await source.fridgeLists.save({
+      id: 'fl-9',
+      name: 'Renamed',
+      ingredient_slugs: [],
+    })
+    expect(renamed).toEqual({
+      ok: true,
+      data: {
+        id: 'fl-9',
+        name: 'Renamed',
+        ingredient_slugs: [],
+        updated_at: '2026-10-05T12:00:00.000Z',
+      },
+    })
     await source.fridgeLists.remove('fl-9')
+    // The authenticated grants are insert/update (name, ingredient_slugs) only: an upsert carrying
+    // `id` (on conflict (id) do update set id = …) is refused with permission denied in configured
+    // mode, so a rename must be an UPDATE filtered by id with exactly the two granted columns.
     expect(fake.calls.map((c) => [c.op, c.payload, c.filters])).toEqual([
-      ['upsert', { name: 'Weekend', ingredient_slugs: ['feta'] }, []],
-      ['upsert', { id: 'fl-9', name: 'Renamed', ingredient_slugs: [] }, []],
+      ['insert', { name: 'Weekend', ingredient_slugs: ['feta'] }, []],
+      ['update', { name: 'Renamed', ingredient_slugs: [] }, [['id', 'fl-9']]],
       ['delete', undefined, [['id', 'fl-9']]],
     ])
-    expect(fake.calls[0]?.payload).not.toHaveProperty('id')
+    for (const call of fake.calls.slice(0, 2)) {
+      expect(Object.keys(call.payload as object).sort()).toEqual(['ingredient_slugs', 'name'])
+      expect(call.options).toBeUndefined()
+    }
+    expect(fake.calls.map((c) => c.op)).not.toContain('upsert')
   })
 
   it('saved plans: save inserts { diet_id, week_start, plan }; remove by id', async () => {

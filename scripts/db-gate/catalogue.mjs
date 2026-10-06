@@ -676,6 +676,17 @@ export const columnPrivs = async (db, role, table, priv) =>
  * @property {string} leakInsert  an INSERT that names `user_id = UA` (a row of A); must be refused for everyone
  * @property {string} controlInsert  the same INSERT without `user_id` (what the client sends); lands as the caller's row
  * @property {string} inserted  predicate matching the inserted row (without user_id)
+ * @property {ClientWrite[]} [clientWrites]  the exact statements the app's client sends for this table,
+ *   run as UA against the real grants (an upsert/update that needs an ungranted column fails HERE,
+ *   not in configured mode — the fridge-list rename finding, 2026-10-06)
+ */
+/**
+ * @typedef {object} ClientWrite
+ * @property {string} name  the check name (pinned in scripts/db-isolation.test.ts)
+ * @property {string} sql  the statement, as PostgREST would issue it for UA
+ * @property {'lands' | 'refused'} expect  'lands': takes effect, exactly one row of A matches
+ *   `landed` afterwards and none of B; 'refused': permission denied / RLS and A's rows unchanged
+ * @property {string} [landed]  predicate (without user_id) the written row matches; required for 'lands'
  */
 /** @typedef {{ table: string, kind: 'profiles' }} ProfilesEntry */
 /** @typedef {{ table: string, kind: 'service-only' }} ServiceOnlyEntry */
@@ -772,6 +783,23 @@ export const CATALOGUE = Object.freeze([
     leakInsert: `insert into hygieia.fridge_lists (user_id, name) values ('${U.UA}', 'leak')`,
     controlInsert: `insert into hygieia.fridge_lists (name) values ('leak')`,
     inserted: `name = 'leak'`,
+    clientWrites: [
+      {
+        name: 'client rename — UA renames its own list via UPDATE … WHERE id (name, ingredient_slugs only)',
+        sql: `update hygieia.fridge_lists set name = 'Renamed', ingredient_slugs = '{fx-feta}'
+              where id = '${ID.fridgeA}'`,
+        expect: 'lands',
+        landed: `id = '${ID.fridgeA}' and name = 'Renamed' and ingredient_slugs = '{fx-feta}'`,
+      },
+      {
+        name: 'an upsert carrying id (on conflict (id) do update set id = …) is refused — the client never sends one',
+        sql: `insert into hygieia.fridge_lists (id, name, ingredient_slugs)
+              values ('${ID.fridgeA}', 'Upserted', '{}')
+              on conflict (id) do update
+                set id = excluded.id, name = excluded.name, ingredient_slugs = excluded.ingredient_slugs`,
+        expect: 'refused',
+      },
+    ],
   },
   {
     table: 'saved_plans',
@@ -809,6 +837,18 @@ export const CATALOGUE = Object.freeze([
                  values ('${U.UA}', 'sleep', 8, 'h', 'daily')`,
     controlInsert: `insert into hygieia.goals (kind, target, unit, cadence) values ('sleep', 8, 'h', 'daily')`,
     inserted: `kind = 'sleep'`,
+    clientWrites: [
+      {
+        // PostgREST's upsert sets EVERY payload column on conflict, the conflict key `kind` included.
+        name: 'client upsert — UA replaces its own goal on conflict (user_id, kind), setting every payload column',
+        sql: `insert into hygieia.goals (kind, target, unit, cadence) values ('water', 2500, 'ml', 'daily')
+              on conflict (user_id, kind) do update
+                set kind = excluded.kind, target = excluded.target, unit = excluded.unit,
+                    cadence = excluded.cadence`,
+        expect: 'lands',
+        landed: `kind = 'water' and target = 2500`,
+      },
+    ],
   },
   {
     table: 'saved_items',
@@ -1232,6 +1272,20 @@ export function checksFor(e, h) {
         ]
       }),
     )
+    for (const w of e.clientWrites ?? [])
+      add(w.name, () =>
+        actAs(U.UA, async (s) => {
+          const before = await snapshot(s, e.table, ofA)
+          const o = await s.attempt(w.sql)
+          if (w.expect === 'refused') {
+            const after = await snapshot(s, e.table, ofA)
+            return [refused(o) && before.h === after.h, JSON.stringify(o)]
+          }
+          const asA = await s.sudo(() => s.count(e.table, `${w.landed} and ${ofA}`))
+          const asB = await s.sudo(() => s.count(e.table, `${w.landed} and ${ofB}`))
+          return [tookEffect(o) && asA === 1 && asB === 0, JSON.stringify({ o, asA, asB })]
+        }),
+      )
     add(
       'authenticated holds no INSERT or UPDATE privilege on user_id (it comes from default auth.uid())',
       async () => {

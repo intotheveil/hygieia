@@ -162,7 +162,10 @@ export interface WorkoutSession {
 // and RLS (`user_id = auth.uid()` on every verb) refuses anything else, so sending it would be
 // at best redundant and at worst a leak of intent. The types make it unrepresentable. ------------
 
-/** Upsert: a new list when `id` is absent, an update of the caller's own list when present. */
+/**
+ * Save: a new list (INSERT) when `id` is absent, an UPDATE … WHERE id of the caller's own list when
+ * present. `id` selects the row; it is never written (no grant on it — see supabase.ts).
+ */
 export interface FridgeListInput {
   id?: string
   name: string

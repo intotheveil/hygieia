@@ -158,8 +158,8 @@ pending|approved|rejected` stamped by `stamp_review()` BEFORE UPDATE · per-user
     deterministic `src/tasks/generate.ts`, ticks in localStorage, `/tasks` + `/tasks/:topic`, eighth home card. Next session: inspect
     `git -C D:/projects/hygieia-wt/d status`, finish + verify (lint, typecheck, test, build, e2e, Lighthouse), commit, merge, push.
   - **Owed:** P8.QA + P8.REVIEW (profile + plans), P9.QA + REVIEW; BRAIN §2 reconciliation for P7/P8 (routes, modules, counts — see BUILD_LOG
-    P7 REVIEW entry for the list); the fridge-list rename grant finding from P8.1 (`fridge_lists` UPDATE grant lacks `id` for upsert — needs a
-    new migration or an `update().eq('id')` path); operator: sign in once → admin flag (OP2.b), OP6.a telemetry, Google later.
+    P7 REVIEW entry for the list); ~~the fridge-list rename grant finding from P8.1~~ FIXED on `wt/a` 2026-10-06 (client
+    `update().eq('id')`, no migration; merge pending); operator: sign in once → admin flag (OP2.b), OP6.a telemetry, Google later.
 
 - **Built on `main` `b18f56d` (2026-10-06, themes merged; CI run 37441451272 green + deployed), every local gate green:** lint 0 errors
   (23 pre-existing `react-refresh` warnings) · typecheck clean · **tests 3246** (66 files) · **e2e 74** (65 local incl. 24 a11y language
@@ -344,9 +344,24 @@ table (14)` is right; P1.QA.2's `(13)` is the typo.
 - **Git Bash mangles `/hygieia/...` CLI arguments into Windows paths** for scratch scripts and
   `pages-server --base`; prefix the command with `MSYS_NO_PATHCONV=1`.
 
+- **A PostgREST `upsert` needs INSERT *and* UPDATE grants on EVERY payload column, the conflict key included** (2026-10-06): it becomes
+  `insert … on conflict (k) do update set <every payload col>`. With column-limited grants that exclude `id`, an upsert carrying `id`
+  is `permission denied` — the fridge-list rename was broken in configured mode while local mode (memory double) and every unit test
+  (fake client) stayed green. Update an existing row with `update(cols).eq('id', id)`; a new client write shape gets a `clientWrites`
+  check in `scripts/db-gate/catalogue.mjs` so the real grants are exercised in PGlite.
+
 - **`page.route('**/sw.js', r => r.abort())` does NOT block a service worker in Playwright/Chromium (2026-10-06, review fix 2).** The SW script is fetched outside page interception, so that sabotage stays GREEN and proves nothing. The only valid "no SW" sabotage is `test.use({ serviceWorkers: 'block' })` — then the offline spec fails at step 1 (no controller), as it should. Treat any earlier "blocked sw.js → test went red" claim with suspicion unless it says how.
 
 ## 6. CHANGELOG (append-only — what happened, newest first)
+
+### 2026-10-06 — FIX: fridge-list rename via UPDATE … WHERE id (lane `wt/a`)
+
+- Did: `src/user/supabase.ts` saves an existing fridge list with `update({ name, ingredient_slugs }).eq('id', id)` and a new one with
+  `insert`; the old `upsert({ id, … })` needed INSERT/UPDATE on `id` and was `permission denied` in configured mode. Audited every
+  client write against the 000400/001300 grants — all others fit; `goals` is the only upsert left. New `clientWrites` gate checks run the
+  client's exact statements as UA (+3 prove-red sabotages). Tests 3684, gate 360, prove-red 31/31.
+- Decided: fix the client, never grant `id` (see §7).
+- Left off: merge `wt/a` into `main`; no live apply (no migration).
 
 ### 2026-10-06 (afternoon → evening) — skincare + nails, profile, workout plans, six themes live; Tasks Advisor in flight
 
@@ -509,6 +524,7 @@ table (14)` is right; P1.QA.2's `(13)` is the typo.
 - **2026-10-05 ADR-0003:** DB = Alyssos's shared project, schema `hygieia` only; Themis rulebook (own ledger, Management-API applier, PGlite gate, pinned client, shared auth).
 - **2026-10-05 ADR-0004:** installable PWA on Pages; `check:pwa` gates the built artifact.
 - **2026-10-05 (P2.4):** per-user writes never send `user_id`; the column default + RLS supply it; types forbid it.
+- **2026-10-06:** client writes never rely on `upsert` unless the grants cover every payload column and the conflict key; existing rows are updated by `update().eq('id')`, and `id` is never granted.
 - **2026-10-05:** every `hygieia` function revokes EXECUTE explicitly — per-schema default privileges cannot; a global revoke is forbidden.
 - **2026-10-05 (P1.5–P1.8):** policies per role; column-limited client grants; nullability follows `types.ts`; fixtures obey the seed-id rule; gate and `npm test` share one check list.
 - **2026-10-05 (P1.14):** write-policy probes are filtered AND blind, strengthened in place; `RED ok` = exit code exactly 1.

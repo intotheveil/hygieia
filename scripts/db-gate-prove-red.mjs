@@ -101,6 +101,31 @@ create policy saved_plans_update_own on hygieia.saved_plans
 create policy favourites_delete_own on hygieia.favourites for delete to authenticated using (true);`,
     expect: [/^FAIL {2}hygieia\.favourites: UB's DELETE of A's rows has no effect — /],
   },
+  // --- client writes against the real grants (fridge-list rename finding, 2026-10-06) -----------
+  {
+    id: 'fridge-lists-no-update-slugs',
+    what: 'authenticated loses UPDATE (ingredient_slugs) on fridge_lists: the client rename is refused',
+    sql: `revoke update (ingredient_slugs) on table hygieia.fridge_lists from authenticated;`,
+    expect: [
+      /^FAIL {2}hygieia\.fridge_lists: client rename — UA renames its own list via UPDATE … WHERE id \(name, ingredient_slugs only\) — .*permission denied for table fridge_lists/,
+    ],
+  },
+  {
+    id: 'fridge-lists-grant-id',
+    what: 'authenticated gains INSERT/UPDATE (id) on fridge_lists: an id-carrying upsert goes through',
+    sql: `grant insert (id), update (id) on table hygieia.fridge_lists to authenticated;`,
+    expect: [
+      /^FAIL {2}hygieia\.fridge_lists: an upsert carrying id \(on conflict \(id\) do update set id = …\) is refused — the client never sends one — \{"ok":true,"affected":1\}$/,
+    ],
+  },
+  {
+    id: 'goals-no-update-kind',
+    what: 'authenticated loses UPDATE (kind) on goals: the client upsert on (user_id, kind) is refused',
+    sql: `revoke update (kind) on table hygieia.goals from authenticated;`,
+    expect: [
+      /^FAIL {2}hygieia\.goals: client upsert — UA replaces its own goal on conflict \(user_id, kind\), setting every payload column — .*permission denied for table goals/,
+    ],
+  },
   {
     id: 'recipe-ingredients-select-true',
     what: 'recipe_ingredients SELECT policy for anon using (true): children of pending parents leak',
