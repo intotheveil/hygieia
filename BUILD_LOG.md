@@ -94,6 +94,109 @@ RecipeSeed = RecipeSeed>`, `matchRecipe<R>` / `matchRecipes<R>` generic; `Fridge
 
 **Not done (reviewer's backlog, by design):** `RecipeCard` chips as links; an e2e click on a recipe-page chip (the unit test pins
 the href; the e2e happy path does not click a chip). **Next:** lead merges `wt/c`; reviewer flips P3/P4 to PASS per the verdict below.
+### P5.3 perf follow-up (last) — footer below the fold · lazy supabase-js · fallback font metrics · the diet shift was the skeleton's WIDTH — 2026-10-06 — DONE (builder, worktree `wt/g`; not yet committed)
+
+**Brief:** after code splitting the gate still failed on performance (baseline reproduced here on the merged main, same machine:
+home 90 · recipes 85 · recipe 88 · fridge 88 · diets 87 · diet 82 · workouts 88 · tips 87 · auth 89 · account 91 · admin 91 · not-found 91;
+a11y/bp/seo 100). Three levers were handed over: the Layout footer shift, supabase-js in the eager graph, and the `diet` residual CLS.
+Thresholds untouched (90 local / 85 CI on performance; 90 a11y/bp; seo informational).
+
+**Delivered (files):**
+
+- `src/components/Layout.tsx` — the content slot is `flex min-h-dvh flex-1 flex-col [&>main]:min-h-0 [&>main]:w-full [&>main]:flex-1`.
+  `min-h-dvh`: the footer starts below the first viewport on every route (the 0.099 shift on recipes/diets/tips, 0.080 workouts,
+  0.017–0.036 recipe/fridge/diet → 0.000). `w-full`: see the finding below. Header comment rewritten to say why (both).
+- `src/lib/supabase.ts` — no static import of `@supabase/supabase-js` any more. `SupabaseLibrary = Pick<typeof import('@supabase/supabase-js'),
+  'createClient'>` (type query, erased), `loadSupabaseLibrary()` is the ONE `import()`, `createHygieiaClient(library, config)` the synchronous
+  constructor, `clientFor(env, load?)` resolves null for local mode WITHOUT calling `load`, `getSupabase()` memoises the app's client (a
+  rejected load is forgotten so the next call retries). `HygieiaClient` and `CLIENT_OPTIONS` unchanged for every consumer. The old
+  `export const supabase` is gone — its two users were updated; everything else only ever imported the TYPE.
+- `src/auth/AuthProvider.tsx` — `client` prop absent → `getSupabase()` once mounted (configured mode only, decided from `appEnv`): local-only
+  is still `unavailable` on the FIRST render with nothing loaded; configured is `loading` until the chunk + persisted session arrive; a
+  chunk-load failure → `unavailable`, never `loading` forever. Injected fakes/`null` behave exactly as before (all 9 provider tests untouched).
+- `src/content/index.ts` — `deferredSource(kind, load)`: a `ContentSource` whose `kind` is known at once and whose every method awaits the real
+  source, mapping a load failure to `fail('network')` (same as a seed-chunk failure in bundled.ts). Configured mode uses it over
+  `getSupabase()` → `supabaseSource(client)`; local mode is still the synchronous `bundledSource`.
+- `src/index.css` — three fallback `@font-face` aliases with the webfonts' metrics (`'Literata Fallback'` = local Georgia 106 %;
+  `'Literata Fallback Times'` = local Times New Roman / Liberation Serif 116 %; `'Inter Fallback'` = local Arial / Liberation Sans / Helvetica
+  108 %; ascent/descent/line-gap overrides = webfont metrics ÷ ratio), second in both token stacks. Numbers read from the font files with a
+  scratch parser (woff2 via `node:zlib` brotli; head/hhea/OS2/cmap/hmtx), not copied from a table — the comment carries them.
+- Tests adjusted because they pinned synchronous creation (test-writer to review): `src/lib/supabase.test.ts` (`clientFor` awaited; NEW: local mode
+  never calls `load` — spy; NEW: a failed load rejects), `src/lib/env.test.ts` (`clientFor` awaited). No other test changed. `npm test`: 63 files /
+  **3192** tests (was 3191).
+- `DECISIONS.md` — one dated section, four bullets (footer below the fold + `w-full`; lazy client; fallback metrics; the `check-bundle-secrets`
+  test trap below).
+
+**Chunk graph (local-only `npm run build`):** eager graph from `index.html` = `index-*.js` 235 kB / 73.6 kB gzip + `LangProvider-*.js`
+**82.6 kB / 28.9 kB gzip (was 297 kB / 83 kB)**; `@supabase/supabase-js` is now `dist-*.js` 219 kB / 56.5 kB gzip (named after the package's
+`dist/` entry), reached only by `import()` — `grep -l GoTrueClient dist/assets/*.js` → that one file; `grep -c GoTrueClient dist/assets/index-*.js`
+→ 0; the local-only build never requests it (it is still SW-precached, post-load). Eager payload per route: 157 kB → **~103 kB gzip**.
+
+**FINDING — the `diet` CLS 0.126 was never a font swap.** A layout-shift `PerformanceObserver` with `sources` at the Moto G viewport (scratch
+Playwright probe over `dist/`) shows ONE shift at t≈404 ms: `main.mx-auto` `[x 142, y 154, w 128, h 669] → [16, 154, 396, 669]`, no "web font
+loaded" cause. Every page's `<main>` is `mx-auto max-w-*`; as a flex item with auto horizontal margins it shrinks to its max-content width,
+and the `detail` skeleton's widest bone is `w-24` → during loading `<main>` was a 128 px column centred in the slot, snapping to full width when
+the seeds arrived. The P5.1 lane saw the header nav re-wrap in the same frame (that is the font swap: 0.0003–0.0004) and attributed the whole
+shift to fonts. `[&>main]:w-full` on the slot fixes it for every page; `diet` CLS after: **0.0004**. The fonts' woff2 subsets, served locally,
+arrive at 57–65 ms — before the 74 ms first paint — so on THIS gate the fallback metrics measure at the noise floor; they are kept because on a
+real slow network the swap happens after paint, and they cost nothing. The `tips` residual (0.020–0.026) is content: the topic filter chips
+grow when their "(12)" counts render after the seeds load (`src/tips/TipsPage.tsx`, out of scope; within the 0.05 target).
+
+**`npm run check:lighthouse` — consecutive runs on the final build (local, no CI env, full Chromium 1243; a11y · bp · seo = 100 · 100 · 100
+on every route in every run; CLS ≤ 0.026 everywhere):**
+
+```
+route        run 1  run 2  run 3  run 4 │ CLS (runs 1–4)              │ LCP s (runs 1–3)   │ baseline (this session)
+home            92     92     92   92 │ 0.000 0.000 0.000 0.000      │ 2.86 2.86 2.86     │ 90
+recipes         91     91     91   91 │ 0.000 0.000 0.000 0.000      │ 2.90 2.90 2.90     │ 85  (CLS 0.099)
+recipe          91     91     91   91 │ 0.000 0.000 0.000 0.000      │ 2.90 2.90 2.90     │ 88  (CLS 0.017)
+fridge          87*    93     91   91 │ 0.000 0.000 0.000 0.000      │ 3.51* 2.90 2.90    │ 88  (CLS 0.036)
+diets           93     93     93   93 │ 0.000 0.000 0.000 0.000      │ 2.76 2.76 2.76     │ 87  (CLS 0.099)
+diet            91     91     91   91 │ 0.000 0.000 0.000 0.000      │ 2.90 2.90 2.90     │ 82  (CLS 0.143)
+workouts        93     93     93   93 │ 0.000 0.000 0.000 0.000      │ 2.77 2.76 2.76     │ 88  (CLS 0.080)
+tips            93     93     94   93 │ 0.000 0.020 0.020 0.000      │ 2.76 2.76 2.76     │ 87  (CLS 0.099)
+auth            93     94     93   93 │ 0.000 0.000 0.000 0.000      │ 2.75 2.75 2.75     │ 89
+account         94     94     94   94 │ 0.001 0.001 0.001 0.000      │ 2.55 2.55 2.55     │ 91
+admin           94     95     94   94 │ 0.001 0.001 0.001 0.001      │ 2.55 2.40 2.55     │ 91
+not-found       94     97     94   94 │ 0.000 0.000 0.000 0.000      │ 2.55 2.25 2.55     │ 91
+gate          FAIL*    OK     OK   OK
+```
+
+`*` **run 1 `fridge` 87 — the one miss, explained from the LHR:** its two seed chunks came over the network that run (`ingredients` 15 kB +
+`recipes` 47 kB gzip) while in every other content-route audit of all runs (20 of 21) the just-installed service worker served them
+(`transferSize 0`). Lantern therefore charged a real round trip: simulated LCP 2.90 → 3.51 s (render delay 2447 → 3062 ms; observed LCP
+415 vs 430 ms, identical), `largest-contentful-paint` score 0.72 — the only failing weighted audit. No code difference; the SW install race
+the previous lane already noted ("partly a repeat-visit number"). Run 4 was added so that three CONSECUTIVE fully-green runs (2, 3, 4) are on
+record; the honest reading is that a cold first visit of a content route (seeds from the network) sits around 87–88 and the gate's 90 is met
+when the SW wins the race, which it did in 20/21 audits here. Nothing in this task's scope moves the cold-visit number (it is the seed
+bytes behind LCP; see the previous lane's measured-and-rejected pre-warming).
+
+**Two measurement traps found on the way (both pre-existing, both recorded in DECISIONS.md / BRAIN §5 for the lead):**
+1. `scripts/check-bundle-secrets.test.ts` ("the REAL build") spawns `npm run build` INTO `dist/` with `{ ...process.env }` — under vitest that
+   carries `NODE_ENV=test`, React resolves to its development build and the entry is **431 kB raw (vs 235 kB)**. `npm test` therefore
+   overwrites a production `dist/`; my first post-change audit ran on that artifact and read home 88 / admin 85 on an otherwise identical
+   tree. Always rebuild after `npm test` before `check:lighthouse` (the acceptance order below does). Fix belongs to that test (out of scope).
+2. The scratch probe must be run with `MSYS_NO_PATHCONV=1` under Git Bash, or `/hygieia/...` becomes `C:/Program Files/Git/hygieia/...`.
+
+**Gates (final tree, run in the acceptance order):**
+```
+npm run lint        → ✖ 21 problems (0 errors, 21 warnings)   (the 21 pre-existing react-refresh/only-export-components warnings; none new)
+npm run typecheck   → tsc -b, clean
+npm test            → Test Files 63 passed (63) · Tests 3192 passed (3192)
+npm run build       → ✓ built · precache 69 entries (2102.69 KiB) · dist/404.html == index.html
+npm run build:dead  → dist-dead/ (VITE_SUPABASE_URL=http://127.0.0.1:9/, anon key "dead-anon") · ✓ built · precache 69 entries ·
+                      dist-dead/404.html == index.html · dead URL inlined in LangProvider-B-UbYFNH.js (env.ts lives in the shared chunk
+                      since the split), present in 0 file(s) of dist/
+npm run check:pwa   → check:pwa OK — Hygieia · Υγίεια, 3 icons, sw.js present
+npm run check:bundle→ check:bundle: OK, no secret-looking value or server-only name in 37 files (1337961 bytes) in dist
+E2E_PREBUILT=1 npm run e2e → 66 passed (37.2s): 57 [local] (incl. offline.spec.ts, a11y matrix, empty states) + 9 [dead-backend]
+                      (the configured path: the supabase chunk IS loaded there and every read still fails `network` with Retry)
+npm run check:lighthouse (×4 above) → runs 2–4: OK — 12 route(s) at or above every threshold; exit 0
+```
+
+**For the lead:** (1) `src/tips/TipsPage.tsx` chips could reserve the count width (CLS 0.02 → 0) — out of scope; (2) the supabase chunk is
+named `dist-*.js` (Vite names it after the package entry) — a `manualChunks`/`chunkFileNames` in `vite.config.ts` would make it
+`supabase-*.js`, cosmetic, out of scope; (3) the `check-bundle-secrets.test.ts` trap above.
 
 ### P3.REVIEW + P4.REVIEW — 2026-10-06 — REVISE (two rubric lines at 1: two small acceptance gaps vs PLAN and three pieces of hidden debt; code, tests, isolation, migrations and records otherwise PASS — four small fixes, then PASS without re-reading)
 

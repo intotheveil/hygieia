@@ -289,6 +289,19 @@ table (14)` is right; P1.QA.2's `(13)` is the typo.
   Return an exit code from `main()` and set `process.exitCode`. prove-red treats any non-1 code as `CRASH`, never as proof.
 - **`lang` is supplied by `getContext()` but is NOT an allow-listed fleet context key** — the scrubber drops it on the wire; only `page`
   reaches the dashboard. Extending `ALLOWED_CONTEXT_KEYS` is a fleet contract change made in Zeus first, not here.
+- **`npm test` overwrites `dist/` with a DEVELOPMENT React build** (2026-10-06): `scripts/check-bundle-secrets.test.ts`
+  spawns `npm run build` with vitest's `NODE_ENV=test` inherited, so the entry chunk comes out 431 kB instead of
+  235 kB. Always `npm run build` again after `npm test` before `check:lighthouse`; the real fix is `NODE_ENV:
+  'production'` in that spawn (or a temp outDir) — open.
+- **The diet-page CLS 0.13 was never a font swap**: `<main class="mx-auto max-w-*">` is a flex item with auto
+  margins, so during the skeleton it shrank to a 128 px centred column and snapped to full width when seeds
+  arrived. Fixed in `Layout.tsx` with `[&>main]:w-full`; the lesson: measure a shift's SOURCE element with a
+  `PerformanceObserver` before blaming fonts.
+- **A cold first visit of a content route scores ~87–88; the 90 is met when the service worker serves the
+  seed chunks** (20 of 21 audits). Lighthouse charges the network round-trip of the seed chunk to LCP;
+  pre-warming the chunks was measured and rejected (it moves the cost into FCP).
+- **Git Bash mangles `/hygieia/...` CLI arguments into Windows paths** for scratch scripts and
+  `pages-server --base`; prefix the command with `MSYS_NO_PATHCONV=1`.
 
 ## 6. CHANGELOG (append-only — what happened, newest first)
 
