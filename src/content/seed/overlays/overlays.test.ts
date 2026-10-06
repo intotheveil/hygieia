@@ -387,9 +387,17 @@ describe('the real overlay list (./index.ts)', () => {
     expect(sun?.body_el).toContain('Βάλ’ το ως τελευταίο βήμα')
     expect(sun?.body_el).not.toContain('το το')
     expect(out.health_tips).toHaveLength(HEALTH_TIPS.length)
-    // a table no overlay touches comes back as the SAME array (0003 adds ingredients, diets, recipes)
+    // a table no overlay touches comes back as the SAME array (0003 adds ingredients, diets, recipes;
+    // 0004 patches every ingredient in place: base rows keep their order, new values)
     expect(out.exercises).toBe(EXERCISES)
     expect(out.ingredients).toHaveLength(INGREDIENTS.length + 2)
+    expect(out.ingredients.slice(0, INGREDIENTS.length).map((r) => r.slug)).toEqual(
+      INGREDIENTS.map((r) => r.slug),
+    )
+    const feta = out.ingredients.find((r) => r.slug === 'feta')
+    expect(feta?.source_note).toMatch(/^CIQUAL 2020/)
+    expect(feta?.price_as_of).toBe('2026-10-06')
+    expect(feta?.name_el).toBe(INGREDIENTS.find((r) => r.slug === 'feta')?.name_el)
   })
 
   it('overlayTable applies the list to one table (what the bundled loaders call)', () => {
