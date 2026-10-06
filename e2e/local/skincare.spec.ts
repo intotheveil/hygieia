@@ -1,12 +1,8 @@
 import type { Page } from '@playwright/test'
-import {
-  SKINCARE_PRODUCT_TYPES,
-  SKINCARE_ROUTINES,
-  SKINCARE_TIPS,
-} from '../../src/content/seed/skincare'
 import { el, en } from '../../src/i18n/dictionary'
 import { plural } from '../../src/i18n/fill'
 import { NAIL_CATEGORIES } from '../../src/skincare/select'
+import { OVERLAID_SEED } from '../../src/test/overlaidSeed'
 import { expect, test } from '../support/fixtures'
 
 // SKINCARE on the PRODUCTION build (PLAN P7.2): the Face / Nails switch, the audience / skin-type /
@@ -14,6 +10,14 @@ import { expect, test } from '../support/fixtures'
 // behind its disclosure button, and a deep link with parameters (a 404 DOCUMENT on Pages). Counts
 // come from the bundled seed (the build is local-only, so the seed IS the content) and strings are
 // dictionary VALUES. The project runs with `locale: 'el-GR'`: Greek first, English on the toggle.
+
+// The seed AS SERVED (base + content overlays, src/content/seed/overlays/): overlays 0001/0002 patch
+// the skincare tips (typos; every tip sourced), so counts and source checks read the served rows.
+const {
+  skincare_product_types: SKINCARE_PRODUCT_TYPES,
+  skincare_routines: SKINCARE_ROUTINES,
+  skincare_tips: SKINCARE_TIPS,
+} = OVERLAID_SEED
 
 const BASE = '/hygieia'
 
@@ -142,13 +146,18 @@ test('expanding a routine lists its steps in order with product-type names; the 
   await expect(count(page, 'routines')).toHaveText(
     plural(en.skincareRoutinesCount, FACE_ROUTINES.length),
   )
-  // Tips: a sourced tip links its sources safely; a pending one says so.
-  const pending = FACE_TIPS.find((t) => t.needs_source)
-  const sourced = FACE_TIPS.find((t) => !t.needs_source)
-  if (!pending || !sourced) throw new Error('seed needs a pending and a sourced face tip')
-  await expect(
-    page.locator(`[data-tip="${pending.slug}"]`).getByText(en.sourcePending),
-  ).toBeVisible()
+  // Tips: overlay 0002 sourced every served tip, so every face tip card lists its sources and none
+  // says "source pending" (the pending branch is unit-tested in src/skincare/SkincarePage.test.tsx).
+  expect(
+    FACE_TIPS.filter((t) => t.needs_source || t.sources.length === 0),
+    'served face tips without a source',
+  ).toEqual([])
+  const tipCards = page.locator('[data-tip]')
+  await expect(tipCards).toHaveCount(FACE_TIPS.length)
+  await expect(tipCards.filter({ hasText: en.skincareSources })).toHaveCount(FACE_TIPS.length)
+  await expect(tipCards.getByText(en.sourcePending)).toHaveCount(0)
+  const sourced = FACE_TIPS[0]
+  if (!sourced) throw new Error('seed: no face tip')
   const link = page.locator(`[data-tip="${sourced.slug}"]`).getByRole('link').first()
   await expect(link).toHaveAttribute('href', sourced.sources[0] ?? '')
   await expect(link).toHaveAttribute('rel', 'noopener noreferrer')

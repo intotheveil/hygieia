@@ -1,20 +1,22 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { bundledSource } from '../content/bundled'
-import { HEALTH_TIPS } from '../content/seed/tips'
-import { RECIPES } from '../content/seed/recipes'
 import { fail, ok, type ContentSource } from '../content/source'
 import { LangProvider } from '../i18n/LangProvider'
 import { dictionaries, type Lang } from '../i18n/dictionary'
 import { fill } from '../i18n/fill'
 import { pickOfTheDay } from '../prefs/ofTheDay'
 import { NO_PREFS, type Prefs } from '../prefs/prefs'
+import { OVERLAID_SEED } from '../test/overlaidSeed'
 import { HomeExtras, type HomeExtrasProps } from './HomeExtras'
 
 const en = dictionaries.en
 const el = dictionaries.el
 /** A fixed day: 6 Oct 2026, noon in Athens. */
 const NOW = new Date('2026-10-06T09:00:00Z')
+/** What the page picks from: the SERVED lists (base seed + every overlay), not the frozen base arrays. */
+const RECIPES = OVERLAID_SEED.recipes
+const HEALTH_TIPS = OVERLAID_SEED.health_tips
 
 function renderExtras(props: Partial<HomeExtrasProps> = {}, lang: Lang = 'en') {
   const onPrefsDone = vi.fn<(prefs: Prefs | null) => void>()

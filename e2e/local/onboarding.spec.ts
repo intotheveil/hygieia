@@ -1,10 +1,8 @@
-import { DIETS } from '../../src/content/seed/diets'
-import { RECIPES } from '../../src/content/seed/recipes'
-import { HEALTH_TIPS } from '../../src/content/seed/tips'
 import { el } from '../../src/i18n/dictionary'
 import { plural } from '../../src/i18n/fill'
 import { pickOfTheDay } from '../../src/prefs/ofTheDay'
 import { dietName } from '../../src/recipes/format'
+import { OVERLAID_SEED } from '../../src/test/overlaidSeed'
 import { expect, test } from '../support/fixtures'
 
 // FIRST-VISIT PREFERENCES + RECIPE / TIP OF THE DAY on the PRODUCTION build (2026-10-06): the
@@ -12,6 +10,11 @@ import { expect, test } from '../support/fixtures'
 // (localStorage `hygieia:prefs`), Skip keeps the card away, the footer reopens it, an explicit URL
 // filter wins, and the two "of the day" cards render today's deterministic picks without moving
 // the page (layout shift measured in the browser). Greek is the project locale.
+
+// The seed AS SERVED (base + content overlays, src/content/seed/overlays/): the build is local-only,
+// so the bundled seed with every overlay applied IS the content the pages render — and what the
+// home page picks the recipe / tip of the day from (182 recipes since overlay 0003, not the 152 base).
+const { diets: DIETS, recipes: RECIPES, health_tips: HEALTH_TIPS } = OVERLAID_SEED
 
 const BASE = '/hygieia'
 /** 6 Oct 2026, noon in Athens: the picks are computed for this day in node and in the page. */
