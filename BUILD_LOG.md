@@ -3,6 +3,11 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+### OPERATOR-P7.3 + P8.4 — live apply + approval (skincare, nails, profile) — 2026-10-06
+
+- 001100 skincare schema applied by the lead (one batch; first attempt hit a transient tool error "Invalid or expired requestState" before reaching Postgres, retried after a read-only check). 001200 seed applied by an agent in 11 pieces, no errors; counts 52 / 28 / 65, 148 steps, 0 orphan slugs, per-column md5 = file on all three tables. 001300 profile (5 user tables, RLS per verb, column grants without user_id) applied by the lead in one batch. Ledger 13/13 (checksums 68da48f6ef86 / 9d6c54eee0c9 / d7eb009902f3); Alyssos ledger still 8.
+- **Approval on the operator's word ("aprove all"):** every skincare product type (52), routine (28) and tip (65, incl. 26 `needs_source` — the page labels them "source pending"), and the remaining 17 unsourced health tips. Live: nothing pending.
+
 ### P7 REVIEW (flip) — 2026-10-06 — PASS (scoped re-review of review fix 1; the tests line flips 1 → 2; all seven rubric lines at 2; P7.QA VALIDATED above → **P7 Skincare + nails is CLAIMED** pending the human CHECKPOINT and the operator's P7.3)
 
 - **Scope (as scoped in the REVISE entry — code not re-read):** `main` `3665747` (= merge of `wt/d` `3a8f7b6`). Read ONLY `src/admin/fields.test.ts`, the new `src/admin/ReviewForm.test.tsx`, the appended P7.1 bullet, `PLAN.md:915`, `scripts/db-gate.mjs:658-660`; confirmed `### P7.QA — 2026-10-06 — VALIDATED` sits at the top of this file. **Spot-check in `D:/projects/hygieia-wt/d` at `3a8f7b6`: `npx vitest run src/admin` → 113 / 113 green, 5 files.** Nothing run in `D:/projects/hygieia`.
