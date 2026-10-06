@@ -65,17 +65,20 @@ jobs:
       # with GitHub Pages semantics at /hygieia/ (e2e/support/pages-server.mjs --base /hygieia: a
       # file, else 404.html with status 404), so the SPA fallback is really exercised. E2E_PREBUILT=1
       # tests that dist/ as is, with no rebuild. No backend and no secret: the build has no Supabase
-      # env (local-only mode). Only the headless shell is installed, cached per Playwright version;
-      # system deps come from apt.
+      # env (local-only mode). The FULL Chromium is installed (which brings the headless shell the
+      # e2e suite drives along with it), cached per Playwright version; system deps come from apt.
+      # Full, not `--only-shell`: the Lighthouse gate below drives Chrome through chrome-launcher,
+      # and on ubuntu-latest the headless shell never exposed its DevTools port (P5.3 follow-up:
+      # `run failed — waiting for dynamic debugging port in chrome-err.log`, exit 2).
       - name: Playwright version (browser cache key)
         id: playwright
         run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
       - uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}-chromium-shell
-      - name: Install chromium (headless shell + system deps)
-        run: npx playwright install --with-deps --only-shell chromium
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}-chromium-full
+      - name: Install chromium (full build + headless shell + system deps)
+        run: npx playwright install --with-deps chromium
       - name: e2e against the production build (npm run e2e)
         run: npm run e2e
         env:
@@ -92,9 +95,11 @@ jobs:
       # >= 90 on every route in e2e/support/routes.ts, against the same local-only dist/ (no
       # rebuild), served with Pages semantics and gzip like Pages. Local-only also keeps the
       # performance score free of live-backend latency. CI applies a documented −5 tolerance on PERFORMANCE
-      # only (scripts/check-lighthouse.mjs header: shared runners vary). Drives the headless shell
-      # installed above. The HTML + JSON reports are uploaded always, so a near-miss can be read
-      # without re-running the job.
+      # only (scripts/check-lighthouse.mjs header: shared runners vary). Drives the full Chromium
+      # installed above with `--no-sandbox --disable-dev-shm-usage` (the script adds them when CI is
+      # set; its header says why) and prints the resolved binary + flags first, with the tail of
+      # chrome-err.log on a launch failure. The HTML + JSON reports are uploaded always, so a
+      # near-miss can be read without re-running the job.
       - name: Lighthouse mobile gate (npm run check:lighthouse)
         run: npm run check:lighthouse
         timeout-minutes: 8

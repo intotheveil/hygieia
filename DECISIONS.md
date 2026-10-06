@@ -497,3 +497,49 @@ one — `e2e/local/offline.spec.ts` red on `main`, P5.4 scope — out of gate). 
 lanes and `G0` per lane; the P1/P2 reviewer's finding is that the cadence did not hurt P1/P2 quality. This ADR
 binds for the current build only: the next feature cycle returns to the §9 default unless a new ADR says
 otherwise. Named in `.claude/CLAUDE.project.md` §2 "Deviations".
+
+## 2026-10-06 — P5.3 follow-up: route-level code splitting, per-table lazy seeds, full Chromium in CI
+
+- **Every page but the home is a `React.lazy` chunk, with ONE `Suspense` in `Layout` around `<Outlet />`**
+  (`src/routes/routes.tsx`, `src/components/Layout.tsx`). The static route table had put all twelve pages into
+  the entry chunk (1.26 MB raw / 319 kB gzip; FCP a flat 3.5 s on every route). `/` stays eager so the home
+  first paint pays no extra hop; `NotFound` stays eager (tiny, and the `*` route must render offline from the
+  precached `index.html` alone); the guards (`RequireAuth`/`RequireAdmin`) stay eager so the local-only
+  "sign-in unavailable" copy never waits on a chunk. The fallback is the bilingual `t.loading` line in a
+  `<main>` so Layout's `[&>main]:` sizing applies to it too. Entry is now 246 kB raw / 78 kB gzip (react +
+  react-dom) plus a 297 kB / 83 kB shared chunk (supabase-js + react-router + dictionary) that `index.html`
+  modulepreloads; every page is its own 1–22 kB chunk.
+- **The six seed tables are lazy, per table, behind a cached promise** (`src/content/bundled.ts`:
+  `BUNDLED_SEEDS.<table>` is `() => import('./seed/<table>.ts')`, memoised inside `createBundledSource`,
+  a rejection forgotten so a later call retries). Vite emits one chunk per table (ingredients 120 kB,
+  recipes 256 kB, exercises 84 kB, diets 80 kB, tips 80 kB, workouts 17 kB raw), so `/recipes` downloads
+  recipes + ingredients + diets and nothing of exercises/workouts/tips, `/workouts` the reverse, `/tips`
+  one. The public `ContentSource` API is unchanged (every method already returned a promise) and
+  `bundledSource` is still synchronous to construct; `BundledSeeds` fields accept rows OR a loader
+  (`SeedTable<T>`), so the fixture tests pass arrays as before. A chunk that fails to load resolves to
+  `fail('network')` like a Supabase outage — the bundled source still never throws. Rejected alternative:
+  one lazy "all seeds" chunk — simpler, but `/tips` would still download the 256 kB recipe corpus.
+- **CI installs the FULL Chromium for the Lighthouse gate, not `--only-shell`** (`.github/workflows/deploy.yml`:
+  `npx playwright install --with-deps chromium`, which brings the headless shell along for the e2e suite;
+  cache key suffix `chromium-full`). On ubuntu-latest, chrome-launcher driving the headless shell never saw a
+  DevTools port (`run failed — waiting for dynamic debugging port in chrome-err.log`, exit 2).
+  `scripts/check-lighthouse.mjs` already preferred `chromium.executablePath()`; the shell stays the local
+  fallback. Under `CI` the launch adds `--no-sandbox --disable-dev-shm-usage` (runner kernels can refuse the
+  sandbox's user namespaces; `/dev/shm` is tiny on containerised runners) — never locally. The script prints
+  the resolved binary + flags before the first launch and, on a launch failure, the last 20 lines of
+  chrome-launcher's `chrome-err.log` (the temp profile is created by the script so the path is known), so
+  the next CI failure is readable from the job log. Profile cleanup is best-effort (Windows holds the
+  directory locked for a moment after Chrome exits — the first run died on EPERM in cleanup after a
+  successful audit).
+
+- **No seed pre-warming from the lazy route factories (measured, reverted).** Starting a page's `contentSource.*`
+  reads when its chunk is requested put the seed requests before the first paint and Lighthouse's slow-4G model
+  charged them to FCP (+0.3 s; content routes 78–84 instead of 85–87); deferring them past the paint
+  (`requestAnimationFrame` + timer) still landed them a few ms before observed FCP and left LCP worse. The
+  saving on offer was one 2 kB hop (the page chunk), so there was almost nothing to overlap, and the warm map
+  couples the route table to what pages read. The seeds load when the page asks (BUILD_LOG P5.3 follow-up).
+- **The CLS 0.102 on the content routes is the Layout FOOTER, not page content** (one 0.099 shift of
+  `footer.border-t`: it sits in the first viewport behind a one-line loading state and is pushed out when the
+  list arrives). Left as found — `Layout.tsx` overrides the pages' `min-h-dvh` on purpose so the disclaimer is
+  visible on short pages, and changing that is a design call for the lead (reserve `min-h-dvh` on the content
+  slot, or a reserved height for loading states). `diet`'s 0.827 is DietPage content (P5.1 lane).

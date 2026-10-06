@@ -43,8 +43,8 @@ describe('RequireAuth at /account', () => {
     await waitFor(() =>
       expect(screen.getByTestId('location')).toHaveTextContent('/auth?next=%2Faccount'),
     )
-    // The sign-in page is what renders there.
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(en.signIn)
+    // The sign-in page is what renders there (a lazy chunk, routes.tsx: hence `findBy`).
+    expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent(en.signIn)
   })
 
   it('keeps the query string in the return path', async () => {

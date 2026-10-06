@@ -3,6 +3,120 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+### P5.3 follow-up — route-level code splitting + per-table lazy seeds + CI Chrome — 2026-10-06 — DONE with a gap to report (builder, worktree `wt/g`; not yet committed)
+
+**Brief:** after navigation wiring, `npm run check:lighthouse` failed on performance only (home 82 … diet 60; a11y/bp/seo 100): the entry chunk
+was **1,264 kB raw / 319 kB gzip** because `routes.tsx` imported every page eagerly and every content page pulled `contentSource` →
+`bundled.ts` → ALL six seed tables. In CI the Lighthouse step died with exit 2 (`waiting for dynamic debugging port in chrome-err.log`:
+chrome-launcher could not drive Playwright's headless shell on ubuntu-latest). Thresholds untouched (90/90/90, CI −5 on performance only).
+
+**Delivered (files):**
+
+- `src/routes/routes.tsx` — every page but the home `App` is `React.lazy` (named exports mapped to `default`); `/`, `NotFound` and the two
+  guards stay eager (home FCP pays no extra hop; the `*` route renders offline from the precached shell; local-only "sign-in unavailable"
+  copy never waits on a chunk). Header comment records WHY seed pre-warming is deliberately absent (measured, below).
+- `src/components/Layout.tsx` — the ONE `<Suspense>` around `<Outlet />`, fallback = bilingual `t.loading` in a `<main>` (so the
+  `[&>main]:` sizing applies and the footer does not jump while the chunk downloads). Header/footer paint before the page chunk arrives.
+- `src/content/bundled.ts` — `BUNDLED_SEEDS.<table>` is now `() => import('./seed/<table>.ts')`; `createBundledSource` memoises each
+  table's promise (a rejection is dropped so the next call retries) and maps a chunk-load failure to `fail('network')`, so the bundled
+  source still never throws. `BundledSeeds` fields are `SeedTable<T> = readonly T[] | (() => Promise<readonly T[]>)` — fixtures still pass
+  arrays. Public `ContentSource` API unchanged; `bundledSource` still synchronous to construct; recipes+ingredients and templates+exercises
+  are loaded with `Promise.all` so the paired chunks download side by side.
+- `scripts/check-lighthouse.mjs` — `chromeFlags({ ci })` (base flags + `--no-sandbox --disable-dev-shm-usage` under `CI`, header says why
+  and why never locally); `launchChrome()` creates the temp profile itself so chrome-launcher's `chrome-err.log` is readable, prints a
+  startup self-check (`chrome: <binary>` / `flags: …`) before the first launch, and on a launch failure rethrows with the last 20 lines of
+  chrome-err.log (`tailLines`, `CHROME_ERR_TAIL`); profile cleanup is best-effort (first run died on Windows EPERM in cleanup after a
+  successful audit — Chrome holds the directory for a moment). Resolution order unchanged: `CHROME_PATH` → `PLAYWRIGHT_CHROMIUM` → full
+  `chromium.executablePath()` → headless-shell sibling. New exports for the test-writer: `BASE_CHROME_FLAGS`, `CI_CHROME_FLAGS`,
+  `CHROME_ERR_TAIL`, `chromeFlags`, `tailLines`, `launchChrome`.
+- `.github/workflows/deploy.yml` — Playwright install is now `npx playwright install --with-deps chromium` (full build; it brings the
+  headless shell along, so the e2e suite is unchanged); cache key suffix `chromium-shell` → `chromium-full`; comments updated.
+- Tests touched because the behaviour they pinned changed shape (test-writer to review, not weaken): `src/content/source.test.ts` (the
+  "same seed arrays" assertion awaits the loaders; `load()` helper), `src/App.test.tsx` (route-table h1 via `findByRole` — pages are lazy),
+  `src/auth/guards.test.tsx` (one `findByRole` for the lazy `/auth` page), `src/recipes/RecipesPage.test.tsx` (ready signal = the rendered
+  list via `loaded()`, not the h1 — the h1 now paints before the lazily-imported catalogue resolves; 3 tests were red on timing).
+- `DECISIONS.md` — four dated entries (route splitting; per-table lazy seeds; full Chromium + CI flags + self-check; no seed warming).
+
+**Chunk graph (`npm run build`, local-only; `dist/404.html` byte-equal `index.html`; sw.js precaches 27/27 `.js` — globPatterns `**/*.js` confirmed):**
+
+| chunk | before | after (raw / gzip) |
+|---|---|---|
+| entry `index-*.js` (react + react-dom + main) | 1,264 kB / 319 kB | **235 kB / 74 kB** |
+| `LangProvider-*.js` (shared, modulepreloaded: supabase-js + react-router + dictionary + env) | — | 297 kB / 83 kB |
+| seeds: `recipes` · `ingredients` · `exercises` · `diets` · `tips` · `workouts` | in entry | 256/48 · 120/15 · 84/23 · 80/25 · 80/26 · 17/6 kB |
+| pages: Admin 22 · Fridge 12 · Diet 12 · Recipe 11 · Workouts 5.8 · Recipes 5.6 · Account 4.5 · Tips 3.6 · SignIn 3.0 · Diets 2.0 · Callback 1.1 kB | in entry | own chunks |
+| shared helpers: useAsync 7.5 · content 4.4 · useUserData 3.7 · format 2.2 · compute 1.1 · match 1.1 · DraftRibbon 0.5 · fill 0.2 kB | in entry | own chunks |
+
+Eager payload per route: 532 kB raw / 157 kB gzip (was 1,264 / 319). `/recipes` downloads recipes + ingredients + diets (88 kB gz) and
+nothing of exercises/workouts/tips; `/workouts` exercises + workouts (29 kB gz); `/tips` tips (26 kB gz) — verified in the LHR request lists.
+
+**`npm run check:lighthouse` — three consecutive runs on the final build (local, no CI env, full Chromium 1243):**
+
+```
+route        run1 run2 run3   (a11y · bp · seo = 100 · 100 · 100 on every route, every run)     before (P3.5 entry)
+home           90   90   90                                                                          82
+recipes        85   85   81   LCP 3.2/3.2/3.8 s · CLS 0.102 · FCP 2.9 s                               69
+recipe         81   85   85   LCP 3.8/3.2/3.2 s · CLS 0.102 · FCP 2.9 s                               77
+fridge         87   87   87   LCP 3.2 s · CLS 0.063 · FCP 2.9 s                                       79
+diets          86   86   86   LCP 3.1 s · CLS 0.102 · FCP 2.8 s                                       82
+diet           64   66   64   CLS 0.827 (page) · LCP 3.2 s · FCP 2.9 s                                60
+workouts       86   86   87   LCP 3.1 s · CLS 0.102 (run 3: 0) · FCP 2.8 s                            81
+tips           86   80   86   LCP 3.1 s · CLS 0.102 (run 2: 0.191) · FCP 2.8 s                        65
+auth           89   90   89   LCP 3.0–3.1 s · FCP 2.8 s                                               83
+account        95   91   91                                                                          83
+admin          91   91   91                                                                          83
+not-found      91   91   91                                                                          83
+```
+
+**Result: 4 of 12 routes ≥ 90 in every run (home, account, admin, not-found); auth sits on the line (89/90/89); the seven content routes
+are 81–87, diet 64–66. The gate still FAILS locally and would fail in CI (−5): with `CI=1` + the headless shell forced via `CHROME_PATH`
+(run recorded below) eleven routes passed the CI bar and only `diet` (65) failed.** Thresholds were NOT changed.
+
+**Why the content routes stop at 85–87 (from the LHRs; nothing left in this task's scope moves them):**
+
+1. **CLS 0.102 on recipes / recipe / diets / workouts / tips is ONE shift of 0.099 of the Layout FOOTER** (`body > div#root > div.mx-auto >
+   footer.border-t`), not the page content: while the content slot shows the one-line loading state the footer sits inside the first
+   viewport, then the list arrives and pushes it ~31,000 px down. Pre-existing for every page with an in-page loading line (the P3.5 table
+   has it too); the Suspense fallback neither adds nor removes it. **Layout-level, not page-level**, and a design call (Layout.tsx overrides
+   the pages' `min-h-dvh` on purpose so the disclaimer footer is visible on short pages). Candidate fixes for the lead: reserve `min-h-dvh`
+   on the content slot (footer below the fold on every route, the shift disappears) or give the loading states a reserved height. Worth
+   +2.75 points on each of those routes (CLS 0.89 → 1.0 at weight 25). The remaining 0.003 is "web font loaded" (swap), negligible.
+   `diet` CLS 0.827 is page content (DietPage) — P5.1 lane, as the brief said.
+2. **FCP 2.8–2.9 s on every route is the eager JS in Lantern's slow-4G model** (observed FCP is 70–90 ms; render-delay phase = 86 % of LCP).
+   Of the 157 kB gzip, `unused-javascript` reports **79 % of the 83 kB `LangProvider` chunk unused on the audit (63.6 kB)** — that is
+   `@supabase/supabase-js` (GoTrue/Realtime/Postgrest…), created at module load in `src/lib/supabase.ts` and therefore bundled even in
+   local-only mode where the client is `null`. Making it a dynamic import when `appEnv.mode === 'configured'` would take ~40 kB gzip + its
+   parse off the first-paint path of every route (estimate from the P5.3 gzip finding: ~0.2–0.3 s FCP and LCP → roughly +2–4 points each).
+   Files: `src/lib/supabase.ts`, `src/auth/AuthProvider.tsx`, `src/content/index.ts` / `supabase.ts` — **out of this task's scope; not touched.**
+3. **LCP on a content route = the draft ribbon / first paragraph after the seed chunk lands**, i.e. FCP + page-chunk hop + seed hop, 3.1–3.2 s
+   (0.72–0.77). The seed bytes are inherent to showing the content; the gzip sizes are already small for what they carry.
+
+**Measured and rejected — pre-warming the seed chunks from the lazy factories (two variants, both reverted):** (a) start the page's
+`contentSource.*` reads in the lazy factory → the seed requests fire at ~50 ms, BEFORE observed FCP (~75 ms), and Lantern charges them to
+FCP: content routes 78–84, FCP 3.2–3.3 s, LCP 3.8–4.0 s. (b) same, deferred past the first paint with `requestAnimationFrame` + `setTimeout`
+→ the requests still land at ~71 ms vs FCP 74 ms; FCP back to 2.8 s but LCP 3.3–3.8 s: 79–84. The gain on offer was one 2 kB hop (the page
+chunk), so there is almost nothing to overlap, and the warm map couples routes to what pages read. Not shipped. Noted while comparing: in
+runs where the seeds are requested at ~360 ms they are served by the just-installed service worker (`transferSize 0`), so Lighthouse's
+LCP for the no-warm variant is partly a repeat-visit number — the SW effect, not an engineered one.
+
+**Runnable artifact exercised:** `CI=1 CHROME_PATH=<chromium_headless_shell-1243/…/chrome-headless-shell.exe> npm run check:lighthouse` →
+self-check printed `chrome: …chrome-headless-shell.exe` and `flags: --headless=new --no-first-run --no-default-browser-check --disable-gpu
+--no-sandbox --disable-dev-shm-usage  (CI: sandbox off, /dev/shm off)`; 12 routes audited; thresholds line reads `performance >= 85 (CI: 90 −
+5 tolerance …)`; result 90/85/85/86/86/65/90/89/91/92/92/92 → `FAILED — 1 route/category pair(s)` (diet). Deliberate launch failure
+`CHROME_PATH="C:/Program Files/nodejs/node.exe"` → `run failed — Chrome failed to launch (…node.exe): waiting for dynamic debugging port in
+chrome-err.log` + `last 20 line(s) of chrome-err.log:` + 20 `| node.exe: bad option: --…` lines, **exit 2** — the diagnostic the CI log was
+missing. The port-busy path still exits 2 cleanly (`EADDRINUSE 127.0.0.1:4175`, hit twice while another lane's gate was running).
+
+**Gates (final tree):** `npm run lint` 0 errors (21 pre-existing react-refresh warnings; `routes.tsx`'s is the pre-existing `basenameFrom`
+export) · `npm run typecheck` clean · `npx tsc -p e2e/support/tsconfig.json` clean (covers `scripts/*.mjs` with checkJs) · `npm test`
+**62 files / 3166 tests green** · `npm run build` green (27 js chunks, precache 68 entries) · `check:pwa OK — Hygieia · Υγίεια, 3 icons,
+sw.js present` · `check:bundle: OK … 36 files (1330615 bytes)` · `dist/404.html` == `index.html` · `E2E_PREBUILT=1 npm run e2e` **31 passed
+(6.7 s)** including `offline.spec.ts` (client-side nav to the lazy `/auth` offline + hard loads; all chunks are precached).
+
+**For the lead:** (1) the gate is still red on 7–8 routes; the two levers that remain are outside this scope — Layout footer shift
+(Layout.tsx, design call) and lazy supabase-js (`src/lib/supabase.ts` + consumers); (2) `diet` CLS 0.827 is DietPage (P5.1); (3) the
+other lane's `check:lighthouse` and this one collide on port 4175 — run them one at a time (the script exits 2 with EADDRINUSE, no harm).
+
 ### Records follow-up for P1/P2 REVIEW items 2–3 — 2026-10-06 — DONE (builder, worktree `wt/a`; records only, no code)
 
 - **`DECISIONS.md` (+5 entries, appended):** four dated 2026-10-05 entries for the hand-offs the reviewer listed under

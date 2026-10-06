@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { HygieiaClient } from '../lib/supabase'
-import { BUNDLED_SEEDS, bundledSource, createBundledSource, seedId } from './bundled'
+import {
+  BUNDLED_SEEDS,
+  bundledSource,
+  createBundledSource,
+  seedId,
+  type SeedTable,
+} from './bundled'
 import { CONTENT_STATUSES } from './enums'
 import { hexToUuid, md5 } from './md5'
 import { DIETS } from './seed/diets'
@@ -26,6 +32,10 @@ function unwrap<T>(result: Result<T>): T {
   if (!result.ok) throw new Error(`expected ok, got ${result.error}`)
   return result.data
 }
+
+/** Resolve a `SeedTable` (rows, or a loader of rows) the way the bundled source does. */
+const load = <T>(table: SeedTable<T>): Promise<readonly T[]> =>
+  typeof table === 'function' ? table() : Promise.resolve(table)
 
 // --- fixtures for the factory tests (the real workouts seed may still be the merge stub) ---------
 
@@ -124,11 +134,15 @@ describe('seedId', () => {
 })
 
 describe('bundledSource (real seeds)', () => {
-  it('is the bundled kind over the real seed modules', () => {
+  it('is the bundled kind over the real seed modules (each table a lazy loader of the same array)', async () => {
     expect(bundledSource.kind).toBe('bundled')
-    expect(BUNDLED_SEEDS.ingredients).toBe(INGREDIENTS)
-    expect(BUNDLED_SEEDS.recipes).toBe(RECIPES)
-    expect(BUNDLED_SEEDS.diets).toBe(DIETS)
+    // The real seeds are dynamic-import loaders (one chunk per table), not arrays.
+    expect(typeof BUNDLED_SEEDS.ingredients).toBe('function')
+    expect(typeof BUNDLED_SEEDS.recipes).toBe('function')
+    expect(typeof BUNDLED_SEEDS.diets).toBe('function')
+    expect(await load(BUNDLED_SEEDS.ingredients)).toBe(INGREDIENTS)
+    expect(await load(BUNDLED_SEEDS.recipes)).toBe(RECIPES)
+    expect(await load(BUNDLED_SEEDS.diets)).toBe(DIETS)
   })
 
   it('returns ≥ 160 ingredients, ≥ 8 diets, ≥ 40 recipes, every row pending with a formula id', async () => {

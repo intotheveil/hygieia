@@ -23,11 +23,26 @@
 // tolerance. The local run (no CI env) holds the full 90, which is the number recorded in
 // BUILD_LOG.md.
 //
-// Chrome: CHROME_PATH, else PLAYWRIGHT_CHROMIUM, else the Chromium Playwright installed
-// (`@playwright/test` → chromium.executablePath()). CI installs only the headless shell
-// (`playwright install --only-shell chromium`), whose binary lives next to the full build's path
-// (`chromium_headless_shell-<rev>/chrome-headless-shell-<platform>/chrome-headless-shell`), so when the
-// full binary is absent that sibling is used. Lighthouse drives the shell over CDP like any Chrome.
+// Chrome: CHROME_PATH, else PLAYWRIGHT_CHROMIUM, else the FULL Chromium Playwright installed
+// (`@playwright/test` → chromium.executablePath()), else Playwright's headless shell, whose binary
+// lives next to the full build's path (`chromium_headless_shell-<rev>/chrome-headless-shell-<platform>/
+// chrome-headless-shell`). The full build is preferred on purpose: on ubuntu-latest the shell driven
+// by chrome-launcher never exposed its DevTools port (`waiting for dynamic debugging port in
+// chrome-err.log`, exit 2 — P5.3 follow-up), so CI now installs the full build too
+// (`playwright install --with-deps chromium`, which brings the shell along for the e2e suite) and
+// the shell stays a local fallback for a machine that only has `--only-shell`.
+//
+// Chrome flags (`chromeFlags`): headless, no first-run / default-browser prompts, no GPU. Under
+// `CI` two more: `--no-sandbox` — Chrome's sandbox wants unprivileged user namespaces, which the
+// hardened kernels/AppArmor of GitHub-hosted runners (Ubuntu 24.04+) can refuse, and then Chrome
+// exits before the port is ever opened — and `--disable-dev-shm-usage`, because `/dev/shm` is tiny
+// on containerised runners and a renderer that fills it crashes mid-audit. Neither is set locally
+// (`--no-sandbox` weakens isolation and a developer machine does not need either).
+//
+// Startup self-check: the resolved binary and flags are printed before the first launch, and a
+// launch failure dumps the last CHROME_ERR_TAIL lines of chrome-launcher's `chrome-err.log` (the
+// temp profile is created here so its path is known), so the next CI failure is diagnosable from
+// the job log instead of needing a reproduction.
 //
 // The audit server reuses pages-server's `resolveRequest` (a file, else the 301 for a directory,
 // else 404.html; outside the base a plain 404), with two deliberate differences from the e2e
@@ -55,9 +70,18 @@
 // playwright.config.ts does, so no request leaves the machine apart from the Google Fonts CSS).
 
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { gzipSync } from 'node:zlib'
@@ -95,6 +119,20 @@ export const CI_PERFORMANCE_TOLERANCE = 5
 
 /** How many failing audits to name per failing route/category. */
 export const TOP_AUDITS = 3
+
+/** How many trailing lines of chrome-err.log a launch failure reports. */
+export const CHROME_ERR_TAIL = 20
+
+/** Flags every launch gets (a fresh temp profile is added per launch by `launchChrome`). */
+export const BASE_CHROME_FLAGS = Object.freeze([
+  '--headless=new',
+  '--no-first-run',
+  '--no-default-browser-check',
+  '--disable-gpu',
+])
+
+/** Added under CI only (header: why). */
+export const CI_CHROME_FLAGS = Object.freeze(['--no-sandbox', '--disable-dev-shm-usage'])
 
 /** Short column labels for the table. */
 const LABEL = { performance: 'perf', accessibility: 'a11y', 'best-practices': 'bp', seo: 'seo' }
@@ -265,6 +303,26 @@ export function formatFailure(failure, audits) {
 }
 
 /**
+ * The chrome-launcher flags for this environment: BASE_CHROME_FLAGS, plus CI_CHROME_FLAGS under CI.
+ * @param {{ ci: boolean }} opts
+ * @returns {string[]}
+ */
+export function chromeFlags({ ci }) {
+  return ci ? [...BASE_CHROME_FLAGS, ...CI_CHROME_FLAGS] : [...BASE_CHROME_FLAGS]
+}
+
+/**
+ * The last `n` non-empty lines of `text` (a log tail), in order. Empty text → [].
+ * @param {string} text
+ * @param {number} [n]
+ * @returns {string[]}
+ */
+export function tailLines(text, n = CHROME_ERR_TAIL) {
+  const lines = text.split(/\r?\n/).filter((line) => line.trim() !== '')
+  return lines.slice(Math.max(0, lines.length - n))
+}
+
+/**
  * Where Playwright's headless shell would be, given the full Chromium path it reports:
  * `…/ms-playwright/chromium-<rev>/…/chrome` → `…/ms-playwright/chromium_headless_shell-<rev>`.
  * Pure; null when the path has no `chromium-<rev>` segment.
@@ -418,6 +476,50 @@ export async function resolveChrome(env) {
 }
 
 /**
+ * Launch Chrome with a temp profile created HERE (so chrome-launcher's `chrome-err.log` inside it
+ * can be read back on failure); the returned `kill` also removes the profile, which chrome-launcher
+ * leaves alone when the directory was supplied. A launch failure rethrows with the tail of
+ * chrome-err.log appended, so the CI log says why Chrome never opened its port.
+ * @param {{ chromePath: string, flags: readonly string[] }} opts
+ * @returns {Promise<{ port: number, kill: () => Promise<void> }>}
+ */
+export async function launchChrome({ chromePath, flags }) {
+  const { launch } = await import('chrome-launcher')
+  const userDataDir = mkdtempSync(path.join(tmpdir(), 'hygieia-lighthouse-'))
+  // Best effort, like chrome-launcher's own: Windows keeps the profile locked for a moment after
+  // the process dies (EPERM), so retry, and a profile that still will not go is left to the OS
+  // temp dir rather than failing a run whose audits all succeeded.
+  const cleanup = () => {
+    try {
+      rmSync(userDataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 250 })
+    } catch {
+      /* temp profile left behind; harmless */
+    }
+  }
+  try {
+    const chrome = await launch({ chromePath, chromeFlags: [...flags], userDataDir })
+    return {
+      port: chrome.port,
+      kill: async () => {
+        await chrome.kill()
+        cleanup()
+      },
+    }
+  } catch (err) {
+    const errLog = path.join(userDataDir, 'chrome-err.log')
+    const tail = existsSync(errLog) ? tailLines(readFileSync(errLog, 'utf-8')) : []
+    cleanup()
+    const detail =
+      tail.length === 0
+        ? '(chrome-err.log is empty or missing)'
+        : `last ${tail.length} line(s) of chrome-err.log:\n${tail.map((l) => `    | ${l}`).join('\n')}`
+    throw new Error(
+      `Chrome failed to launch (${chromePath}): ${err instanceof Error ? err.message : String(err)}\n  ${detail}`,
+    )
+  }
+}
+
+/**
  * `npm run build` in local-only mode (Supabase names blanked, like playwright.config.ts).
  * @param {Io} io
  */
@@ -489,7 +591,7 @@ export async function main(
     return 2
   }
 
-  const { launch } = await import('chrome-launcher')
+  const flags = chromeFlags({ ci })
   /** @type {import('node:http').Server | undefined} */
   let server
   /** @type {Array<{ route: Route, scores: Scores, failingAudits: Summary['failingAudits'] }>} */
@@ -497,22 +599,17 @@ export async function main(
   try {
     server = await startAuditServer({ root: DIST, port: PORT, base: BASE })
     io.log(
-      `check:lighthouse: Lighthouse mobile on ${routes.length} route(s) at http://127.0.0.1:${PORT}${BASE}/ (chrome: ${chromePath})`,
+      `check:lighthouse: Lighthouse mobile on ${routes.length} route(s) at http://127.0.0.1:${PORT}${BASE}/`,
     )
+    // The startup self-check (header): what will be launched, before it is.
+    io.log(`  chrome: ${chromePath}`)
+    io.log(`  flags:  ${flags.join(' ')}${ci ? '  (CI: sandbox off, /dev/shm off)' : ''}`)
     for (const route of routes) {
       // A FRESH Chrome (new temp profile) per route: the first route must not pay the cold DNS/TLS
       // to fonts.googleapis.com alone while later ones ride the warm connection (Lighthouse's model
       // feeds observed per-origin latency into the simulated FCP, so that skewed the first row by
       // ~1.5 s), and no route inherits the previous one's storage (the "stored data" run warning).
-      const chrome = await launch({
-        chromePath,
-        chromeFlags: [
-          '--headless=new',
-          '--no-first-run',
-          '--no-default-browser-check',
-          '--disable-gpu',
-        ],
-      })
+      const chrome = await launchChrome({ chromePath, flags })
       try {
         const url = `http://127.0.0.1:${PORT}${route.path}`
         const lhr = await auditUrl(url, { port: chrome.port, outDir: REPORT_DIR, name: route.name })

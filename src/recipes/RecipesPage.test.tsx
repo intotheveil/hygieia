@@ -38,6 +38,13 @@ function renderPage(path = '/recipes', lang: Lang = 'en', source?: ContentSource
 
 const cards = () =>
   within(screen.getByRole('list', { name: en.recipesTitle })).getAllByRole('listitem')
+
+/**
+ * The page is READY once the catalogue is in: the recipe list is rendered. The h1 is no longer a
+ * usable signal — the real seeds are lazy chunks (src/content/bundled.ts), so the heading paints
+ * before `listRecipes` resolves and the cards arrive a tick later.
+ */
+const loaded = (t: typeof en = en) => screen.findByRole('list', { name: t.recipesTitle })
 const cardsEl = () =>
   within(screen.getByRole('list', { name: el.recipesTitle })).getAllByRole('listitem')
 
@@ -48,6 +55,7 @@ describe('<RecipesPage>', () => {
     renderPage()
     expect(screen.getByRole('status')).toHaveTextContent(en.loading)
     expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent(en.recipesTitle)
+    await loaded()
     expect(contentSource.kind).toBe('bundled')
     expect(screen.getByRole('note')).toHaveTextContent(en.draftRibbon)
 
@@ -64,7 +72,7 @@ describe('<RecipesPage>', () => {
 
   it('shows portions, minutes, meal types and diet names on a card', async () => {
     renderPage('/recipes', 'el')
-    await screen.findByRole('heading', { level: 1 })
+    await loaded(el)
     const link = screen.getByRole('link', { name: 'Φασολάδα' })
     const card = link.closest('li')
     expect(card).not.toBeNull()
@@ -77,7 +85,7 @@ describe('<RecipesPage>', () => {
 
   it('selecting the keto chip leaves only keto-tagged cards and puts ?diet=keto in the URL', async () => {
     renderPage()
-    await screen.findByRole('heading', { level: 1 })
+    await loaded()
     const chip = screen.getByRole('button', { name: 'Ketogenic diet (keto)', pressed: false })
     fireEvent.click(chip)
 
@@ -103,7 +111,7 @@ describe('<RecipesPage>', () => {
 
   it('reads the filter from the URL on arrival (diet + meal + query)', async () => {
     renderPage('/recipes?diet=keto,vegan&meal=breakfast&q=egg')
-    await screen.findByRole('heading', { level: 1 })
+    await loaded()
     expect(screen.getByRole('button', { name: 'Ketogenic diet (keto)' })).toHaveAttribute(
       'aria-pressed',
       'true',
@@ -129,7 +137,7 @@ describe('<RecipesPage>', () => {
 
   it('typing φασολ in Greek finds Φασολάδα, accent-insensitively, and writes ?q=', async () => {
     renderPage('/recipes', 'el')
-    await screen.findByRole('heading', { level: 1 })
+    await loaded(el)
     const box = screen.getByRole('searchbox', { name: el.searchRecipes })
     fireEvent.change(box, { target: { value: 'φασολ' } })
     expect(box).toHaveValue('φασολ')
@@ -144,7 +152,7 @@ describe('<RecipesPage>', () => {
 
   it('keeps a trailing space while typing a phrase', async () => {
     renderPage()
-    await screen.findByRole('heading', { level: 1 })
+    await loaded()
     const box = screen.getByRole('searchbox', { name: en.searchRecipes })
     fireEvent.change(box, { target: { value: 'greek ' } })
     expect(box).toHaveValue('greek ')
@@ -157,7 +165,7 @@ describe('<RecipesPage>', () => {
     'shows the empty state for a nonsense query in %s, and clear filters restores all',
     async (lang, dict) => {
       renderPage('/recipes', lang)
-      await screen.findByRole('heading', { level: 1 })
+      await loaded(dict)
       fireEvent.change(screen.getByRole('searchbox', { name: dict.searchRecipes }), {
         target: { value: 'zzzxqv' },
       })
@@ -195,7 +203,7 @@ describe('<RecipesPage>', () => {
 
   it('drops a diet slug the catalogue does not know and junk meal tokens from the URL', async () => {
     renderPage('/recipes?diet=unicorn&meal=brunch')
-    await screen.findByRole('heading', { level: 1 })
+    await loaded()
     expect(cards()).toHaveLength(RECIPES.length)
     expect(screen.queryByRole('button', { pressed: true })).not.toBeInTheDocument()
   })
