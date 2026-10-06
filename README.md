@@ -60,13 +60,14 @@ gates run against a local-only build, and the only values the configured build i
 `main` deploys to GitHub Pages at https://intotheveil.github.io/hygieia/ (the `deploy` job of the
 workflow above; a pull request runs every gate and stops before the upload).
 
-**How the site becomes "configured".** The browser reads five `VITE_*` names, inlined at build time
+**How the site becomes "configured".** The browser reads six `VITE_*` names, inlined at build time
 (`src/lib/env.ts`, `src/telemetry.ts`; `.env.example` lists them). CI's Pages build takes them from
 GitHub Actions **repository variables** (Settings → Secrets and variables → Actions → Variables):
 
 | Variable                                                    | Set by                          | Effect when set                                                                                                               |
 | ----------------------------------------------------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`               | operator, OPERATOR-P2 **OP2.c** | the app runs in **configured** mode: approved content from the `hygieia` schema, no draft ribbon, sign-in in the account menu |
+| `VITE_AUTH_GOOGLE` (`1`)                                    | operator, OPERATOR-P2 **OP2.a** | shows "Continue with Google" on `/auth` once the Google provider is enabled in Supabase; unset = magic link only              |
 | `VITE_FLEET_URL`, `VITE_FLEET_KEY`, `VITE_FLEET_PRODUCT_ID` | operator, OPERATOR-P6 **OP6.a** | runtime errors are reported to the fleet dashboard (`src/telemetry.ts`)                                                       |
 
 They are **variables, not secrets**, because every one of them is public by design: Vite writes them
@@ -83,7 +84,7 @@ what flips the live site to configured mode; no code change is needed.
 
 **Two builds in CI, on purpose.** e2e and Lighthouse drive a real browser; they must not reach the
 live backend from a CI runner (no traffic against production tables, no telemetry rows from CI
-runs, no backend latency in the performance score). So CI builds once with the five names blanked
+runs, no backend latency in the performance score). So CI builds once with the six names blanked
 for those gates, then builds again from the variables for the artifact it uploads, and runs
 `check:bundle` + `check:pwa` on that artifact too. Same commit; only the inlined env differs
 (`DECISIONS.md`, 2026-10-06).

@@ -2,10 +2,15 @@
 // Auth (DECISIONS.md ADR-0003 rule 6). Both flows leave the app and come back to `/auth/callback`;
 // the redirect URL is built from the page's origin and Vite's BASE_URL, never hardcoded, and the
 // `?next=` return path is parked in sessionStorage for the callback page to pick up.
+//
+// The Google button is FEATURE-FLAGGED (`VITE_AUTH_GOOGLE`, src/lib/env.ts): the provider needs
+// operator setup on the shared project (OP2.a), and an unconfigured provider sends the visitor to a
+// Supabase JSON error page (incident 2026-10-06). Off = the button is not rendered at all.
 
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useLang } from '../i18n/LangProvider'
+import { isGoogleSignInEnabled } from '../lib/env'
 import { useAuth } from './AuthProvider'
 import { callbackUrl, storeNext } from './session'
 
@@ -20,7 +25,8 @@ const BUTTON =
 const SECONDARY =
   'rounded-full border border-olive-900/20 bg-paper-50/70 px-5 py-2 text-sm font-medium text-olive-900 hover:border-olive-900/40 hover:bg-paper-50 disabled:cursor-not-allowed disabled:opacity-60'
 
-export function SignInPage() {
+/** `google` is a test seam; the app renders the page bare and the build-time flag decides. */
+export function SignInPage({ google = isGoogleSignInEnabled }: { google?: boolean } = {}) {
   const { t } = useLang()
   const { state, client, signOut } = useAuth()
   const [params] = useSearchParams()
@@ -111,9 +117,16 @@ export function SignInPage() {
           {t.signInSendLink}
         </button>
       </form>
-      <button type="button" onClick={() => void withGoogle()} disabled={busy} className={SECONDARY}>
-        {t.signInGoogle}
-      </button>
+      {google && (
+        <button
+          type="button"
+          onClick={() => void withGoogle()}
+          disabled={busy}
+          className={SECONDARY}
+        >
+          {t.signInGoogle}
+        </button>
+      )}
       {phase === 'failed' && (
         <p role="alert" className="text-sm text-clay-700">
           {t.signInFailed}

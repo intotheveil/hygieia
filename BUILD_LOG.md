@@ -3,6 +3,33 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+### OP2.a FOLLOW-UP — Google button gated behind VITE_AUTH_GOOGLE — 2026-10-06 — DONE (lane `wt/d`)
+
+- **Incident (operator, live site):** "Continue with Google" on `/auth` sent the operator to Supabase, which answered
+  `{"code":400,"error_code":"validation_failed","msg":"Unsupported provider: provider is not enabled"}` — the Google provider is not
+  configured on the shared project yet (OPERATOR-P2 OP2.a). A button that cannot work was shown on hope.
+- **Change:** `src/lib/env.ts` — `VITE_AUTH_GOOGLE` on `ImportMetaEnv` + `RawSupabaseEnv`; pure `googleSignInEnabled(raw)` (true only for
+  trimmed `1` or case-insensitive `true`); `isGoogleSignInEnabled` resolved once at module load (`import.meta.env` still read by full
+  literal name, never spread). `src/auth/SignInPage.tsx` — the Google button renders only when the flag is on (`google` prop = test seam,
+  defaults to the build flag); magic link unchanged; nothing is left behind when off. `eslint.config.js` — `AUTH_GOOGLE` added to the
+  `VITE_` allow-list regex + message (**outside the declared scope — the only way `npm run lint` passes with the new read; flagged to
+  the lead**). `.github/workflows/deploy.yml` — the configured build passes `VITE_AUTH_GOOGLE: ${{ vars.VITE_AUTH_GOOGLE }}`; the
+  local-only test build blanks it. Docs: `.env.example` (commented name, "set to 1 after OP2.a"), `README.md` Deploy table row,
+  `.claude/CLAUDE.project.md` §8 `auth flag:` line; "five names" → "six" where counted.
+- **Tests:** `src/lib/env.test.ts` +13 (`1` / `true` / `TRUE ` / ` True` on; `0` / `` / blank / `yes` / `on` / `2` / `false` /
+  undefined / absent off; module-load wiring via `vi.stubEnv` + `vi.resetModules` + dynamic import). `src/auth/SignInPage.test.tsx` +3
+  (absent by default — `<main>` children exactly `H1, P, FORM`, `signInWithOAuth` never called; present in el and en when the flag is on);
+  the three existing Google tests opt in through the seam.
+- **Evidence (worktree):** lint 0 errors (23 pre-existing warnings) · typecheck clean · **unit 3246 tests / 66 files** (3229 → +17; one
+  PGlite load flake `gen-seed-sql.test.ts › byte-identical uuids` on the first full run, 35/35 alone and green on the rerun — unrelated
+  to this change) · build entry 237.11 kB / 74.22 kB gzip · e2e `--project=local smoke + a11y-matrix` **41 passed** (incl. the `/auth`
+  sign-in-unavailable deep link) · `check:bundle` OK (37 files; the name appears only as `{VITE_AUTH_GOOGLE:void 0}` — a property
+  name, no value). Allow-list regex stays anchored: `VITE_AUTH_GOOGLEX` and `VITE_AUTH_GITHUB` are still forbidden.
+- **Operator step (after OP2.a):** repository variable `VITE_AUTH_GOOGLE` = `1` → the next deploy shows the button. Nothing to do
+  until the provider is enabled in the Supabase console.
+- **Found on the way:** the formatter race (BRAIN §5) dropped the third of three `Edit`s to `env.ts` made in one turn — `git diff -U0 |
+  grep ^@@` caught it (typecheck: `isGoogleSignInEnabled` does not exist); re-applied alone.
+
 ### P4.x THEMES — four cosmetic themes + per-theme hero (operator request) — 2026-10-06 — DONE (builder lane `wt/b`, finished by the lead after the builder hit the usage limit)
 
 - **Operator:** "can you make/add 3 more themes? just cosmetics like: Dark mode // Athletic Mode // Gamer's Mode" … "unless you want to
