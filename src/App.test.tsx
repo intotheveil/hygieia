@@ -45,15 +45,17 @@ const EXPECTED_ROUTES: Record<ModuleId, string> = {
   cost: '/recipes',
   calories: '/recipes',
   workouts: '/workouts',
+  skincare: '/skincare',
 }
 
 describe('App (home)', () => {
   beforeEach(() => window.localStorage.clear())
 
-  it('renders the home page in Greek by default with all six modules', () => {
+  it('renders the home page in Greek by default with all seven modules', () => {
     renderAt('/')
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(el.heroTitle)
-    expect(cards()).toHaveLength(6)
+    expect(cards()).toHaveLength(7)
+    expect(modules().getByText(el.modules.skincare.title)).toBeInTheDocument()
     expect(modules().getByText(el.modules.workouts.title)).toBeInTheDocument()
     expect(screen.getByText(el.notMedicalAdvice)).toBeInTheDocument()
   })
@@ -124,6 +126,7 @@ describe('App (home)', () => {
     ['/diets', en.dietsTitle],
     ['/workouts', en.workoutsTitle],
     ['/tips', en.tipsTitle],
+    ['/skincare', en.skincareTitle],
     ['/auth', en.signInUnavailableTitle],
     ['/account', en.signInUnavailableTitle],
     ['/admin', en.signInUnavailableTitle],

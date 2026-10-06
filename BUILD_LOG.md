@@ -3,6 +3,54 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+### P7.2 SKINCARE page — 2026-10-06 — DONE (builder, lane `wt/c`)
+
+- **What:** `/skincare` — the seventh module on the P7.1 data spine (PLAN.md `## P7 Skincare`). Lazy route chunk in `src/routes/routes.tsx` →
+  `src/skincare/SkincarePage.tsx` (+ `Filters.tsx`, `cards.tsx`, pure `select.ts`). Toolbar: **Area Face / Nails** and **Audience Everyone / Men /
+  Women** as `aria-pressed` segmented groups, **Skin type / Concern / Regional style** as labelled native `<select>`s; state in the URL
+  (`?area=&audience=&skin=&concern=&region=`, absent = everything, only non-default keys written). Three sections with heading + plural count
+  + own `EmptyState`: **Routines** (chips audience · skin type · style · time, duration, intro, a Show/Hide-steps button with `aria-expanded` +
+  `aria-controls` revealing the ORDERED steps — product-type name resolved by slug, note in the current language, "optional" mark; an unresolved
+  step (type pending/hidden under RLS) renders its slug muted with "not available yet" and keeps its number), **Product guide** (category · when ·
+  price-band chips, description, key ingredients, "do not combine with" cautions, typical regions, regulatory note), **Tips** (title, body, every
+  source as a hostname link `target=_blank rel="noopener noreferrer"`, or `sourcePending`). Three `ContentSource` reads in PARALLEL
+  (`Promise.all`, first failure = the page error) through `useAsyncResult`; one `Loading variant="list"` skeleton; `ErrorState` + Retry; the
+  draft ribbon in bundled mode; the skincare disclaimer (informational, not dermatological advice) under the intro in both languages.
+  **Nails** hides the skin-type control (dropped on parse too), relabels the style control (`skincareRegionLabelNails`) and offers only the
+  four nail concerns. Selection rules (DECISIONS 2026-10-06 P7.2): a chosen audience / skin type / style also matches `all` / `all` / `global`
+  content; concern filters guide + tips only (routines have no concern column); a product type's area derives from its category (six nail
+  categories).
+- **Wiring:** `MODULE_IDS` + `NAV_IDS` gain `skincare` (`src/i18n/dictionary.ts`: card copy, nav label "Skincare" / "Περιποίηση", `heroLead` and
+  the two status bodies now say seven modules incl. skin and nail care); `src/App.tsx` icon `❋` + route; `src/components/SiteHeader.tsx` nav path;
+  `src/i18n/features/skincare.ts` (el + en, every enum label table keyed by its content enum) composed in `features/index.ts` (nine modules);
+  `e2e/support/routes.ts` (`skincare`, ready `#skincare-routines li`) so the a11y matrix and Lighthouse audit it; `e2e/dead-backend/error-states.spec.ts`
+  route list; `scripts/check-lighthouse.test.ts` pins the ROUTES list by name and path — the new route had to be added there (test file outside
+  the task's listed scope; the only way the pinned list stays true — flagged to the lead).
+- **Tests:** `src/skincare/select.test.ts` (option lists, area derivation checked against the seed, concern options per area, URL parse /
+  serialize / round-trip / `withPatch` coherence, audience / skin / region incl. `all` + `global` semantics, concern literal + routines untouched,
+  AND + empty, ordering, `resolveSteps` order / shuffle / missing slug, source labels, bundled source); `SkincarePage.test.tsx` (el + en headings
+  with seed counts, toolbar roles, Nails hides skin type + relabels + URL, filter chain men → dry → kr → acne with URL + counts, deep link, expand
+  / collapse with steps in order + optional marks + `aria-controls`, hidden step renders muted, product-type card fields, tip sources /
+  pending, skeleton frame, parallel reads + error + Retry, per-section empty state, nothing-matches deep link); `App.test.tsx` 6 → 7 cards +
+  `/skincare` in the Layout rows; `SiteHeader.test.tsx` six links + `aria-current` on `/skincare?area=nails&region=kr`; `dictionary.test.ts`
+  seven modules, nine feature modules, `Essence` allow-listed (the loanword Greek pharmacies use); `smoke.spec.ts` 7 cards + card link;
+  **new `e2e/local/skincare.spec.ts`** (3: face counts → kr shows only Korean-style routines → men → Nails; expand a routine + English twin +
+  tip sources; deep link with four params on a 404 document + unknown values + nav `aria-current` + home card).
+- **Verified (worktree `wt/c` at `65f5a1a` + this change):** lint **0 errors** (23 pre-existing `react-refresh` warnings) · typecheck clean (app +
+  e2e tsconfig) · **unit 3348 tests / 69 files** (was 3292 / 67) · build: entry 237.39 kB / 74.31 kB gzip, **`SkincarePage-*.js` 12.64 kB / 3.85 kB
+  gzip**, seed `skincare-*.js` 198.64 kB / 56.82 kB gzip stays its own lazy chunk (the frame paints before it) · `build:dead` OK (precache 95) ·
+  **e2e 80 passed** (local 70 = 65 + skincare 3 + a11y 2 new language cells; a11y matrix 26 lang cells + 8 theme cells, both `/skincare` cells
+  "no moderate/minor findings"; dead-backend 10 incl. `/skincare` bilingual ErrorState + Retry re-request) · `check:pwa` OK · `check:bundle` OK
+  (39 files) · **`check:lighthouse` OK, 13 routes, cold:** `/hygieia/skincare (skincare) · 89 · 100 · 100 · 100` (home 92, recipes 87, recipe 87,
+  fridge 87, diets 90, diet 88, workouts 90, tips 90, auth 93, account 94, admin 94, not-found 94) · four theme screenshots of `/skincare` via
+  `node e2e/support/theme-shots.mjs <scratch> /skincare`: `C:UsersMasterAppDataLocalTempclaudeD--projects-zeus99ace0b-ee2b-493b-a2a3-1f2e1e788217scratchpad	heme-shots-skincare{default,dark,athletic,gamer}-skincare.png`
+  (kitchen + dark inspected: header pill "Περιποίηση" current, toolbar, 24 routines, cards legible in both skins).
+- **Found on the way:** (1) a Playwright locator by accessible NAME breaks when the click flips the name (Show steps → Hide steps) and when the
+  language switch renames an `aria-label` — locate the card's one button by role and re-query lists after a language toggle. (2) `theme-shots.mjs`
+  with a Git-Bash `$TMPDIR` (`/c/Users/…`) under `MSYS_NO_PATHCONV=1` resolves the out dir to `D:cUsers…` — pass a native `C:/…` path (the stray
+  tree held only the four PNGs and was removed). (3) `getByRole('note')` is ambiguous on content pages: the DraftRibbon is a `note` too.
+- **Left for the lead / operator:** BRAIN §2/§3 reconcile at merge (13 audited routes, nav 6 items, 7 module cards, unit 3348 / e2e 80, a11y 26
+  cells; the two gotchas above into §5); PLAN.md P7.2 status line; P7.3 live apply + approval in `/admin` (operator); P7.QA / P7.REVIEW after merge.
 ### OP2.a FOLLOW-UP — Google button gated behind VITE_AUTH_GOOGLE — 2026-10-06 — DONE (lane `wt/d`)
 
 - **Incident (operator, live site):** "Continue with Google" on `/auth` sent the operator to Supabase, which answered

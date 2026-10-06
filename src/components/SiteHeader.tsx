@@ -1,10 +1,10 @@
 // SITE HEADER (P3.5): the one `<header>` (banner landmark) every route shares, rendered by
-// Layout. Brand link home · primary nav (Recipes · Fridge · Diets · Workouts · Tips) · AccountMenu
-// · ThemeSwitch · LangSwitch. `NavLink` sets `aria-current="page"` on the active item; the match is
-// by prefix, so `/recipes/<slug>` keeps "Recipes" current. On narrow screens the nav wraps onto its
-// own row of chips (`order-last w-full` below `lg`); no disclosure, nothing hidden. Every label is a
-// dictionary value (`t.nav.*`, `t.theme.*`); the brand name is the one string that is the same in
-// both languages on purpose (it IS the bilingual name).
+// Layout. Brand link home · primary nav (Recipes · Fridge · Diets · Workouts · Tips · Skincare) ·
+// AccountMenu · ThemeSwitch · LangSwitch. `NavLink` sets `aria-current="page"` on the active item;
+// the match is by prefix, so `/recipes/<slug>` keeps "Recipes" current. On narrow screens the nav
+// wraps onto its own row of chips (`order-last w-full` below `lg`); no disclosure, nothing hidden.
+// Every label is a dictionary value (`t.nav.*`, `t.theme.*`); the brand name is the one string that
+// is the same in both languages on purpose (it IS the bilingual name).
 //
 // ThemeSwitch (operator request 2026-10-06) is a native `<select>` in the same pill as the language
 // button: one control, four options, keyboard and screen-reader semantics for free, and the open
@@ -24,6 +24,7 @@ const NAV_PATHS: Record<NavId, string> = {
   diets: '/diets',
   workouts: '/workouts',
   tips: '/tips',
+  skincare: '/skincare',
 }
 
 const PILL =

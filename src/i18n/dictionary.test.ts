@@ -6,17 +6,19 @@ import { fridgeEn } from './features/fridge.ts'
 import { featuresEn } from './features/index.ts'
 import { plansEn } from './features/plans.ts'
 import { recipesEn } from './features/recipes.ts'
+import { skincareEn } from './features/skincare.ts'
 import { themeEn } from './features/theme.ts'
 import { tipsEn } from './features/tips.ts'
 import { workoutsEn } from './features/workouts.ts'
 
-/** The eight feature modules composed by `features/index.ts`, by name, over their `en` literal. */
+/** The nine feature modules composed by `features/index.ts`, by name, over their `en` literal. */
 const FEATURE_MODULES: Readonly<Record<string, object>> = {
   admin: adminEn,
   diets: dietsEn,
   fridge: fridgeEn,
   plans: plansEn,
   recipes: recipesEn,
+  skincare: skincareEn,
   theme: themeEn,
   tips: tipsEn,
   workouts: workoutsEn,
@@ -37,6 +39,8 @@ const SAME_VALUE_ALLOWLIST: readonly string[] = [
   'paleo',
   // The gamer theme's name is the same loanword in Greek gaming culture.
   'Gamer',
+  // A Korean-style "essence" is sold under that word in Greek pharmacies too (skincare category).
+  'Essence',
   // Units are written Latin-script in Greek too ("320 kcal").
   'kcal',
   'ml',
@@ -84,8 +88,16 @@ describe('bilingual dictionary', () => {
     }
   })
 
-  it('describes all six modules from the intent, in both languages', () => {
-    expect(MODULE_IDS).toEqual(['tips', 'diets', 'recipes', 'cost', 'calories', 'workouts'])
+  it('describes all seven modules (six from the intent + skincare), in both languages', () => {
+    expect(MODULE_IDS).toEqual([
+      'tips',
+      'diets',
+      'recipes',
+      'cost',
+      'calories',
+      'workouts',
+      'skincare',
+    ])
     for (const dict of [en, el] as Dictionary[]) {
       for (const id of MODULE_IDS) {
         expect(dict.modules[id].title).not.toBe('')
@@ -175,7 +187,7 @@ describe('bilingual dictionary — one owner per key (features/index.ts rule; P3
     }
   }
 
-  it('composes exactly the eight feature modules and nothing else', () => {
+  it('composes exactly the nine feature modules and nothing else', () => {
     const union = new Set(Object.values(FEATURE_MODULES).flatMap((literal) => Object.keys(literal)))
     expect([...union].sort()).toEqual(Object.keys(featuresEn).sort())
   })
