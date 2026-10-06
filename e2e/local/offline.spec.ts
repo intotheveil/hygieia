@@ -1,52 +1,33 @@
 import type { Page } from '@playwright/test'
+import { DIETS } from '../../src/content/seed/diets'
+import { RECIPES } from '../../src/content/seed/recipes'
 import { el } from '../../src/i18n/dictionary'
-import { type ConsoleEntry, expect, test as base } from '../support/fixtures'
+import { expect, test } from '../support/fixtures'
 
-// Offline / PWA behaviour on the PRODUCTION build (PLAN P5.4, pulled forward onto the P3.6 harness).
-// vite.config.ts registers a Workbox service worker (`registerType: 'autoUpdate'`, so the generated
-// sw.js calls skipWaiting() + clientsClaim()) that precaches every built js/css/html/svg/png/jpg/
-// webmanifest and answers any navigation with the precached `/hygieia/index.html`
-// (`navigateFallback`). Bundled content therefore works offline by construction, and this spec
-// proves it the only way that counts: the browser is taken offline and the app is hard-loaded.
+// Offline / PWA behaviour on the PRODUCTION build (PLAN P5.4). vite.config.ts registers a Workbox
+// service worker (`registerType: 'autoUpdate'`, explicit `clientsClaim` + `skipWaiting`) that
+// precaches every built js/css/html/svg/png/jpg/webp/woff2/webmanifest and answers any navigation
+// with the precached `/hygieia/index.html` (`navigateFallback`). Since P5.3 every page is a
+// `React.lazy` chunk and every seed table is its own lazy chunk (src/content/bundled.ts), so
+// "bundled content works offline" is only true if THOSE chunks are in the precache — which is what
+// this spec proves the only way that counts: the browser is taken offline, then a content route is
+// reached client-side (page chunk + seed chunks fetched offline) and another is hard-loaded
+// (document + chunks fetched offline).
 //
 // One serial flow, not independent tests: a service worker only exists after an ONLINE load has
 // installed it, and every later step depends on that state. Each numbered step is a `test.step`.
 //
-// No in-app link to /auth exists on the home page in local-only mode (AccountMenu renders nothing
-// without an account service), so the client-side navigation in step 3 is a `history.pushState` +
-// `popstate`, which is exactly what BrowserRouter listens to. Returning home uses the real
-// `backHome` link.
+// Fonts are self-hosted and precached (src/index.css, P5.3), so nothing offline may fail to load:
+// the house console watchdog (e2e/support/fixtures.ts) runs unnarrowed — a chunk that is NOT in the
+// precache fails its request offline, Chromium logs `net::ERR_INTERNET_DISCONNECTED` as a console
+// error, and the test fails. That is a real finding about `workbox.globPatterns`, never something
+// to filter.
 //
 // Strings are asserted against dictionary VALUES (src/i18n/dictionary.ts); the project runs with
-// `locale: 'el-GR'` so the Greek shell is what renders.
-//
-// Google Fonts offline: index.html links the fonts.googleapis.com stylesheet, which Workbox caches
-// at runtime (StaleWhileRevalidate) — but only once the service worker CONTROLS the page, and on
-// the first visit the stylesheet is fetched before that. The two offline hard loads below therefore
-// ask the network for it, get `net::ERR_FAILED`, and Chromium logs that as a console error. That is
-// a cosmetic fallback (system font), not an app error, so THIS spec narrows the house watchdog by
-// exactly that: a network failure (`net::ERR_*`) of fonts.googleapis.com / fonts.gstatic.com. Every
-// other console error, page error or failed resource still fails the test.
+// `locale: 'el-GR'` so the Greek shell is what renders. Seed counts come from the bundled seed
+// modules (the build is local-only, so the seed IS the content).
 
 const BASE = '/hygieia'
-
-const isOfflineGoogleFontsFailure = (e: ConsoleEntry): boolean =>
-  e.kind === 'console' &&
-  /^Failed to load resource: net::ERR_/.test(e.text) &&
-  /^https:\/\/fonts\.(googleapis|gstatic)\.com\//.test(e.url)
-
-// An OVERRIDE of the house fixture that depends on the original (Playwright keeps the original's
-// `auto`, so it still runs for every test here without being requested).
-const test = base.extend<{ consoleErrors: ConsoleEntry[] }>({
-  // (`provide` is Playwright's `use`; named so react-hooks/rules-of-hooks does not read it as React's.)
-  consoleErrors: async ({ consoleErrors }, provide) => {
-    await provide(consoleErrors)
-    // Runs after the test body and BEFORE the house fixture's `toEqual([])` (a dependency tears
-    // down after its dependents), so only the font failures are removed from what it judges.
-    const kept = consoleErrors.filter((e) => !isOfflineGoogleFontsFailure(e))
-    consoleErrors.splice(0, consoleErrors.length, ...kept)
-  },
-})
 
 /** Resolves once a service worker is active AND controls `page` (clientsClaim on the first load). */
 async function waitForControllingServiceWorker(page: Page): Promise<void> {
@@ -71,7 +52,12 @@ function networkProbe(page: Page): Promise<number> {
   )
 }
 
-test('the app installs a service worker, then works offline: client-side nav, hard load, deep link', async ({
+const recipeCards = (page: Page) =>
+  page.getByRole('list', { name: el.recipesTitle }).getByRole('listitem')
+// DietsPage's <ul> has no accessible name; its one link per card does (diets.spec.ts counts the same).
+const dietLinks = (page: Page) => page.getByRole('link', { name: new RegExp(`^${el.viewDiet}: `) })
+
+test('the app installs a service worker, then serves content offline: recipes client-side, diets hard-loaded, deep link', async ({
   page,
   context,
 }) => {
@@ -88,11 +74,58 @@ test('the app installs a service worker, then works offline: client-side nav, ha
     await context.setOffline(true)
     expect(await page.evaluate(() => navigator.onLine)).toBe(false)
     // That the network is really cut is proven by steps 4–5 (`fromServiceWorker()`) and by the
-    // RED check recorded in BUILD_LOG.md P5.4: with sw.js blocked, step 4 fails with
-    // net::ERR_INTERNET_DISCONNECTED.
+    // RED checks recorded in BUILD_LOG.md (P5.4 follow-up, 2026-10-06): a wrong list count fails on
+    // the rendered number, a hard load of an unknown route renders not-found instead of diets, and
+    // `test.use({ serviceWorkers: 'block' })` turns step 1 red (`navigator.serviceWorker.ready`
+    // never resolves). Note `page.route('**/sw.js')` does NOT block the worker script — Chromium
+    // fetches it outside the page's interception — so it is not a valid sabotage.
   })
 
-  await test.step('3. client-side navigation to /auth renders the sign-in-unavailable state offline', async () => {
+  await test.step('3. client-side navigation over the REAL header link renders the recipes list from the precache', async () => {
+    // The home page was loaded online, but /recipes was never visited: its lazy page chunk and the
+    // recipes / ingredients / diets seed chunks are requested NOW, offline. They render only if
+    // every one of them was precached by the service worker.
+    await page
+      .getByRole('navigation', { name: el.nav.label })
+      .getByRole('link', { name: el.nav.recipes })
+      .click()
+
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(el.recipesTitle)
+    await expect(recipeCards(page)).toHaveCount(RECIPES.length)
+    await expect(page.getByText(el.draftRibbon)).toBeVisible()
+    expect(new URL(page.url()).pathname).toBe(`${BASE}/recipes`)
+  })
+
+  await test.step('4. a HARD load of /diets offline is served by the service worker and renders every diet', async () => {
+    const response = await page.goto(`${BASE}/diets`)
+    // Offline there is no Pages 404 document for the deep link: the service worker answers the
+    // navigation with the precached index.html (status 200, `navigateFallback`), and the page chunk
+    // plus the diets seed chunk come from the precache too.
+    expect(response?.status()).toBe(200)
+    expect(response?.fromServiceWorker()).toBe(true)
+    expect(page.url().startsWith('chrome-error://')).toBe(false)
+    expect(await page.evaluate(() => navigator.serviceWorker.controller !== null)).toBe(true)
+
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(el.dietsTitle)
+    await expect(dietLinks(page)).toHaveCount(DIETS.length)
+    await expect(page.locator('html')).toHaveAttribute('lang', 'el')
+    expect(new URL(page.url()).pathname).toBe(`${BASE}/diets`)
+  })
+
+  await test.step('5. a HARD load of an unknown deep link offline gets navigateFallback and the in-app not-found', async () => {
+    const response = await page.goto(`${BASE}/some/deep/offline`)
+    expect(response?.status()).toBe(200)
+    expect(response?.fromServiceWorker()).toBe(true)
+
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(el.notFoundTitle)
+    await expect(page.getByText(el.notFoundBody)).toBeVisible()
+    expect(new URL(page.url()).pathname).toBe(`${BASE}/some/deep/offline`)
+  })
+
+  await test.step('6. client-side /auth offline renders the sign-in-unavailable state; the real backHome link returns home', async () => {
+    // No in-app link to /auth exists in local-only mode (AccountMenu renders nothing without an
+    // account service), so this navigation is a `history.pushState` + `popstate`, exactly what
+    // BrowserRouter listens to.
     await page.evaluate((path) => {
       history.pushState(null, '', path)
       dispatchEvent(new PopStateEvent('popstate'))
@@ -102,40 +135,15 @@ test('the app installs a service worker, then works offline: client-side nav, ha
     await expect(page.getByText(el.signInUnavailableBody)).toBeVisible()
     expect(new URL(page.url()).pathname).toBe(`${BASE}/auth`)
 
-    // And back home over the real link, still offline.
     await page.getByRole('link', { name: el.backHome }).click()
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(el.heroTitle)
-  })
-
-  await test.step('4. a HARD load of / offline is served by the service worker and renders the Greek hero', async () => {
-    const response = await page.goto(`${BASE}/`)
-    expect(response?.status()).toBe(200)
-    expect(response?.fromServiceWorker()).toBe(true)
-
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(el.heroTitle)
-    await expect(page.locator('html')).toHaveAttribute('lang', 'el')
     await expect(page.getByText(el.notMedicalAdvice)).toBeVisible()
   })
 
-  await test.step('5. a HARD load of a deep link offline gets navigateFallback (index.html) and the in-app not-found', async () => {
-    const response = await page.goto(`${BASE}/some/deep/offline`)
-    // Offline there is no Pages 404 document: the service worker answers with the precached
-    // index.html (status 200) and the router reads the route from the untouched URL.
-    expect(response?.status()).toBe(200)
-    expect(response?.fromServiceWorker()).toBe(true)
-
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(el.notFoundTitle)
-    await expect(page.getByText(el.notFoundBody)).toBeVisible()
-    expect(new URL(page.url()).pathname).toBe(`${BASE}/some/deep/offline`)
-  })
-
-  await test.step('6. back online: the network is reachable again and the page still works', async () => {
+  await test.step('7. back online: the network is reachable again and the page still works', async () => {
     await context.setOffline(false)
     expect(await page.evaluate(() => navigator.onLine)).toBe(true)
     expect(await networkProbe(page)).toBe(200)
-
-    await page.getByRole('link', { name: el.backHome }).click()
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(el.heroTitle)
 
     await page.reload()
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(el.heroTitle)

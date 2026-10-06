@@ -177,6 +177,46 @@ check:lighthouse: run failed — http://127.0.0.1:4175/hygieia/ was not a cold v
 
 **VERDICT: VALIDATED — P5 validated; P6 validated for every local criterion (operator items NOT RUN, as before).** The failed criterion is closed: on a clean clone of `a9efff9` the gate exits 0 three times out of three with every perf cell within ±1 and every route ≥ 85/90/90, each audit proven cold from its own LHR; emptying the block list makes the gate refuse (exit 2) instead of guessing; CI's runner reads 86–94 on the same bar and passed. Hand-off: `reviewer` for the P5/P6 quality judgment, then the human checkpoint. Backlog unchanged: content routes 87–88 cold vs the 90 target (PLAN §1 item 10, ADR-0006); CI margin on `recipes`/`recipe`/`diet` is 1 point.
 Reports from runs 1–3 and the RED run are in the QA scratchpad (`lh56b-run{1,2,3}.out`, `lh56b-red.out`, `ci-37416889242.log`); the clone's `lighthouse-report/` holds run 3 (the RED run wrote no report).
+### P5.4 FOLLOW-UP — offline spec covers content routes (review fix 2) — 2026-10-06 — DONE (builder, worktree `wt/d` on `a9efff9`; P5+P6 REVIEW required fix 2)
+
+**What.** `e2e/local/offline.spec.ts` now proves what PLAN P5.4 asks and the P5+P6 review found missing: after the first ONLINE load installs the
+service worker (step 1, unchanged warm-up: `navigator.serviceWorker.ready` + a controller + a `?probe=` network fetch), the browser goes offline and
+(3) the REAL header link `el.nav.recipes` (inside `getByRole('navigation', { name: el.nav.label })`) is clicked → `/hygieia/recipes` renders h1
+`el.recipesTitle`, `getByRole('list', { name: el.recipesTitle })` has **`RECIPES.length` = 152** items and the draft ribbon — the lazy RecipesPage
+chunk AND the recipes/ingredients/diets seed chunks were fetched offline, i.e. from the precache; (4) a HARD load of `/hygieia/diets` → status 200,
+`response.fromServiceWorker() === true`, URL not `chrome-error://`, `navigator.serviceWorker.controller !== null`, h1 `el.dietsTitle`, **`DIETS.length` = 16**
+`viewDiet` links (DietsPage's `<ul>` has no accessible name, so the count uses the same per-card link locator as `diets.spec.ts`), `lang="el"`;
+(5) the unknown deep link → navigateFallback + in-app not-found (kept); (6) client-side `/auth` via pushState → sign-in-unavailable, `backHome` link
+home (kept, moved after the content steps); (7) back online, probe 200, reload. The old step 4 (hard load of `/`) is dropped — the diets hard load
+proves the same `fromServiceWorker()` contract on a content route. The dead Google Fonts console-watchdog exemption (comment, `isOfflineGoogleFontsFailure`,
+the fixture override) is DELETED; the spec imports the house `test` from `e2e/support/fixtures.ts` unnarrowed, so any console error offline fails it.
+`scripts/check-lighthouse.mjs`: the usage comment (`:86`) and the per-route fresh-Chrome comment (`:676-679`) no longer cite Google Fonts / cold DNS-TLS;
+they say fonts are self-hosted, every byte comes from the audit server, and the cold gate blocks only the SW (`BLOCKED_URL_PATTERNS`). No behaviour change.
+
+**Files (2 code + records):** `e2e/local/offline.spec.ts` (rewritten), `scripts/check-lighthouse.mjs` (comments only), `BUILD_LOG.md`, `DECISIONS.md`.
+
+**Precache coverage (the finding the review feared, checked directly):** fresh `npm run build` → `index-BfBCudBw.js 235.37 kB │ gzip 73.63 kB`,
+`precache 69 entries (2103.20 KiB)`; every one of the 43 `dist/assets/*` files (28 JS chunks: pages + seed tables + fonts' css) is named in `dist/sw.js`
+(`for f in dist/assets/*; grep -q "assets/$(basename $f)" dist/sw.js`) → **0 missing**. `workbox.globPatterns` is complete; NO real finding.
+
+**Verification (worktree, `dist/` from that fresh build, `E2E_PREBUILT=1`):** `npm run lint` → `0 errors, 21 warnings` (the pre-existing react-refresh set) ·
+`npm run typecheck` → `tsc -b` silent · `tsc -p e2e/support/tsconfig.json` clean · `npx vitest run scripts/check-lighthouse.test.ts` → **56 passed** ·
+`npx playwright test --project=local e2e/local/offline.spec.ts` GREEN **three times** (runs 1–2 before the final comment edit, run 3 after):
+```
+  ✓  1 [local] › e2elocaloffline.spec.ts:60:1 › the app installs a service worker, then serves content offline: recipes client-side, diets hard-loaded, deep link (1.1s)
+  1 passed (2.2s)
+  ✓  1 [local] › … (1.1s)      1 passed (2.1s)
+```
+**RED checks (each a sed on the spec, run, then restored byte-identical from a scratch copy):**
+- (a) `toHaveCount(RECIPES.length + 1)` → `✘ … toHaveCount failed · Locator: getByRole('list', { name: 'Συνταγές' }).getByRole('listitem') · Expected: 153 · Received: 152 · 1 failed`.
+- (b) hard load `/hygieia/no-such-diets` → `✘ … toHaveText failed · Locator: getByRole('heading', { level: 1 }) · Expected: "Δίαιτες" · Received: "Η σελίδα δεν βρέθηκε" · 1 failed`.
+- (c) `test.use({ serviceWorkers: 'block' })` (the reviewer's "block sw.js") → `✘ … › 1. online load: a service worker controls the page on the FIRST load · Test timeout of 30000ms exceeded · page.evaluate` (`navigator.serviceWorker.ready` never resolves) · `1 failed`.
+- (c-wrong, recorded as a gotcha) `page.route('**/sw.js', r => r.abort())` → **1 passed**: Playwright's page-level interception does NOT see the browser-process
+  fetch of the service-worker script, so it blocks nothing. `serviceWorkers: 'block'` is the only valid sabotage; the spec's step-2 comment says so. → BRAIN §5 candidate for the lead.
+
+**Out of scope, for the lead:** `playwright.config.ts:11` still says "apart from the Google Fonts stylesheet index.html links" — the same stale sentence; not touched (not in this task's scope).
+
+**Next.** Lead merges `wt/d`; reviewer re-review scoped to review fixes 1–3.
 
 ### Lighthouse gate correctness (answer to P5/P6 QA failure 1) — 2026-10-06 — DONE (builder, worktree `wt/g` on `9295637`; uncommitted for the lead; ADR-0006)
 

@@ -83,7 +83,8 @@
 //
 // Usage: node scripts/check-lighthouse.mjs [--build]   (builds when dist/index.html is missing, or
 // always with --build; the build is local-only: the Supabase env names are blanked like
-// playwright.config.ts does, so no request leaves the machine apart from the Google Fonts CSS).
+// playwright.config.ts does, and the fonts are self-hosted (src/index.css, P5.3), so no request
+// leaves the machine: every byte comes from the audit server over the simulated network).
 
 import { spawnSync } from 'node:child_process'
 import {
@@ -673,10 +674,11 @@ export async function main(
     io.log(`  flags:  ${flags.join(' ')}${ci ? '  (CI: sandbox off, /dev/shm off)' : ''}`)
     io.log(`  ${MODE_LINE}`)
     for (const route of routes) {
-      // A FRESH Chrome (new temp profile) per route: the first route must not pay the cold DNS/TLS
-      // to fonts.googleapis.com alone while later ones ride the warm connection (Lighthouse's model
-      // feeds observed per-origin latency into the simulated FCP, so that skewed the first row by
-      // ~1.5 s), and no route inherits the previous one's storage (the "stored data" run warning).
+      // A FRESH Chrome (new temp profile) per route, so every row is the same cold visit: no route
+      // inherits the previous one's storage (the "stored data" run warning), HTTP cache or warm
+      // connection (Lighthouse feeds observed per-origin latency into its simulated FCP, so a warm
+      // origin would flatter later rows). The only thing the cold gate BLOCKS is the service worker
+      // (`BLOCKED_URL_PATTERNS`); the fonts are self-hosted and audited like any other asset.
       const chrome = await launchChrome({ chromePath, flags })
       try {
         const url = `http://127.0.0.1:${PORT}${route.path}`
