@@ -1,5 +1,5 @@
 // ACCOUNT MENU (P2.5): the header's way in and out. Signed in → who (email, or the id when the
-// provider gave none), a link to /account and sign-out; anonymous → a "Sign in" link; no account
+// provider gave none), links to /account and /profile (P8.2) and sign-out; anonymous → a "Sign in" link; no account
 // service (local-only mode), still loading, or rendered without an AuthProvider → nothing, so the
 // home page is identical with or without auth.
 
@@ -32,6 +32,9 @@ export function AccountMenu() {
         <span className="max-w-[12rem] truncate align-middle">
           {state.user.email ?? state.user.id}
         </span>
+      </Link>
+      <Link to="/profile" className={PILL}>
+        {t.profileLink}
       </Link>
       <button type="button" onClick={() => void signOut()} className={PILL}>
         {t.signOut}

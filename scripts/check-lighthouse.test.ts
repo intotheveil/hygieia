@@ -89,6 +89,7 @@ describe('e2e/support/routes.ts — the shared route list', () => {
       'skincare',
       'auth',
       'account',
+      'profile',
       'admin',
       'not-found',
     ])
@@ -104,6 +105,7 @@ describe('e2e/support/routes.ts — the shared route list', () => {
       '/hygieia/skincare',
       '/hygieia/auth',
       '/hygieia/account',
+      '/hygieia/profile',
       '/hygieia/admin',
       '/hygieia/no/such/page',
     ])

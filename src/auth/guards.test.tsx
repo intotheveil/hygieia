@@ -203,6 +203,8 @@ describe('AccountMenu', () => {
       'href',
       '/account',
     )
+    // P8.2: the profile sits in the account menu, not in the main nav.
+    expect(screen.getByRole('link', { name: t.profileLink })).toHaveAttribute('href', '/profile')
     expect(screen.queryByRole('link', { name: t.signIn })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: t.signOut }))
     await waitFor(() => expect(fake.signOut).toHaveBeenCalledTimes(1))

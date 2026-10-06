@@ -16,6 +16,7 @@
 import { useId, useState } from 'react'
 import type { SkincareProductType, SkincareRoutine, SkincareTip } from '../content'
 import type { Lang } from '../i18n/dictionary'
+import { SaveButton } from '../components/SaveButton'
 import { useLang } from '../i18n/LangProvider'
 import { isUrl, resolveSteps, sourceLabel } from './select'
 
@@ -77,6 +78,11 @@ export function RoutineCard({ routine, types }: RoutineCardProps) {
         </span>
       </p>
       <p className={BODY}>{pick(lang, routine.intro_el, routine.intro_en)}</p>
+      <SaveButton
+        kind="skincare_routine"
+        itemId={routine.id}
+        label={pick(lang, routine.name_el, routine.name_en)}
+      />
       <button
         type="button"
         aria-expanded={open}
@@ -188,6 +194,11 @@ export function SkincareTipCard({ tip }: { tip: SkincareTip }) {
         {pick(lang, tip.title_el, tip.title_en)}
       </h3>
       <p className={BODY}>{pick(lang, tip.body_el, tip.body_en)}</p>
+      <SaveButton
+        kind="skincare_tip"
+        itemId={tip.id}
+        label={pick(lang, tip.title_el, tip.title_en)}
+      />
       {sourced ? (
         <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm">
           <span className={FIELD}>{t.skincareSources}</span>

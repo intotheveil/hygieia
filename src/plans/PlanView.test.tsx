@@ -7,6 +7,7 @@ import { LangProvider } from '../i18n/LangProvider'
 import { dictionaries, type Lang } from '../i18n/dictionary'
 import { unusedProfileMethods } from '../auth/fake-client'
 import { disabledSource } from '../user/disabled'
+import { memorySource } from '../user/memory'
 import { fail, ok, type SavedPlan, type UserDataSource } from '../user/source'
 import { generateWeekPlan, nextMonday } from './generate.ts'
 import { PlanView, nextSeed, serializePlan, type PlanViewProps } from './PlanView'
@@ -32,6 +33,8 @@ async function fixture(slug = 'mediterranean'): Promise<Fixture> {
 function fakeUserData(save = vi.fn()): UserDataSource & { save: typeof save } {
   const unused = async <T,>() => fail<T>('unknown')
   return {
+    // P8 members (entries, goals, saved items) come from the in-memory double; unused here.
+    ...memorySource().source,
     kind: 'supabase',
     userId: 'user-1',
     save,

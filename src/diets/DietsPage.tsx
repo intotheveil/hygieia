@@ -6,6 +6,7 @@ import { useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { EmptyState, ErrorState, Loading } from '../components/AsyncState'
 import { DraftRibbon } from '../components/DraftRibbon'
+import { SaveButton, SavedItemsScope } from '../components/SaveButton'
 import { contentSource, type ContentSource, type Diet, type Result } from '../content/index.ts'
 import { useLang } from '../i18n/LangProvider'
 import type { Lang } from '../i18n/dictionary'
@@ -25,43 +26,46 @@ export function DietsPage({ source = contentSource }: { source?: ContentSource }
   const state = useAsyncResult(load)
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-6xl flex-col gap-6 px-4 py-10 sm:px-6">
-      <header className="flex flex-col gap-3">
-        <h1 className="font-display text-3xl font-semibold text-olive-950">{t.dietsTitle}</h1>
-        <p className="max-w-3xl leading-relaxed text-olive-700">{t.dietsIntro}</p>
-        <DraftRibbon kind={source.kind} />
-      </header>
+    <SavedItemsScope>
+      <main className="mx-auto flex min-h-dvh max-w-6xl flex-col gap-6 px-4 py-10 sm:px-6">
+        <header className="flex flex-col gap-3">
+          <h1 className="font-display text-3xl font-semibold text-olive-950">{t.dietsTitle}</h1>
+          <p className="max-w-3xl leading-relaxed text-olive-700">{t.dietsIntro}</p>
+          <DraftRibbon kind={source.kind} />
+        </header>
 
-      {state.status === 'loading' ? (
-        <Loading variant="list" />
-      ) : state.status === 'error' ? (
-        <ErrorState message={t.loadFailed} onRetry={state.reload} />
-      ) : state.data.length === 0 ? (
-        <EmptyState title={t.dietsEmpty} icon="◔" />
-      ) : (
-        <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {state.data.map((diet) => (
-            <li
-              key={diet.slug}
-              className="flex flex-col gap-3 rounded-2xl border border-olive-900/10 bg-paper-50/80 p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-            >
-              <h2 className="font-display text-xl font-semibold text-olive-950">
-                {dietName(diet, lang)}
-              </h2>
-              <p className="flex-1 text-sm leading-relaxed text-olive-700">
-                {dietSummary(diet, lang)}
-              </p>
-              <Link
-                to={`/diets/${diet.slug}`}
-                aria-label={`${t.viewDiet}: ${dietName(diet, lang)}`}
-                className="self-start rounded-full border border-olive-900/20 px-4 py-1.5 text-sm font-medium text-olive-900 hover:bg-paper-50"
+        {state.status === 'loading' ? (
+          <Loading variant="list" />
+        ) : state.status === 'error' ? (
+          <ErrorState message={t.loadFailed} onRetry={state.reload} />
+        ) : state.data.length === 0 ? (
+          <EmptyState title={t.dietsEmpty} icon="◔" />
+        ) : (
+          <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {state.data.map((diet) => (
+              <li
+                key={diet.slug}
+                className="flex flex-col gap-3 rounded-2xl border border-olive-900/10 bg-paper-50/80 p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
               >
-                {t.viewDiet}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </main>
+                <h2 className="font-display text-xl font-semibold text-olive-950">
+                  {dietName(diet, lang)}
+                </h2>
+                <p className="flex-1 text-sm leading-relaxed text-olive-700">
+                  {dietSummary(diet, lang)}
+                </p>
+                <Link
+                  to={`/diets/${diet.slug}`}
+                  aria-label={`${t.viewDiet}: ${dietName(diet, lang)}`}
+                  className="self-start rounded-full border border-olive-900/20 px-4 py-1.5 text-sm font-medium text-olive-900 hover:bg-paper-50"
+                >
+                  {t.viewDiet}
+                </Link>
+                <SaveButton kind="diet" itemId={diet.id} label={dietName(diet, lang)} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </main>
+    </SavedItemsScope>
   )
 }

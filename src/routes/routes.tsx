@@ -49,6 +49,9 @@ const AccountPage = lazy(() =>
   import('../account/AccountPage').then((m) => ({ default: m.AccountPage })),
 )
 const AdminPage = lazy(() => import('../admin/AdminPage').then((m) => ({ default: m.AdminPage })))
+const ProfilePage = lazy(() =>
+  import('../profile/ProfilePage').then((m) => ({ default: m.ProfilePage })),
+)
 
 /**
  * The router basename for Vite's BASE_URL: '/hygieia' on the Pages project site, '/' if a custom
@@ -86,6 +89,7 @@ export function AppRoutes() {
             </RequireAuth>
           }
         />
+        <Route path="/profile" element={<ProfilePage />} />
         <Route
           path="/admin"
           element={

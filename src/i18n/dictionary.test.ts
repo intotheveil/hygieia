@@ -5,18 +5,20 @@ import { dietsEn } from './features/diets.ts'
 import { fridgeEn } from './features/fridge.ts'
 import { featuresEn } from './features/index.ts'
 import { plansEn } from './features/plans.ts'
+import { profileEn } from './features/profile.ts'
 import { recipesEn } from './features/recipes.ts'
 import { skincareEn } from './features/skincare.ts'
 import { themeEn } from './features/theme.ts'
 import { tipsEn } from './features/tips.ts'
 import { workoutsEn } from './features/workouts.ts'
 
-/** The nine feature modules composed by `features/index.ts`, by name, over their `en` literal. */
+/** The ten feature modules composed by `features/index.ts`, by name, over their `en` literal. */
 const FEATURE_MODULES: Readonly<Record<string, object>> = {
   admin: adminEn,
   diets: dietsEn,
   fridge: fridgeEn,
   plans: plansEn,
+  profile: profileEn,
   recipes: recipesEn,
   skincare: skincareEn,
   theme: themeEn,
@@ -187,7 +189,7 @@ describe('bilingual dictionary — one owner per key (features/index.ts rule; P3
     }
   }
 
-  it('composes exactly the nine feature modules and nothing else', () => {
+  it('composes exactly the ten feature modules and nothing else', () => {
     const union = new Set(Object.values(FEATURE_MODULES).flatMap((literal) => Object.keys(literal)))
     expect([...union].sort()).toEqual(Object.keys(featuresEn).sort())
   })
