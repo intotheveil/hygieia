@@ -13,6 +13,7 @@
 
 import { useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { EmptyState, ErrorState, Loading } from '../components/AsyncState'
 import { DraftRibbon } from '../components/DraftRibbon'
 import { contentSource } from '../content'
 import type { ContentSource, Exercise, WorkoutTemplate } from '../content'
@@ -162,13 +163,7 @@ function SessionCard({
 }) {
   const { t, lang } = useLang()
   const blocks = blocksOf(template)
-  if (blocks === null) {
-    return (
-      <p role="status" className="text-olive-700">
-        {t.noSession}
-      </p>
-    )
-  }
+  if (blocks === null) return <EmptyState title={t.noSession} icon="⟳" />
   const equipment = equipmentOf(blocks, lang)
   const title = lang === 'el' ? template.title_el : template.title_en
   const notes = lang === 'el' ? template.notes_el : template.notes_en
@@ -308,20 +303,11 @@ export function WorkoutsPage({ source = contentSource }: WorkoutsPageProps) {
       </div>
 
       {state.status === 'loading' ? (
-        <p role="status" className="text-olive-700">
-          {t.loading}
-        </p>
+        <Loading variant="detail" />
       ) : state.status === 'error' ? (
-        <p
-          role="alert"
-          className="rounded-md border border-clay-500/30 bg-clay-500/10 px-3 py-2 text-olive-900"
-        >
-          {t.workoutsLoadFailed}
-        </p>
+        <ErrorState message={t.workoutsLoadFailed} onRetry={state.reload} />
       ) : state.data === null ? (
-        <p role="status" className="text-olive-700">
-          {t.noSession}
-        </p>
+        <EmptyState title={t.noSession} icon="⟳" />
       ) : (
         <SessionCard template={state.data} kind={source.kind} />
       )}

@@ -222,17 +222,29 @@ describe('<WorkoutsPage> states', () => {
       getWorkoutTemplate: () => new Promise(() => {}),
     }
     renderAt('/workouts', 'en', pending)
-    expect(screen.getByRole('status')).toHaveTextContent(en.loading)
+    const status = screen.getByRole('status')
+    expect(status).toHaveTextContent(en.loading)
+    // The shared skeleton (P5.1): busy, with reserved space, under the chips that already render.
+    expect(status).toHaveAttribute('aria-busy', 'true')
+    expect(status).toHaveAttribute('data-skeleton', 'detail')
+    expect(screen.getAllByRole('radiogroup')).toHaveLength(3)
     expect(screen.queryByRole('heading', { level: 2 })).toBeNull()
   })
 
-  it('shows the error state when the source fails', async () => {
-    const broken: ContentSource = {
-      ...bundledSource,
-      getWorkoutTemplate: async () => fail('network'),
-    }
-    renderAt('/workouts', 'el', broken)
-    expect(await screen.findByRole('alert')).toHaveTextContent(el.workoutsLoadFailed)
+  it('shows the error state when the source fails, and Retry asks the source again', async () => {
+    const getWorkoutTemplate = vi
+      .fn<ContentSource['getWorkoutTemplate']>()
+      .mockResolvedValueOnce(fail('network'))
+      .mockImplementation(bundledSource.getWorkoutTemplate)
+    renderAt('/workouts', 'el', { ...bundledSource, getWorkoutTemplate })
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent(el.workoutsLoadFailed)
+    expect(getWorkoutTemplate).toHaveBeenCalledTimes(1)
+
+    fireEvent.click(within(alert).getByRole('button', { name: el.retry }))
+    await findSession()
+    expect(getWorkoutTemplate).toHaveBeenCalledTimes(2)
+    expect(screen.queryByRole('alert')).toBeNull()
   })
 
   it('shows the empty state when the cell has no visible template', async () => {

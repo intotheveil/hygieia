@@ -115,9 +115,15 @@ describe('<RecipePage>', () => {
       // Order on the page: ingredients, then nutrition, then cost, then the method.
       const ingredients = screen.getByRole('region', { name: dict.ingredients })
       const steps = screen.getByRole('region', { name: dict.steps })
-      expect(ingredients.compareDocumentPosition(nutritionPanel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-      expect(nutritionPanel.compareDocumentPosition(costPanel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-      expect(costPanel.compareDocumentPosition(steps) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(
+        ingredients.compareDocumentPosition(nutritionPanel) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy()
+      expect(
+        nutritionPanel.compareDocumentPosition(costPanel) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy()
+      expect(
+        costPanel.compareDocumentPosition(steps) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy()
 
       // Plausible: a portion of fasolada is a few hundred kcal and a few euros, nothing unknown/unpriced.
       expect(nutrition.perPortion.kcal).toBeGreaterThan(200)
@@ -229,5 +235,18 @@ describe('<RecipePage>', () => {
     ).getAllByRole('listitem')
     expect(ingredients[0]).toHaveTextContent('400 g white-beans (dry)')
     expect(ingredients).toHaveLength(recipe.lines.length)
+  })
+})
+
+describe('<RecipePage> async states (P5.1)', () => {
+  it('renders the detail skeleton first while a slow source has not answered', () => {
+    const slow: ContentSource = { ...contentSource, getRecipe: () => new Promise(() => {}) }
+    renderAt(SLUG, 'el', slow)
+    const status = screen.getByRole('status')
+    expect(status).toHaveAttribute('aria-busy', 'true')
+    expect(status).toHaveAttribute('data-skeleton', 'detail')
+    expect(status).toHaveTextContent(el.loading)
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull()
+    expect(screen.queryByRole('alert')).toBeNull()
   })
 })

@@ -7,6 +7,7 @@
 
 import { useCallback, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { EmptyState, ErrorState, Loading } from '../components/AsyncState'
 import { DraftRibbon } from '../components/DraftRibbon'
 import { MEAL_TYPES, type MealType } from '../content/enums.ts'
 import { contentSource } from '../content/index.ts'
@@ -146,24 +147,9 @@ export function RecipesPage({ source = contentSource }: RecipesPageProps) {
         <DraftRibbon kind={source.kind} />
       </header>
 
-      {state.status === 'loading' && (
-        <p role="status" className="text-olive-700">
-          {t.loading}
-        </p>
-      )}
+      {state.status === 'loading' && <Loading variant="list" />}
 
-      {failed && (
-        <div role="alert" className="flex flex-col items-start gap-3">
-          <p className="text-olive-900">{t.loadFailed}</p>
-          <button
-            type="button"
-            onClick={state.reload}
-            className="rounded-full bg-olive-900 px-5 py-2 text-sm font-medium text-paper-50 hover:bg-olive-700"
-          >
-            {t.retry}
-          </button>
-        </div>
-      )}
+      {failed && <ErrorState message={t.loadFailed} onRetry={state.reload} />}
 
       {catalogue && (
         <>
@@ -233,9 +219,7 @@ export function RecipesPage({ source = contentSource }: RecipesPageProps) {
           </div>
 
           {results.length === 0 ? (
-            <p className="rounded-2xl border border-olive-900/10 bg-paper-100 p-6 text-olive-700">
-              {t.noRecipesMatch}
-            </p>
+            <EmptyState title={t.noRecipesMatch} icon="✿" />
           ) : (
             <ul aria-label={t.recipesTitle} className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {results.map((recipe) => (

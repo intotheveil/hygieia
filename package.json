@@ -6,11 +6,12 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:dead": "node scripts/build-dead.mjs",
     "preview": "vite preview",
     "lint": "eslint .",
     "typecheck": "tsc -b",
     "test": "vitest run",
-    "e2e": "tsc -p e2e/support/tsconfig.json && playwright test --project=local",
+    "e2e": "tsc -p e2e/support/tsconfig.json && playwright test",
     "format": "prettier --write .",
     "icons": "node scripts/icons.mjs",
     "brand": "node scripts/brand.mjs",

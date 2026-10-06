@@ -3,6 +3,7 @@
 // both languages of its title (`title_*`) or name (`name_*`) so a reviewer sees at a glance
 // whether a translation is missing — the side-by-side rule starts here, not only in the form.
 
+import { EmptyState } from '../components/AsyncState'
 import type { ContentTable } from '../content/enums.ts'
 import type { AdminRow } from './adminSource.ts'
 import { headingOf } from './fields.ts'
@@ -16,7 +17,7 @@ export interface PendingListProps {
 }
 
 export function PendingList({ table, rows, empty, onSelect }: PendingListProps) {
-  if (rows.length === 0) return <p className="text-olive-700">{empty}</p>
+  if (rows.length === 0) return <EmptyState title={empty} icon="✓" />
   return (
     <ul className="flex flex-col gap-2">
       {rows.map((row) => (

@@ -4,19 +4,29 @@
 // through storage.ts (guarded — a throwing storage only loses persistence). Results are DERIVED
 // from (catalogue, fridge) with `matchRecipes`; nothing here re-implements a matching rule.
 // "Save list" goes through `useUserData().fridgeLists` and shows the bilingual note when that is
-// disabled (local-only build or signed out). Route wiring is P3.5's.
+// disabled (local-only build or signed out). Route wiring is P3.5's. `source` is a prop (default:
+// the app's `contentSource`) so tests can inject a slow or failing one (P5.1); the catalogue read
+// is a `Result`, so the shared ErrorState's Retry re-runs it.
 
 import { useCallback, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link } from 'react-router-dom'
+import { EmptyState, ErrorState, Loading } from '../components/AsyncState'
 import { DraftRibbon } from '../components/DraftRibbon'
 import { SignedOutNote } from '../components/SignedOutNote'
-import { contentSource, type Ingredient, type Recipe } from '../content/index.ts'
+import {
+  contentSource,
+  type ContentSource,
+  type Ingredient,
+  type Recipe,
+  type Result,
+} from '../content/index.ts'
+import { fail, ok } from '../content/source.ts'
 import type { IngredientSeed } from '../content/types.ts'
 import { useLang } from '../i18n/LangProvider'
 import type { Lang } from '../i18n/dictionary'
 import { fill } from '../i18n/fill.ts'
-import { useAsync } from '../lib/useAsync.ts'
+import { useAsync, useAsyncResult } from '../lib/useAsync.ts'
 import type { FridgeList } from '../user/source'
 import { useUserData } from '../user/useUserData'
 import { IngredientPicker, ingredientName } from './IngredientPicker.tsx'
@@ -33,14 +43,12 @@ interface Catalogue {
   recipes: Recipe[]
 }
 
-/** Module-level so its identity is stable: `useAsync` runs it once per mount. */
-async function loadCatalogue(): Promise<Catalogue | null> {
-  const [ingredients, recipes] = await Promise.all([
-    contentSource.listIngredients(),
-    contentSource.listRecipes(),
-  ])
-  if (!ingredients.ok || !recipes.ok) return null
-  return { ingredients: ingredients.data, recipes: recipes.data }
+/** Both catalogues in one round trip; the first failure wins (the page needs both). */
+async function loadCatalogue(source: ContentSource): Promise<Result<Catalogue>> {
+  const [ingredients, recipes] = await Promise.all([source.listIngredients(), source.listRecipes()])
+  if (!ingredients.ok) return fail(ingredients.error)
+  if (!recipes.ok) return fail(recipes.error)
+  return ok({ ingredients: ingredients.data, recipes: recipes.data })
 }
 
 /** `window.localStorage` itself can throw on access (blocked storage); treat that as "none". */
@@ -60,9 +68,14 @@ function names(ingredients: readonly IngredientSeed[], lang: Lang): string {
   return ingredients.map((i) => ingredientName(i, lang)).join(', ')
 }
 
-export function FridgePage() {
+export interface FridgePageProps {
+  source?: ContentSource
+}
+
+export function FridgePage({ source = contentSource }: FridgePageProps) {
   const { t, lang } = useLang()
-  const catalogue = useAsync(loadCatalogue)
+  const load = useCallback(() => loadCatalogue(source), [source])
+  const catalogue = useAsyncResult(load)
 
   const [fridge, setFridge] = useState<FridgeState>(() => {
     const storage = fridgeStorage()
@@ -115,13 +128,9 @@ export function FridgePage() {
       </header>
 
       {catalogue.status === 'loading' ? (
-        <p role="status" className="text-olive-700">
-          {t.loading}
-        </p>
+        <Loading variant="detail" />
       ) : catalogue.status === 'error' || data === null ? (
-        <p role="alert" className="text-clay-500">
-          {t.fridgeLoadFailed}
-        </p>
+        <ErrorState message={t.fridgeLoadFailed} onRetry={catalogue.reload} />
       ) : (
         <>
           <section
@@ -193,12 +202,9 @@ export function FridgePage() {
             <h2 id="fridge-results" className="sr-only">
               {t.coverage}
             </h2>
-            <DraftRibbon kind={contentSource.kind} />
+            <DraftRibbon kind={source.kind} />
             {fridge.slugs.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-olive-900/20 p-8 text-center">
-                <p className="font-display text-xl text-olive-950">{t.fridgeEmpty}</p>
-                <p className="mt-2 text-sm text-olive-700">{t.fridgeEmptyHint}</p>
-              </div>
+              <EmptyState title={t.fridgeEmpty} hint={t.fridgeEmptyHint} icon="✿" />
             ) : (
               <>
                 <p role="status" aria-live="polite" className="text-sm font-medium text-olive-700">
@@ -361,7 +367,7 @@ function SaveList({
         </p>
       )}
       {outcome?.kind === 'failed' && (
-        <p role="alert" className="text-sm font-medium text-clay-500">
+        <p role="alert" className="text-sm font-medium text-clay-700">
           {t.listSaveFailed}
         </p>
       )}

@@ -161,7 +161,7 @@ export function PlanView({
             {t.planSaved}
           </p>
         ) : saveState === 'failed' ? (
-          <p role="alert" className="text-sm text-clay-500">
+          <p role="alert" className="text-sm text-clay-700">
             {t.saveFailed}
           </p>
         ) : null}
@@ -277,7 +277,7 @@ function Slot({
           {title(full, lang)}
         </Link>
       ) : (
-        <span className="text-olive-700/70 italic">{empty}</span>
+        <span className="text-olive-700">{empty}</span>
       )}
     </td>
   )

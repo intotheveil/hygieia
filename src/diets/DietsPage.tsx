@@ -4,6 +4,7 @@
 
 import { useCallback } from 'react'
 import { Link } from 'react-router-dom'
+import { EmptyState, ErrorState, Loading } from '../components/AsyncState'
 import { DraftRibbon } from '../components/DraftRibbon'
 import { contentSource, type ContentSource, type Diet, type Result } from '../content/index.ts'
 import { useLang } from '../i18n/LangProvider'
@@ -32,20 +33,11 @@ export function DietsPage({ source = contentSource }: { source?: ContentSource }
       </header>
 
       {state.status === 'loading' ? (
-        <p role="status" className="text-olive-700">
-          {t.loading}
-        </p>
+        <Loading variant="list" />
       ) : state.status === 'error' ? (
-        <div role="alert" className="flex flex-col items-start gap-3 text-olive-900">
-          <p>{t.loadFailed}</p>
-          <button
-            type="button"
-            onClick={state.reload}
-            className="rounded-full bg-olive-900 px-4 py-1.5 text-sm font-medium text-paper-50 hover:bg-olive-700"
-          >
-            {t.retry}
-          </button>
-        </div>
+        <ErrorState message={t.loadFailed} onRetry={state.reload} />
+      ) : state.data.length === 0 ? (
+        <EmptyState title={t.dietsEmpty} icon="◔" />
       ) : (
         <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {state.data.map((diet) => (

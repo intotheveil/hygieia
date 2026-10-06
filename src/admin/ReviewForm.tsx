@@ -34,7 +34,7 @@ const LABEL = 'block font-mono text-xs text-olive-700'
 const BUTTON = 'rounded-full px-4 py-1.5 text-sm font-medium disabled:opacity-50'
 const PRIMARY = `${BUTTON} bg-olive-900 text-paper-50 hover:bg-olive-700`
 const SECONDARY = `${BUTTON} border border-olive-900/20 bg-paper-50/70 text-olive-900 hover:bg-paper-50`
-const DANGER = `${BUTTON} border border-clay-500 text-clay-500 hover:bg-clay-500/10`
+const DANGER = `${BUTTON} border border-clay-500 text-clay-700 hover:bg-clay-500/10`
 
 // --- inputs ---------------------------------------------------------------------------------------
 

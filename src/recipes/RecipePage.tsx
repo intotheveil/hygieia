@@ -8,6 +8,7 @@
 
 import { useCallback, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { ErrorState, Loading } from '../components/AsyncState'
 import { DraftRibbon } from '../components/DraftRibbon'
 import { SignedOutNote } from '../components/SignedOutNote'
 import { contentSource } from '../content/index.ts'
@@ -61,9 +62,7 @@ export function RecipePage({ source = contentSource }: RecipePageProps) {
   if (state.status === 'loading') {
     return (
       <main className="mx-auto flex min-h-dvh max-w-3xl flex-col gap-6 px-4 py-10 sm:px-6">
-        <p role="status" className="text-olive-700">
-          {t.loading}
-        </p>
+        <Loading variant="detail" />
       </main>
     )
   }
@@ -71,16 +70,7 @@ export function RecipePage({ source = contentSource }: RecipePageProps) {
   if (state.status === 'error') {
     return (
       <main className="mx-auto flex min-h-dvh max-w-3xl flex-col gap-6 px-4 py-10 sm:px-6">
-        <div role="alert" className="flex flex-col items-start gap-3">
-          <p className="text-olive-900">{t.loadFailed}</p>
-          <button
-            type="button"
-            onClick={state.reload}
-            className={`${BUTTON} bg-olive-900 text-paper-50 hover:bg-olive-700`}
-          >
-            {t.retry}
-          </button>
-        </div>
+        <ErrorState message={t.loadFailed} onRetry={state.reload} />
       </main>
     )
   }
@@ -249,7 +239,7 @@ function FavouriteButton({ recipeId }: { recipeId: string }) {
         <SignedOutNote reason={user.reason ?? 'signed-out'} />
       )}
       {outcome === 'failed' && (
-        <p role="alert" className="text-sm text-clay-500">
+        <p role="alert" className="text-sm text-clay-700">
           {t.favouriteFailed}
         </p>
       )}

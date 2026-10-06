@@ -61,12 +61,20 @@ jobs:
       - run: npm run check:bundle
       # Installability gate: manifest fields, every icon the manifest names, the service worker.
       - run: npm run check:pwa
-      # e2e (PLAN P3.6): Playwright against the local-only dist/ just built and PWA-checked, served
-      # with GitHub Pages semantics at /hygieia/ (e2e/support/pages-server.mjs --base /hygieia: a
-      # file, else 404.html with status 404), so the SPA fallback is really exercised. E2E_PREBUILT=1
-      # tests that dist/ as is, with no rebuild. No backend and no secret: the build has no Supabase
-      # env (local-only mode). Only the headless shell is installed, cached per Playwright version;
-      # system deps come from apt.
+      # THE DEAD-BACKEND TEST BUILD (PLAN P5.1): the same source built a second time into dist-dead/,
+      # CONFIGURED against an address nothing listens on (VITE_SUPABASE_URL=http://127.0.0.1:9/, a
+      # dummy anon key — scripts/build-dead.mjs sets both itself; no variable, no secret). The e2e
+      # `dead-backend` project serves it on 4174 and proves every page's error state and Retry on
+      # the production artifact against a backend that really fails. dist/ is untouched.
+      - name: Build, dead-backend mode (test build)
+        run: npm run build:dead
+      # e2e (PLAN P3.6 + P5.1): Playwright, TWO projects. `local` runs against the local-only dist/
+      # just built and PWA-checked; `dead-backend` against dist-dead/ (above). Both are served with
+      # GitHub Pages semantics at /hygieia/ (e2e/support/pages-server.mjs --base /hygieia: a file,
+      # else 404.html with status 404), so the SPA fallback is really exercised. E2E_PREBUILT=1 tests
+      # both directories as they are, with no rebuild. No backend and no secret: one build has no
+      # Supabase env (local-only mode), the other points at a dead loopback port. Only the headless
+      # shell is installed, cached per Playwright version; system deps come from apt.
       - name: Playwright version (browser cache key)
         id: playwright
         run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
@@ -76,7 +84,7 @@ jobs:
           key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}-chromium-shell
       - name: Install chromium (headless shell + system deps)
         run: npx playwright install --with-deps --only-shell chromium
-      - name: e2e against the production build (npm run e2e)
+      - name: e2e against the production builds, local + dead-backend (npm run e2e)
         run: npm run e2e
         env:
           E2E_PREBUILT: '1'

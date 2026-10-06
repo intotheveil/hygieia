@@ -5,6 +5,7 @@
 
 import { useCallback } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { EmptyState, ErrorState, Loading } from '../components/AsyncState'
 import { DraftRibbon } from '../components/DraftRibbon'
 import {
   contentSource,
@@ -77,25 +78,14 @@ export function DietPage({ source = contentSource }: { source?: ContentSource })
   if (state.status === 'loading') {
     return (
       <main className={SHELL}>
-        <p role="status" className="text-olive-700">
-          {t.loading}
-        </p>
+        <Loading variant="detail" />
       </main>
     )
   }
   if (state.status === 'error') {
     return (
       <main className={SHELL}>
-        <div role="alert" className="flex flex-col items-start gap-3 text-olive-900">
-          <p>{t.loadFailed}</p>
-          <button
-            type="button"
-            onClick={state.reload}
-            className="rounded-full bg-olive-900 px-4 py-1.5 text-sm font-medium text-paper-50 hover:bg-olive-700"
-          >
-            {t.retry}
-          </button>
-        </div>
+        <ErrorState message={t.loadFailed} onRetry={state.reload} />
       </main>
     )
   }
@@ -171,18 +161,22 @@ export function DietPage({ source = contentSource }: { source?: ContentSource })
         <h2 id="diet-recipes" className="font-display text-xl font-semibold text-olive-950">
           {t.recipesForDiet}
         </h2>
-        <ul className="grid gap-2 sm:grid-cols-2">
-          {recipes.map((recipe) => (
-            <li key={recipe.slug}>
-              <Link
-                to={`/recipes/${recipe.slug}`}
-                className="block rounded-xl bg-paper-200/60 px-4 py-2 text-sm font-medium text-olive-900 hover:bg-paper-200"
-              >
-                {recipeTitle(recipe, lang)}
-              </Link>
-            </li>
-          ))}
-        </ul>
+        {recipes.length === 0 ? (
+          <EmptyState title={t.noRecipesForDiet} icon="✿" />
+        ) : (
+          <ul className="grid gap-2 sm:grid-cols-2">
+            {recipes.map((recipe) => (
+              <li key={recipe.slug}>
+                <Link
+                  to={`/recipes/${recipe.slug}`}
+                  className="block rounded-xl bg-paper-200/60 px-4 py-2 text-sm font-medium text-olive-900 hover:bg-paper-200"
+                >
+                  {recipeTitle(recipe, lang)}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section aria-labelledby="diet-plan" className="flex flex-col gap-3">

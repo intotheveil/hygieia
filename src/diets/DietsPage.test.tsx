@@ -3,7 +3,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 import { bundledSource } from '../content/bundled.ts'
 import { DIETS } from '../content/seed/diets.ts'
-import { fail, type ContentSource } from '../content/source.ts'
+import { fail, ok, type ContentSource, type Diet } from '../content/source.ts'
 import { LangProvider } from '../i18n/LangProvider'
 import { dictionaries, type Lang } from '../i18n/dictionary'
 import { DietsPage } from './DietsPage'
@@ -49,5 +49,23 @@ describe('<DietsPage>', () => {
     renderPage('el', failing)
     expect(await screen.findByRole('alert')).toHaveTextContent(dictionaries.el.loadFailed)
     expect(screen.getByRole('button', { name: dictionaries.el.retry })).toBeInTheDocument()
+  })
+
+  it('renders the list skeleton first while a slow source has not answered', () => {
+    const slow: ContentSource = { ...bundledSource, listDiets: () => new Promise(() => {}) }
+    renderPage('el', slow)
+    const status = screen.getByRole('status')
+    expect(status).toHaveAttribute('aria-busy', 'true')
+    expect(status).toHaveAttribute('data-skeleton', 'list')
+    expect(status).toHaveTextContent(dictionaries.el.loading)
+    expect(screen.queryByRole('link', { name: /^Δες τη δίαιτα: / })).toBeNull()
+  })
+
+  it('renders the empty state when no diet is visible', async () => {
+    const none: ContentSource = { ...bundledSource, listDiets: async () => ok<Diet[]>([]) }
+    renderPage('en', none)
+    expect(await screen.findByText(dictionaries.en.dietsEmpty)).toBeInTheDocument()
+    expect(screen.queryByRole('list')).toBeNull()
+    expect(screen.queryByRole('alert')).toBeNull()
   })
 })

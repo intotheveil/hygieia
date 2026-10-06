@@ -115,7 +115,7 @@ export function SignInPage() {
         {t.signInGoogle}
       </button>
       {phase === 'failed' && (
-        <p role="alert" className="text-sm text-clay-500">
+        <p role="alert" className="text-sm text-clay-700">
           {t.signInFailed}
         </p>
       )}

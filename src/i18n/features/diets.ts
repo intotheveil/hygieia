@@ -15,6 +15,9 @@ export interface DietsDictionary {
   source: string
   sourcePending: string
   viewDiet: string
+  /** Empty states (P5.1): no visible diet at all; a diet with no visible recipe tagged with it. */
+  dietsEmpty: string
+  noRecipesForDiet: string
 }
 
 export const dietsEn: DietsDictionary = {
@@ -31,6 +34,8 @@ export const dietsEn: DietsDictionary = {
   source: 'Source',
   sourcePending: 'Source pending review',
   viewDiet: 'View diet',
+  dietsEmpty: 'No diets to show yet.',
+  noRecipesForDiet: 'No recipe is tagged with this diet yet.',
 }
 
 export const dietsEl: DietsDictionary = {
@@ -47,4 +52,6 @@ export const dietsEl: DietsDictionary = {
   source: 'Πηγή',
   sourcePending: 'Η πηγή εκκρεμεί έλεγχο',
   viewDiet: 'Δες τη δίαιτα',
+  dietsEmpty: 'Δεν υπάρχουν δίαιτες προς εμφάνιση ακόμη.',
+  noRecipesForDiet: 'Καμία συνταγή δεν έχει ακόμη ετικέτα αυτής της δίαιτας.',
 }

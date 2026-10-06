@@ -7,6 +7,7 @@
 
 import { useCallback, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { EmptyState, ErrorState, Loading } from '../components/AsyncState'
 import { SignedOutNote } from '../components/SignedOutNote'
 import { contentSource, type ContentSource, type Diet, type Recipe } from '../content/index.ts'
 import { useLang } from '../i18n/LangProvider'
@@ -126,16 +127,14 @@ export function AccountPage({
             className="flex flex-col gap-3 rounded-2xl border border-olive-900/10 bg-paper-50/80 p-6"
           >
             {removeError !== null ? (
-              <p role="alert" className="text-sm text-clay-500">
+              <p role="alert" className="text-sm text-clay-700">
                 {t.removeFailed}
               </p>
             ) : null}
             {state.status === 'loading' ? (
-              <p role="status" className="text-olive-700">
-                {t.loading}
-              </p>
+              <Loading variant="panel" />
             ) : state.status === 'error' ? (
-              <LoadFailed onRetry={reload} />
+              <ErrorState message={t.loadFailed} onRetry={reload} />
             ) : (
               <Panel
                 tab={tab}
@@ -208,8 +207,8 @@ function Panel({
             }
           })
 
-  if (!result.ok) return <LoadFailed onRetry={onRetry} />
-  if (result.data.length === 0) return <p className="text-olive-700">{t.nothingSavedYet}</p>
+  if (!result.ok) return <ErrorState message={t.loadFailed} onRetry={onRetry} />
+  if (result.data.length === 0) return <EmptyState title={t.nothingSavedYet} icon="♡" />
   return (
     <ul className="flex flex-col gap-2 text-olive-900">
       {result.data.map((item) => (
@@ -235,7 +234,7 @@ function Panel({
               type="button"
               aria-label={`${t.remove}: ${item.label}`}
               onClick={() => void onRemove(item.remove)}
-              className="rounded-full border border-clay-500/40 px-3 py-1 text-xs font-medium text-clay-500 hover:bg-clay-500/10"
+              className="rounded-full border border-clay-500/40 px-3 py-1 text-xs font-medium text-clay-700 hover:bg-clay-500/10"
             >
               {t.remove}
             </button>
@@ -243,23 +242,6 @@ function Panel({
         </li>
       ))}
     </ul>
-  )
-}
-
-/** The bilingual failure copy with a retry — for a rejected load and for a tab whose read failed. */
-function LoadFailed({ onRetry }: { onRetry: () => void }) {
-  const { t } = useLang()
-  return (
-    <div role="alert" className="flex flex-col items-start gap-3 text-olive-900">
-      <p>{t.loadFailed}</p>
-      <button
-        type="button"
-        onClick={onRetry}
-        className="rounded-full bg-olive-900 px-4 py-1.5 text-sm font-medium text-paper-50 hover:bg-olive-700"
-      >
-        {t.retry}
-      </button>
-    </div>
   )
 }
 

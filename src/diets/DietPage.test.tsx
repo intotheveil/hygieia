@@ -3,16 +3,17 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 import { bundledSource } from '../content/bundled.ts'
 import { DIETS } from '../content/seed/diets.ts'
+import { ok, type ContentSource, type Recipe } from '../content/source.ts'
 import { LangProvider } from '../i18n/LangProvider'
 import { dictionaries, type Lang } from '../i18n/dictionary'
 import { DietPage } from './DietPage'
 
-function renderAt(slug: string, lang: Lang) {
+function renderAt(slug: string, lang: Lang, source: ContentSource = bundledSource) {
   return render(
     <LangProvider initial={lang}>
       <MemoryRouter initialEntries={[`/diets/${slug}`]}>
         <Routes>
-          <Route path="/diets/:slug" element={<DietPage source={bundledSource} />} />
+          <Route path="/diets/:slug" element={<DietPage source={source} />} />
         </Routes>
       </MemoryRouter>
     </LangProvider>,
@@ -88,5 +89,32 @@ describe('<DietPage>', () => {
       '/diets',
     )
     expect(screen.getByText(dictionaries.el.draftRibbon)).toBeInTheDocument()
+  })
+})
+
+describe('<DietPage> async states (P5.1)', () => {
+  it('renders the detail skeleton first while a slow source has not answered', () => {
+    const slow: ContentSource = { ...bundledSource, listDiets: () => new Promise(() => {}) }
+    renderAt('keto', 'el', slow)
+    const status = screen.getByRole('status')
+    expect(status).toHaveAttribute('aria-busy', 'true')
+    expect(status).toHaveAttribute('data-skeleton', 'detail')
+    expect(status).toHaveTextContent(dictionaries.el.loading)
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull()
+  })
+
+  it('renders the empty state in the recipes section when no visible recipe carries the diet', async () => {
+    const none: ContentSource = { ...bundledSource, listRecipes: async () => ok<Recipe[]>([]) }
+    renderAt('keto', 'en', none)
+    await screen.findByRole('heading', { level: 1 })
+    const section = screen
+      .getByRole('heading', { level: 2, name: dictionaries.en.recipesForDiet })
+      .closest('section')!
+    expect(within(section).getByText(dictionaries.en.noRecipesForDiet)).toBeInTheDocument()
+    expect(within(section).queryByRole('link')).toBeNull()
+    // The rest of the page is unaffected by the empty section.
+    expect(
+      screen.getByRole('heading', { level: 2, name: dictionaries.en.generatePlan }),
+    ).toBeInTheDocument()
   })
 })

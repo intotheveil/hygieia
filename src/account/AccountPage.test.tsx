@@ -168,3 +168,27 @@ describe('<AccountPage>', () => {
     expect(screen.queryByRole('tablist')).toBeNull()
   })
 })
+
+describe('<AccountPage> async states (P5.1)', () => {
+  it('renders the panel skeleton first while a slow source has not answered', () => {
+    const fake = fakeSource({ plans: [], lists: [], favourites: [] })
+    const slow: UserDataSource = {
+      ...fake.source,
+      savedPlans: { ...fake.source.savedPlans, list: () => new Promise(() => {}) },
+    }
+    renderPage(slow, 'el')
+    const status = screen.getByRole('status')
+    expect(status).toHaveAttribute('aria-busy', 'true')
+    expect(status).toHaveAttribute('data-skeleton', 'panel')
+    expect(status).toHaveTextContent(dictionaries.el.loading)
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.getByRole('tablist')).toBeInTheDocument()
+  })
+
+  it('renders the empty tab through the shared EmptyState', async () => {
+    const fake = fakeSource({ plans: [], lists: [], favourites: [] })
+    renderPage(fake.source)
+    const title = await screen.findByText(dictionaries.en.nothingSavedYet)
+    expect(title.closest('[data-empty-state]')).not.toBeNull()
+  })
+})

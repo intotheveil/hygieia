@@ -245,7 +245,7 @@ export function PriceTable({ source }: PriceTableProps) {
         </table>
       </div>
       {problemText && (
-        <p id="price-problem" role="alert" className="text-sm text-clay-500">
+        <p id="price-problem" role="alert" className="text-sm text-clay-700">
           {problemText}
         </p>
       )}
