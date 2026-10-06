@@ -231,6 +231,9 @@ describe("seedId — md5('hygieia:<table>:<slug>')::uuid", () => {
     let db: PGlite
     beforeAll(async () => {
       db = new PGlite()
+      // PGlite boots lazily on the first query; wait here (60 s budget), not inside the 5 s test —
+      // under a loaded machine the wasm boot alone exceeded 5 s (2026-10-06).
+      await db.waitReady
     }, 60_000)
     afterAll(async () => {
       await db?.close()
