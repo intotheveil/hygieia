@@ -3,6 +3,69 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+### P8.3 WORKOUT PLANS UI — 2026-10-06 — DONE (builder, lane `wt/c` at `main` `776e0fd`)
+
+- **Operator:** "Set up workout plans - register progress etc. Modern." Built on the P8.1 contract (`src/user/source.ts`, unchanged) and
+  the P8.2 page pattern (`useAsyncResult` + `AsyncState`, `useOverlay`, `SignedOutNote`, the two-click delete).
+- **Route `/workouts/plans`** (lazy `PlansPage-*.js`, 33 kB / 9.7 kB gzip) in `src/routes/routes.tsx` → `src/workouts/plans/PlansPage.tsx`. NOT behind
+  `RequireAuth` (the /profile reasoning): signed-out / local-only it renders H1 + intro + `SignedOutNote` and reads NOTHING (no seed chunk,
+  no user data) — what Lighthouse and the a11y matrix audit. Signed in: one `Promise.all` over `listWorkoutPlans`, `listWorkoutSessions`,
+  `contentSource.listWorkoutTemplates` → (top to bottom) save status, session logger (when open), **Active plans**, **plan builder**,
+  **Progress**, **Session history**, **Past plans**. Links: "My plans →" in the /workouts header (always) and on /profile (next to Account);
+  "Start plan" on the /workouts session card (signed-in only, hidden like `SaveButton`) → `/workouts/plans?template=<id>`.
+- **Plan builder** (`PlanBuilder.tsx`, pure validation `builder.ts`): the /workouts chip groups (type / level / intensity → the one template
+  of that cell; `ChipGroup` lifted out of `WorkoutsPage.tsx` into `src/workouts/ChipGroup.tsx`), name (follows the session title until
+  typed, 1–80), weeks 1–12, days/week 1–7, start date (any real date) → `createWorkoutPlan` with exactly `{ template_id, name, weeks,
+  days_per_week, start_date }`. `?template=` pre-selects the cell and the name; the param is cleared after create. Open by default when no
+  plan is active or `?template=` is present; "New plan" / Cancel otherwise.
+- **Active plan card** (`ActivePlanCard.tsx` over pure `schedule.ts`): progress ring = `role="progressbar"` (`aria-valuenow` %,
+  `aria-valuetext` "n of N sessions done"); week-by-week grid (PLAN weeks from `start_date`, one cell per planned day, `role="img"` named
+  "Week w, day d: done / not yet"; filled = sessions logged ON the plan that week, capped at days/week; before-start / after-end clamp into
+  the first / last week); current week highlighted + "This week" + "n of d this week"; "Log today's session"; Mark completed (one click) /
+  Abandon (two-click "Sure?"); refused status → inline alert.
+- **Session logger** (`SessionLogger.tsx`, pure `logger.ts`): pre-filled from the template's slots in order with the prescribed sets × reps
+  (hint "Plan: 3 × 8" / "1 × 40 s"); per set reps / weight kg (comma or point) / RPE 1–10 in half steps / done; add set (copies last reps +
+  weight) / remove set; date (≤ today), duration (template minutes, 1–600 or blank), note ≤ 500; an UNTOUCHED set (blank, not done) is
+  skipped so a seconds-only slot never blocks saving. Per-exercise rest button (slot `rest_seconds`, else 60 s): wall-clock countdown
+  `role="timer"`, no audio, Stop. Save → `addWorkoutSession({ ...validated, plan_id, template_id })`, then **`addEntry({ kind: 'workout',
+  entry_date, value: duration_min, unit: 'min' | null, payload: { session_id } })`** (best-effort) so /profile stats, streaks and badges count
+  it. Deleting a session also deletes the workout entry whose `payload.session_id` matches (best-effort, same day's `listEntries`).
+- **Progress + PRs** (`progress.ts`, pure; `ProgressPanel.tsx`): only DONE sets count; per exercise sessions, best set (heaviest, then most
+  reps), best est-1RM (**Epley** w × (1 + reps/30), weight > 0 and reps ≥ 1 only), total volume (Σ reps × kg), last-8 trend; `detectPRs` in
+  date order: new heaviest weight, new best est-1RM, more reps at a weight done before (heaviest such weight) — the first session of an
+  exercise is the baseline, ties are not records. UI: exercise `<select>` (most-trained first), four stat cards, est-1RM line chart (reuses
+  `src/profile/chart.ts` `buildSparkline`, `role="img"` + visible summary), 8 Monday-week volume bars (`role="img"` + summary).
+  History rows (`SessionHistory.tsx`): plan name / "Session without a plan", date + minutes, exercise names, "n exercises · n sets done · n kg
+  volume", **★ PR badge** + one line per record; save status says "new personal record!" when the saved session set one.
+- **i18n:** `src/i18n/features/workoutPlans.ts` (`WorkoutPlansDictionary`, every key `wp*`, el + en) wired in `features/index.ts`; the
+  registry in `dictionary.test.ts` is now eleven modules. **Deviation from the brief:** the brief named `features/plans.ts`, which already
+  exists (the P4.6 MEAL-plan module, owner of `loadFailed` / `retry`) — a second module there would have collided; hence `workoutPlans.ts`.
+  Reused from owners: `minutesUnit`, `types/levels/intensities`, `pickType/Level/Intensity`, `workoutsTitle` (workouts); `profileUnit.kg`,
+  `profileDelete`, `profileConfirmDelete`, `profileLink` (profile); `retry` (plans). Greek written as Greek (RPE / 1RM kept as the gym terms).
+- **Gates:** `/hygieia/workouts/plans` (name `plans`, ready `main [role="note"]`) in `e2e/support/routes.ts` + both pins in
+  `scripts/check-lighthouse.test.ts`; a11y matrix +2 cells; `e2e/local/plans.spec.ts` 2 specs (deep link: H1 + intro + local-only note, no
+  form / sections, English twin; /workouts → "My plans" link lands on the page, no "Start plan" without an account). Signed-in UI needs a
+  backend → proven in jsdom against `memorySource`.
+- **Tests (+113):** `logger.test.ts` 33 · `progress.test.ts` 22 · `schedule.test.ts` (schedule + builder) 21 · `SessionLogger.test.tsx` 13 ·
+  `PlansPage.test.tsx` 20 (disabled ×3 incl. "reads nothing", load error + Retry, content error, empty, create from `?template=` → exact payload
+  and 4 × 3 grid + current week + param cleared, chips / name tracking, validation, refused create, builder toggle, log → cell filled +
+  progress 8 % + "1 of 3 this week" + workout entry + history row, **PR badge on a heavier set** + est-1RM 88.7 kg + chart + weekly volume
+  summary, cancel, complete, two-click abandon, refused status, two-click delete removes the linked entry only, refused delete, Greek) ·
+  `WorkoutsPage.test.tsx` +4 ("Start plan" hidden for local-only / signed-out, shown signed-in with the template href, Greek) · ProfilePage +1
+  assertion (plans link).
+- **Verified (this worktree):** `npm run lint` **0 errors** (23 warnings = baseline) · `npm run typecheck` clean · `npm test` **3675 tests /
+  81 files** (was 3562 / 76; green twice in a row) · `npm run build` OK (entry `index-BBtHHX_t.js` 238.1 kB / 74.5 kB gzip; `PlansPage-*.js` own
+  chunk) · `npm run build:dead` OK · `E2E_PREBUILT=1 npm run e2e` **88 passed** (79 local incl. 2 plans specs + 2 plans a11y cells; 9
+  dead-backend) · `check:pwa` OK · `check:bundle` OK (45 files) · **`check:lighthouse` 15 routes OK — `/hygieia/workouts/plans (plans) ·
+  90 · 100 · 100 · 100`** (home 92, content 86–89, profile 91, auth/account/admin/not-found 92–93).
+- **Found on the way:** (1) the React-compiler lint ("Cannot call impure function during render") flags `Date.now()` inside a render-scope
+  helper even when only a click handler calls it — the rest timer reads a module-level `wallClock()`. (2) `features/workoutPlans.ts` importing
+  a TYPE from a module that imports the `content` barrel pulled `src/lib/env.ts` into `tsconfig.scripts.json` (via `e2e/support/routes.ts` →
+  dictionary) → TS2339 `import.meta.env`; type-only imports still enlarge the program — import `content/source.ts` directly. (3) After
+  `setSearchParams` the router can commit the URL AFTER the next render under full-suite load — assert the location with `waitFor`.
+- **Not done / for the lead:** BRAIN.md untouched (lead reconciles at merge: §2 code map + routes + i18n module count, §3 counts). No
+  migration, no schema change.
+
 ### P7 REVIEW (flip) — 2026-10-06 — PASS (scoped re-review of review fix 1; the tests line flips 1 → 2; all seven rubric lines at 2; P7.QA VALIDATED above → **P7 Skincare + nails is CLAIMED** pending the human CHECKPOINT and the operator's P7.3)
 
 - **Scope (as scoped in the REVISE entry — code not re-read):** `main` `3665747` (= merge of `wt/d` `3a8f7b6`). Read ONLY `src/admin/fields.test.ts`, the new `src/admin/ReviewForm.test.tsx`, the appended P7.1 bullet, `PLAN.md:915`, `scripts/db-gate.mjs:658-660`; confirmed `### P7.QA — 2026-10-06 — VALIDATED` sits at the top of this file. **Spot-check in `D:/projects/hygieia-wt/d` at `3a8f7b6`: `npx vitest run src/admin` → 113 / 113 green, 5 files.** Nothing run in `D:/projects/hygieia`.

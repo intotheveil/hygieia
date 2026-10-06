@@ -20,6 +20,7 @@ import { recipesEl, recipesEn, type RecipesDictionary } from './recipes.ts'
 import { skincareEl, skincareEn, type SkincareDictionary } from './skincare.ts'
 import { themeEl, themeEn, type ThemeDictionary } from './theme.ts'
 import { tipsEl, tipsEn, type TipsDictionary } from './tips.ts'
+import { workoutPlansEl, workoutPlansEn, type WorkoutPlansDictionary } from './workoutPlans.ts'
 import { workoutsEl, workoutsEn, type WorkoutsDictionary } from './workouts.ts'
 
 // prettier-ignore
@@ -34,6 +35,7 @@ export interface FeatureDictionary
     SkincareDictionary,
     ThemeDictionary,
     TipsDictionary,
+    WorkoutPlansDictionary,
     WorkoutsDictionary {}
 
 export const featuresEn: FeatureDictionary = {
@@ -46,6 +48,7 @@ export const featuresEn: FeatureDictionary = {
   ...skincareEn,
   ...themeEn,
   ...tipsEn,
+  ...workoutPlansEn,
   ...workoutsEn,
 }
 
@@ -59,5 +62,6 @@ export const featuresEl: FeatureDictionary = {
   ...skincareEl,
   ...themeEl,
   ...tipsEl,
+  ...workoutPlansEl,
   ...workoutsEl,
 }

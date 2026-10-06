@@ -37,6 +37,9 @@ const DietPage = lazy(() => import('../diets/DietPage').then((m) => ({ default: 
 const WorkoutsPage = lazy(() =>
   import('../workouts/WorkoutsPage').then((m) => ({ default: m.WorkoutsPage })),
 )
+const PlansPage = lazy(() =>
+  import('../workouts/plans/PlansPage').then((m) => ({ default: m.PlansPage })),
+)
 const TipsPage = lazy(() => import('../tips/TipsPage').then((m) => ({ default: m.TipsPage })))
 const SkincarePage = lazy(() =>
   import('../skincare/SkincarePage').then((m) => ({ default: m.SkincarePage })),
@@ -77,6 +80,7 @@ export function AppRoutes() {
         <Route path="/diets" element={<DietsPage />} />
         <Route path="/diets/:slug" element={<DietPage />} />
         <Route path="/workouts" element={<WorkoutsPage />} />
+        <Route path="/workouts/plans" element={<PlansPage />} />
         <Route path="/tips" element={<TipsPage />} />
         <Route path="/skincare" element={<SkincarePage />} />
         <Route path="/auth" element={<SignInPage />} />

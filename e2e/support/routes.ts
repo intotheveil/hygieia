@@ -19,8 +19,8 @@
  *
  * Detail pages use a representative BUNDLED slug (src/content/seed/**): the audits run on the
  * local-only build, so the slug must exist in the seed. `/account` and `/admin` render the
- * sign-in-unavailable state in local-only mode; `/profile` (P8.2, not guarded) renders its own
- * signed-out note (`role="note"`) under its H1; `not-found` is the `*` route. `/auth/callback` is
+ * sign-in-unavailable state in local-only mode; `/profile` (P8.2) and `/workouts/plans` (P8.3) are
+ * not guarded and render their own signed-out note (`role="note"`) under the H1; `not-found` is the `*` route. `/auth/callback` is
  * deliberately absent: it only ever follows a Supabase redirect and times out to its failure copy.
  *
  * This file is imported by node (`check-lighthouse.mjs`, type-stripping): erasable syntax only,
@@ -79,6 +79,12 @@ export const ROUTES: readonly AuditRoute[] = [
     name: 'workouts',
     h1: (t) => t.workoutsTitle,
     ready: '#session-title',
+  },
+  {
+    path: '/hygieia/workouts/plans',
+    name: 'plans',
+    h1: (t) => t.wpTitle,
+    ready: 'main [role="note"]',
   },
   {
     path: '/hygieia/tips',
