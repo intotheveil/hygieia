@@ -5,6 +5,9 @@ import { BLOCKS, INTENSITIES, LEVELS, WORKOUT_TYPES } from '../content/enums'
 import { fail, ok, type ContentSource, type WorkoutTemplate } from '../content/source'
 import { LangProvider } from '../i18n/LangProvider'
 import { dictionaries, type Lang } from '../i18n/dictionary'
+import { disabledSource } from '../user/disabled'
+import { memorySource } from '../user/memory'
+import type { UserDataSource } from '../user/source'
 import {
   DEFAULT_SELECTION,
   WorkoutsPage,
@@ -270,5 +273,50 @@ describe('<WorkoutsPage> states', () => {
     const source: ContentSource = { ...bundledSource, getWorkoutTemplate: async () => ok(holed) }
     renderAt('/workouts', 'en', source)
     expect(await screen.findByText(en.noSession)).toBeInTheDocument()
+  })
+})
+
+describe('<WorkoutsPage> — workout plans links (P8.3)', () => {
+  function renderWith(userData: UserDataSource, lang: Lang = 'en') {
+    return render(
+      <LangProvider initial={lang}>
+        <MemoryRouter initialEntries={['/workouts?type=gym&level=beginner&intensity=moderate']}>
+          <WorkoutsPage source={bundledSource} userData={userData} />
+        </MemoryRouter>
+      </LangProvider>,
+    )
+  }
+
+  it.each(['local-only', 'signed-out'] as const)(
+    'always links "My plans" but hides "Start plan" when user data is disabled (%s)',
+    async (reason) => {
+      renderWith(disabledSource(reason))
+      const card = await findSession()
+      expect(screen.getByRole('link', { name: `${en.wpLink} →` })).toHaveAttribute(
+        'href',
+        '/workouts/plans',
+      )
+      expect(within(card).queryByRole('link', { name: /^Start plan/ })).toBeNull()
+    },
+  )
+
+  it('shows "Start plan" on the session card when signed in, pointing at the builder with the template id', async () => {
+    renderWith(memorySource().source)
+    const card = await findSession()
+    const title = within(card).getByRole('heading', { level: 2 }).textContent ?? ''
+    const start = within(card).getByRole('link', { name: `Start plan: ${title}` })
+    expect(start).toHaveTextContent(en.wpStartPlan)
+    const result = await bundledSource.getWorkoutTemplate('gym', 'beginner', 'moderate')
+    const id = result.ok && result.data !== null ? result.data.id : 'missing'
+    expect(start).toHaveAttribute('href', `/workouts/plans?template=${id}`)
+  })
+
+  it('names the Start plan link in Greek', async () => {
+    renderWith(memorySource().source, 'el')
+    const card = await findSession()
+    expect(within(card).getByRole('link', { name: /^Ξεκίνα πρόγραμμα: / })).toHaveTextContent(
+      el.wpStartPlan,
+    )
+    expect(screen.getByRole('link', { name: `${el.wpLink} →` })).toBeInTheDocument()
   })
 })

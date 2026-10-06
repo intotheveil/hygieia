@@ -104,6 +104,10 @@ describe('<ProfilePage> — signed in, empty', () => {
       `0/${badges.length}`,
     )
     expect(screen.getByRole('link', { name: /Account/ })).toHaveAttribute('href', '/account')
+    expect(screen.getByRole('link', { name: `${en.wpLink} →` })).toHaveAttribute(
+      'href',
+      '/workouts/plans',
+    )
   })
 
   it('reads every per-user list in parallel and shows the error state with Retry when one fails', async () => {

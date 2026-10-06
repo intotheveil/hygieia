@@ -12,7 +12,7 @@
 // RLS) makes the whole session unavailable rather than rendering a block with a hole.
 
 import { useCallback } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { EmptyState, ErrorState, Loading } from '../components/AsyncState'
 import { DraftRibbon } from '../components/DraftRibbon'
 import { SaveButton, SavedItemsScope } from '../components/SaveButton'
@@ -22,8 +22,12 @@ import { BLOCKS, INTENSITIES, LEVELS, WORKOUT_TYPES } from '../content/enums.ts'
 import type { Block, Intensity, Level, WorkoutType } from '../content/enums.ts'
 import type { WorkoutBlockSeed } from '../content/types.ts'
 import { useLang } from '../i18n/LangProvider'
+import { fill } from '../i18n/fill'
 import type { Dictionary, Lang } from '../i18n/dictionary'
 import { useAsyncResult } from '../lib/useAsync'
+import type { UserDataSource } from '../user/source'
+import { useUserData } from '../user/useUserData'
+import { ChipGroup } from './ChipGroup'
 
 // --- URL state -----------------------------------------------------------------------------------
 
@@ -108,59 +112,15 @@ export function workFigure(slot: WorkoutBlockSeed, t: Dictionary): string {
 
 // --- UI ------------------------------------------------------------------------------------------
 
-interface ChipGroupProps<T extends string> {
-  id: string
-  label: string
-  options: readonly T[]
-  value: T
-  labels: Record<T, string>
-  onChange: (next: T) => void
-}
-
-function ChipGroup<T extends string>({
-  id,
-  label,
-  options,
-  value,
-  labels,
-  onChange,
-}: ChipGroupProps<T>) {
-  return (
-    <div className="flex flex-col gap-2">
-      <p id={`${id}-label`} className="text-sm font-medium tracking-wide text-sage-700 uppercase">
-        {label}
-      </p>
-      <div role="radiogroup" aria-labelledby={`${id}-label`} className="flex flex-wrap gap-2">
-        {options.map((option) => {
-          const selected = option === value
-          return (
-            <button
-              key={option}
-              type="button"
-              role="radio"
-              aria-checked={selected}
-              onClick={() => onChange(option)}
-              className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
-                selected
-                  ? 'bg-olive-900 text-paper-50'
-                  : 'border border-olive-900/20 bg-paper-50/70 text-olive-900 hover:bg-paper-50'
-              }`}
-            >
-              {labels[option]}
-            </button>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
 function SessionCard({
   template,
   kind,
+  canPlan,
 }: {
   template: WorkoutTemplate
   kind: ContentSource['kind']
+  /** Signed in with user data: offer "Start plan" (P8.3). Hidden otherwise, like SaveButton. */
+  canPlan: boolean
 }) {
   const { t, lang } = useLang()
   const blocks = blocksOf(template)
@@ -194,7 +154,18 @@ function SessionCard({
             {equipment.length === 0 ? t.bodyweight : equipment.join(', ')}
           </span>
         </p>
-        <SaveButton kind="workout" itemId={template.id} label={title} />
+        <div className="flex flex-wrap items-center gap-2">
+          <SaveButton kind="workout" itemId={template.id} label={title} />
+          {canPlan && (
+            <Link
+              to={`/workouts/plans?template=${encodeURIComponent(template.id)}`}
+              aria-label={fill(t.wpStartPlanFor, { name: title })}
+              className="rounded-full bg-olive-900 px-4 py-1.5 text-sm font-medium text-paper-50 hover:bg-olive-700"
+            >
+              {t.wpStartPlan}
+            </Link>
+          )}
+        </div>
       </header>
 
       {blocks.map(({ block, items }) => (
@@ -253,10 +224,14 @@ function SessionCard({
 export interface WorkoutsPageProps {
   /** Defaults to the app's content source; tests pass a fake. */
   source?: ContentSource
+  /** Defaults to the session's user data (P8.3 "Start plan"); tests pass a fake. */
+  userData?: UserDataSource
 }
 
-export function WorkoutsPage({ source = contentSource }: WorkoutsPageProps) {
+export function WorkoutsPage({ source = contentSource, userData }: WorkoutsPageProps) {
   const { t } = useLang()
+  const fromHook = useUserData()
+  const canPlan = (userData ?? fromHook).kind !== 'disabled'
   const [params, setParams] = useSearchParams()
   const selection = parseWorkoutSelection(params)
   const { type, level, intensity } = selection
@@ -276,6 +251,12 @@ export function WorkoutsPage({ source = contentSource }: WorkoutsPageProps) {
         <header className="flex flex-col gap-3">
           <h1 className="font-display text-3xl font-semibold text-olive-950">{t.workoutsTitle}</h1>
           <p className="max-w-2xl leading-relaxed text-olive-700">{t.workoutsIntro}</p>
+          <Link
+            to="/workouts/plans"
+            className="self-start text-sm font-medium text-olive-900 underline"
+          >
+            {t.wpLink} →
+          </Link>
         </header>
 
         <div className="flex flex-col gap-5">
@@ -312,7 +293,7 @@ export function WorkoutsPage({ source = contentSource }: WorkoutsPageProps) {
         ) : state.data === null ? (
           <EmptyState title={t.noSession} icon="⟳" />
         ) : (
-          <SessionCard template={state.data} kind={source.kind} />
+          <SessionCard template={state.data} kind={source.kind} canPlan={canPlan} />
         )}
       </main>
     </SavedItemsScope>

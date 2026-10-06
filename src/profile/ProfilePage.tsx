@@ -219,9 +219,14 @@ export function ProfilePage({ source, content = contentSource, today }: ProfileP
         )
       ) : (
         <>
-          <Link to="/account" className="self-start text-sm font-medium text-olive-900 underline">
-            {t.account} →
-          </Link>
+          <p className="flex flex-wrap gap-4 text-sm font-medium text-olive-900">
+            <Link to="/account" className="underline">
+              {t.account} →
+            </Link>
+            <Link to="/workouts/plans" className="underline">
+              {t.wpLink} →
+            </Link>
+          </p>
           <SummaryStrip
             entries={data.entries}
             goals={data.goals}
