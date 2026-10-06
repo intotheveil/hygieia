@@ -148,8 +148,9 @@ pending|approved|rejected` stamped by `stamp_review()` BEFORE UPDATE · per-user
   table (`src/content/seed/overlays/by-table/`, rolldown chunks whole modules — data must live in separate modules); RecipePage paints
   back link + ribbon in the first frame. CI cold: recipes 92, recipe 92, all 17 routes OK. Tests 4436 / 112 files, e2e 108. Tests assert
   against the SERVED seed (`src/test/overlaidSeed.ts`). Tasks Advisor 19 topics; onboarding + of-the-day; features connected.
-  - **Open:** recipe photo lane (`hygieia-wt/b`): 182 raw renders done; vision QA → webp → overlay 0005 `image_path` → merge, apply
-    live. Then: P8/P9 QA + review re-run, BRAIN §2 reconciliation for P7–P9 + perf architecture, operator admin flag after first sign-in.
+  - **Recipe photos LIVE (`7608339`, CI 37542367760, overlay 0005 applied, ledger 19/19):** 182 ComfyUI renders, qwen2.5vl QA + human
+    review, webp 480/960 in `public/recipes/`, runtime-cached (not precached), hero painted in the first frame (`src/recipes/photoSlugs.ts`).
+    Exercise illustrations REJECTED for now (pose accuracy needs ControlNet OpenPose + human review). **Open:** P8/P9 QA + review re-run, BRAIN §2 reconciliation for P7–P9 + perf architecture, operator admin flag after first sign-in.
   - **Never `git stash`** in this repo — the stash is shared by every worktree (two lanes swapped each other's work, 2026-10-06).
 - **RESUME HERE (2026-10-06 evening, operator closed the session to test):**
   - **Live** (`main` `5b832ab`, CI runs 37461084866 / 37468983515 / 37471474005 / 37472191945 all green): `/skincare` (face + nails, 52 product
