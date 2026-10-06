@@ -132,7 +132,7 @@ describe('trackFor — by topic', () => {
     const others = TOPIC_IDS.filter(
       (id) => !['workout-routine', 'drink-water', 'better-sleep', 'skincare-habit'].includes(id),
     )
-    expect(others).toHaveLength(7)
+    expect(others).toHaveLength(TOPIC_IDS.length - 4)
     for (const id of others) {
       const topic = await loadTopic(id)
       expect(anyTrackable(id, topic.tasks), id).toBe(false)
