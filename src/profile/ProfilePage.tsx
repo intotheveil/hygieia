@@ -6,7 +6,9 @@
 // saved. Writes are OPTIMISTIC through `useOverlay`: the list changes at once, the server answer
 // confirms (replacing a temporary id) or reverts it, and the section shows the inline error.
 // Achievements are computed on every render from the data on screen — never stored.
-// `source`, `content` and `today` are injectable for tests; the app passes nothing.
+// "Your task plans" (./TaskPlansPanel.tsx) reads this browser's Tasks Advisor plans, so it renders
+// signed in or not (and nothing when there are none).
+// `source`, `content`, `today` and `taskPlans` are injectable for tests; the app passes nothing.
 
 import { useCallback, useMemo } from 'react'
 import { Link } from 'react-router-dom'
@@ -35,6 +37,7 @@ import { History } from './History'
 import { QuickAdd } from './QuickAdd'
 import { SavedSection } from './SavedSection'
 import { SummaryStrip } from './SummaryStrip'
+import { TaskPlansPanel, type TaskPlansPanelProps } from './TaskPlansPanel'
 import { WeightTrend } from './WeightTrend'
 import { computeAchievements } from './achievements'
 import { localIsoDate, sortEntries } from './stats'
@@ -71,9 +74,16 @@ export interface ProfilePageProps {
   content?: ContentSource
   /** `YYYY-MM-DD`; defaults to the local calendar date. */
   today?: string
+  /** The task-plans panel's storage / clock / loader (tests). */
+  taskPlans?: TaskPlansPanelProps
 }
 
-export function ProfilePage({ source, content = contentSource, today }: ProfilePageProps) {
+export function ProfilePage({
+  source,
+  content = contentSource,
+  today,
+  taskPlans = {},
+}: ProfilePageProps) {
   const { t } = useLang(profileCopy)
   const fromHook = useUserData()
   const userData = source ?? fromHook
@@ -211,7 +221,10 @@ export function ProfilePage({ source, content = contentSource, today }: ProfileP
       </header>
 
       {userData.kind === 'disabled' ? (
-        <SignedOutNote reason={userData.reason ?? 'signed-out'} />
+        <>
+          <SignedOutNote reason={userData.reason ?? 'signed-out'} />
+          <TaskPlansPanel {...taskPlans} />
+        </>
       ) : state.status === 'loading' || data === null ? (
         state.status === 'error' ? (
           <ErrorState message={t.profileLoadFailed} onRetry={state.reload} />
@@ -235,6 +248,7 @@ export function ProfilePage({ source, content = contentSource, today }: ProfileP
             savedCount={data.savedItems.length}
             today={todayIso}
           />
+          <TaskPlansPanel {...taskPlans} />
           <QuickAdd today={todayIso} onSubmit={addEntry} />
           <WeightTrend entries={data.entries} today={todayIso} />
           <History entries={data.entries} onDelete={deleteEntry} />

@@ -3,8 +3,46 @@
 // weeks 1–12, days per week 1–7, a real start date (any date: a plan may be back-dated to cover
 // sessions already done, or start next Monday).
 
+import type { WorkoutTemplate } from '../../content/source.ts'
+import { INTENSITIES, LEVELS, WORKOUT_TYPES } from '../../content/enums.ts'
+import type { Intensity, Level, WorkoutType } from '../../content/enums.ts'
 import { dayNumber } from '../../profile/stats'
 import type { WorkoutPlanInput } from '../../user/source'
+
+export interface TemplateCell {
+  type: WorkoutType
+  level: Level
+  intensity: Intensity
+}
+
+const oneOf = <T extends string>(values: readonly T[], raw: string | null): T | null =>
+  raw !== null && (values as readonly string[]).includes(raw) ? (raw as T) : null
+
+/**
+ * `?type=&level=&intensity=` (the Tasks Advisor's "Turn this into a workout plan →", 2026-10-06)
+ * → the cell to pre-select. `type` and `level` are required; a missing or unknown intensity is
+ * `moderate`. Null when the URL names no valid cell.
+ */
+export function cellFromParams(params: URLSearchParams): TemplateCell | null {
+  const type = oneOf(WORKOUT_TYPES, params.get('type'))
+  const level = oneOf(LEVELS, params.get('level'))
+  if (type === null || level === null) return null
+  return { type, level, intensity: oneOf(INTENSITIES, params.get('intensity')) ?? 'moderate' }
+}
+
+/** The id of the template in `cell`, or null when no visible template fills it. */
+export function templateIdForCell(
+  templates: readonly WorkoutTemplate[],
+  cell: TemplateCell,
+): string | null {
+  const found = templates.find(
+    (tpl) =>
+      tpl.workout_type === cell.type &&
+      tpl.level === cell.level &&
+      tpl.intensity === cell.intensity,
+  )
+  return found?.id ?? null
+}
 
 export const MAX_PLAN_NAME = 80
 export const MAX_WEEKS = 12

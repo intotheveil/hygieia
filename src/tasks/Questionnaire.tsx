@@ -14,6 +14,8 @@ import type { Answers, Topic } from './types'
 export interface QuestionnaireProps {
   topic: Topic
   onDone: (answers: Answers) => void
+  /** Pre-selected answers (a /skincare routine's deep link); the visitor can change every one. */
+  initial?: Answers
 }
 
 const BTN =
@@ -21,10 +23,12 @@ const BTN =
 const BTN_PRIMARY =
   'rounded-full bg-olive-900 px-5 py-2 text-sm font-medium text-paper-50 hover:bg-olive-950 disabled:cursor-not-allowed disabled:opacity-50'
 
-export function Questionnaire({ topic, onDone }: QuestionnaireProps) {
+export function Questionnaire({ topic, onDone, initial }: QuestionnaireProps) {
   const { t, lang } = useLang(tasksCopy)
   const [step, setStep] = useState(0)
-  const [answers, setAnswers] = useState<Record<string, string[]>>({})
+  const [answers, setAnswers] = useState<Record<string, string[]>>(() =>
+    Object.fromEntries(Object.entries(initial ?? {}).map(([k, v]) => [k, [...v]])),
+  )
   const heading = useRef<HTMLHeadingElement>(null)
   const moved = useRef(false)
 

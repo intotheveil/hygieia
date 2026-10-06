@@ -4,6 +4,9 @@
 import { daily, kickoff, monthly, opt, question, topic, weekly } from './build.ts'
 import { TOPICS } from './topics.ts'
 
+/** One glass, the only water amount a task states (logged as the profile `water` value). */
+const GLASS_ML = 250
+
 export const drinkWater = topic(
   TOPICS['drink-water'],
   [
@@ -41,10 +44,13 @@ export const drinkWater = topic(
     ),
   ],
   [
-    daily('wake-glass', 1, 5, [
-      'A glass of water when you wake up',
-      'Ένα ποτήρι νερό μόλις ξυπνήσεις',
-    ]),
+    daily(
+      'wake-glass',
+      1,
+      5,
+      ['A glass of water when you wake up', 'Ένα ποτήρι νερό μόλις ξυπνήσεις'],
+      { ml: GLASS_ML },
+    ),
     daily('bottle', 1, 5, [
       'Fill a bottle and keep it in sight',
       'Γέμισε ένα μπουκάλι και κράτα το σε σημείο που το βλέπεις',
@@ -115,6 +121,7 @@ export const drinkWater = topic(
       ],
       {
         when: { day: ['desk'] },
+        ml: GLASS_ML,
       },
     ),
     daily(

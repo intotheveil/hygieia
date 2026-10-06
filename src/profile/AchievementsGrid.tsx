@@ -27,6 +27,9 @@ const GLYPH: Readonly<Record<BadgeId, string>> = {
   'meals-30': '🍽',
   'collector-10': '📚',
   'all-rounder': '🌈',
+  'tasks-first': '☑',
+  'tasks-streak-7': '🗓',
+  'tasks-50': '✅',
 }
 
 export function AchievementsGrid({ achievements }: { achievements: readonly Achievement[] }) {

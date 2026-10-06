@@ -755,3 +755,5 @@ builder (worktree `wt/g`) from the lead's decision; BUILD_LOG entry of the same 
   `VITE_FLEET_*` names inline so a build without them drops the client. (6) **Not decided here — fonts:** the two self-hosted variable
   webfonts cost ~9–10 Lighthouse points on every route (recipe 86 → 96 on a build without them); `recipe` stays 86–87 until the lead
   chooses how brand fonts load (BUILD_LOG PERF entry, RESIDUAL).
+
+- 2026-10-06 (connect the features, `wt/e`): task ticks MIRROR into profile entries, never replace the local ticks; the mapping is by topic + an explicit task list (`src/tasks/track.ts`) rather than "every task of the topic", so chores never pose as workouts/water; identity = payload `{source:'tasks', topic, task_id, date}`, idempotent per task+date by a read-before-add (no unique index, no migration); un-tick deletes even with logging off. A skincare routine joins the skincare-habit plan as its own "Your routine" section (`fromSkincareRoutine`), NOT injected into the generator, so the 17,424-combination generator contract is untouched. Profile "Your task plans" shows signed out too (the plans are local data).

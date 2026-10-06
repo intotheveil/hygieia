@@ -92,6 +92,14 @@ export interface ProfileDictionary {
   profileUnsaveFailed: string
   /** A saved id whose content is no longer visible. */
   profileItemUnavailable: string
+  // Task plans panel (connect the features, 2026-10-06)
+  profileTaskPlans: string
+  /** Under the heading: the plans live on this device. */
+  profileTaskPlansNote: string
+  /** `{done}` of `{total}` of today's tasks ticked. */
+  profileTaskToday: string
+  profileTaskNothingToday: string
+  profileTaskAll: string
 }
 
 export const profileEn: ProfileDictionary = {
@@ -189,6 +197,15 @@ export const profileEn: ProfileDictionary = {
     'meals-30': { name: 'Thirty plates', description: 'Log thirty meals.' },
     'collector-10': { name: 'Collector', description: 'Keep ten favourites or saved items.' },
     'all-rounder': { name: 'All-rounder', description: 'Log every kind of entry at least once.' },
+    'tasks-first': {
+      name: 'Plan in motion',
+      description: 'Log your first ticked task from a task plan.',
+    },
+    'tasks-streak-7': {
+      name: 'Seven-day planner',
+      description: 'Log a task from a task plan seven days running.',
+    },
+    'tasks-50': { name: 'Fifty ticks', description: 'Log fifty tasks from your task plans.' },
   },
   profileSaved: 'Saved',
   profileSavedEmpty: 'Nothing saved yet. Save a workout, routine, tip or diet from its page.',
@@ -203,6 +220,11 @@ export const profileEn: ProfileDictionary = {
   profileUnsave: 'Unsave',
   profileUnsaveFailed: 'Could not remove it. Try again.',
   profileItemUnavailable: 'No longer available',
+  profileTaskPlans: 'Your task plans',
+  profileTaskPlansNote: 'Your task plans and ticks live on this device.',
+  profileTaskToday: '{done} of {total} done today',
+  profileTaskNothingToday: 'Nothing planned for today',
+  profileTaskAll: 'All task plans',
 }
 
 export const profileEl: ProfileDictionary = {
@@ -327,6 +349,18 @@ export const profileEl: ProfileDictionary = {
       name: 'Παντός καιρού',
       description: 'Καταχώρισε κάθε είδος τουλάχιστον μία φορά.',
     },
+    'tasks-first': {
+      name: 'Το πλάνο ξεκίνησε',
+      description: 'Κατέγραψε την πρώτη τσεκαρισμένη εργασία από ένα πλάνο εργασιών.',
+    },
+    'tasks-streak-7': {
+      name: 'Επτά μέρες με πλάνο',
+      description: 'Κατέγραψε μια εργασία από πλάνο εργασιών επτά συνεχόμενες ημέρες.',
+    },
+    'tasks-50': {
+      name: 'Πενήντα τικ',
+      description: 'Κατέγραψε πενήντα εργασίες από τα πλάνα εργασιών σου.',
+    },
   },
   profileSaved: 'Αποθηκευμένα',
   profileSavedEmpty:
@@ -342,6 +376,11 @@ export const profileEl: ProfileDictionary = {
   profileUnsave: 'Αφαίρεση από τα αποθηκευμένα',
   profileUnsaveFailed: 'Δεν αφαιρέθηκε. Δοκίμασε ξανά.',
   profileItemUnavailable: 'Δεν είναι πλέον διαθέσιμο',
+  profileTaskPlans: 'Τα πλάνα εργασιών σου',
+  profileTaskPlansNote: 'Τα πλάνα εργασιών και τα τικ σου μένουν σε αυτή τη συσκευή.',
+  profileTaskToday: '{done} από {total} έγιναν σήμερα',
+  profileTaskNothingToday: 'Τίποτα προγραμματισμένο για σήμερα',
+  profileTaskAll: 'Όλα τα πλάνα εργασιών',
 }
 
 /** Both literals, for `useLang(profileCopy)` on the `/profile` route. */

@@ -54,18 +54,21 @@ function Progress({ label, done, total }: { label: string; done: number; total: 
   )
 }
 
-function TaskItem({
+/** One checklist row (also used by ./RoutineSection.tsx); `mark` is an extra badge, e.g. "optional". */
+export function TaskItem({
   task,
   idPrefix,
   checked,
   onChange,
   t,
+  mark,
 }: {
   task: Task
   idPrefix: string
   checked: boolean
   onChange: () => void
   t: TasksT
+  mark?: string
 }) {
   const { lang } = useLang()
   const id = `${idPrefix}-${task.id}`
@@ -91,6 +94,9 @@ function TaskItem({
             <span className="rounded-full bg-clay-500/15 px-2 py-0.5 text-xs font-medium text-clay-700">
               {t.tasksKickoff}
             </span>
+          )}
+          {mark !== undefined && (
+            <span className="text-xs tracking-wide text-sage-700 uppercase">{mark}</span>
           )}
         </div>
       </div>

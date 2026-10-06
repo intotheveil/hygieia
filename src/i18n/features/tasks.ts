@@ -10,6 +10,7 @@
 // dictionary every page gets from `useLang()` — the route's components call `useLang(tasksCopy)`
 // and these strings ship in that route's lazy chunk (./routeFeatures.ts).
 
+import type { RoutineTime } from '../../content/enums.ts'
 import type { Day } from '../../tasks/types.ts'
 import type { FeatureCopy } from '../app.ts'
 
@@ -58,6 +59,21 @@ export interface TasksDictionary {
   tasksCopyFailed: string
   /** Plain-text export section heading for the daily list. */
   tasksEveryDay: string
+  // Connect the features (2026-10-06)
+  /** The plan's "Log to profile" switch (signed in only). */
+  tasksLogToggle: string
+  tasksLogHint: string
+  tasksLogFailed: string
+  /** workout-routine plan → /workouts/plans. */
+  tasksToWorkoutPlan: string
+  /** The skincare routine section above the plan. */
+  tasksRoutineHeading: string
+  tasksRoutineTime: Record<RoutineTime, string>
+  tasksRoutineOptional: string
+  tasksRoutineRemove: string
+  tasksRoutineLoadFailed: string
+  /** Above a questionnaire pre-filled from a /skincare routine. */
+  tasksPrefilled: string
 }
 
 export const tasksEn: TasksDictionary = {
@@ -106,6 +122,18 @@ export const tasksEn: TasksDictionary = {
   tasksCopied: 'Copied to the clipboard.',
   tasksCopyFailed: 'Could not copy — your browser did not allow it.',
   tasksEveryDay: 'Every day',
+  tasksLogToggle: 'Log ticked tasks to my profile',
+  tasksLogHint:
+    'Workouts, glasses of water, your sleep log and skincare or nail care you tick also appear in your profile history. Un-ticking removes them.',
+  tasksLogFailed: 'Your profile could not be updated — the tick is still saved on this device.',
+  tasksToWorkoutPlan: 'Turn this into a workout plan',
+  tasksRoutineHeading: 'Your routine',
+  tasksRoutineTime: { am: 'Morning', pm: 'Evening', weekly: 'Once a week' },
+  tasksRoutineOptional: 'optional',
+  tasksRoutineRemove: 'Remove this routine',
+  tasksRoutineLoadFailed: 'This routine could not be loaded.',
+  tasksPrefilled:
+    'We filled in what your skincare routine already tells us — change anything you like.',
 }
 
 export const tasksEl: TasksDictionary = {
@@ -155,6 +183,18 @@ export const tasksEl: TasksDictionary = {
   tasksCopied: 'Αντιγράφηκε στο πρόχειρο.',
   tasksCopyFailed: 'Η αντιγραφή δεν έγινε — ο browser δεν το επέτρεψε.',
   tasksEveryDay: 'Κάθε μέρα',
+  tasksLogToggle: 'Καταγραφή των εργασιών που τσεκάρω στο προφίλ μου',
+  tasksLogHint:
+    'Οι προπονήσεις, τα ποτήρια νερό, το ημερολόγιο ύπνου και η περιποίηση προσώπου ή νυχιών που τσεκάρεις εμφανίζονται και στο ιστορικό του προφίλ σου. Αν βγάλεις το τικ, αφαιρούνται.',
+  tasksLogFailed:
+    'Το προφίλ σου δεν ενημερώθηκε — το τικ παραμένει αποθηκευμένο σε αυτή τη συσκευή.',
+  tasksToWorkoutPlan: 'Κάν’ το πρόγραμμα προπόνησης',
+  tasksRoutineHeading: 'Η ρουτίνα σου',
+  tasksRoutineTime: { am: 'Πρωί', pm: 'Βράδυ', weekly: 'Μία φορά την εβδομάδα' },
+  tasksRoutineOptional: 'προαιρετικό',
+  tasksRoutineRemove: 'Αφαίρεση της ρουτίνας',
+  tasksRoutineLoadFailed: 'Δεν ήταν δυνατή η φόρτωση της ρουτίνας.',
+  tasksPrefilled: 'Συμπληρώσαμε ό,τι ήδη λέει η ρουτίνα περιποίησής σου — άλλαξε ό,τι θέλεις.',
 }
 
 /** Both literals, for `useLang(tasksCopy)` on the `/tasks` pages. */

@@ -7,6 +7,9 @@
 // Wire shape (versioned):
 //   { "v": 1, "answers": { "size": ["small"], … } | null,
 //     "ticks": { "2026-10-06": ["dishes", "make-bed"], "2026-10": ["oven"] } }
+//   optional (2026-10-06, connect the features): "routine": "<skincare routine slug>" (the
+//   "Your routine" section, ./routine.ts) and "log": false (the plan's "Log to profile" toggle is
+//   off; absent = on). Both are omitted when unset, so v1 data reads back unchanged.
 // Tick periods are a local DATE (`YYYY-MM-DD`) for daily and weekly tasks and a MONTH (`YYYY-MM`)
 // for monthly ones. Only the most recent MAX_PERIODS periods are kept.
 
@@ -25,6 +28,15 @@ export interface TasksState {
   answers: Answers | null
   /** period (`YYYY-MM-DD` or `YYYY-MM`) → ticked task ids. */
   ticks: Record<string, string[]>
+  /** The /skincare routine brought in with "Make it a daily habit" (its slug), if any. */
+  routine?: string
+  /** "Log to profile" for this plan; absent = on (only consulted when signed in). */
+  log?: boolean
+}
+
+/** The "Log to profile" toggle of a state (default on). */
+export function logsToProfile(state: TasksState): boolean {
+  return state.log !== false
 }
 
 export function defaultTasksState(): TasksState {
@@ -32,6 +44,15 @@ export function defaultTasksState(): TasksState {
 }
 
 const PERIOD = /^\d{4}-\d{2}(-\d{2})?$/
+const SLUG = /^[a-z0-9][a-z0-9-]{0,119}$/
+
+/** The optional fields, kept only when well-formed (an unknown value is dropped, not an error). */
+function cleanExtras(value: Record<string, unknown>): Pick<TasksState, 'routine' | 'log'> {
+  const out: Pick<TasksState, 'routine' | 'log'> = {}
+  if (typeof value.routine === 'string' && SLUG.test(value.routine)) out.routine = value.routine
+  if (value.log === false) out.log = false
+  return out
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -77,7 +98,11 @@ export function parseTasksState(raw: unknown): TasksState {
     }
   }
   if (!isRecord(value) || value.v !== TASKS_STATE_VERSION) return defaultTasksState()
-  return { answers: cleanAnswers(value.answers), ticks: cleanTicks(value.ticks) }
+  return {
+    answers: cleanAnswers(value.answers),
+    ticks: cleanTicks(value.ticks),
+    ...cleanExtras(value),
+  }
 }
 
 export function serializeTasksState(state: TasksState): string {
@@ -85,6 +110,7 @@ export function serializeTasksState(state: TasksState): string {
     v: TASKS_STATE_VERSION,
     answers: state.answers === null ? null : cleanAnswers(state.answers),
     ticks: cleanTicks(state.ticks),
+    ...cleanExtras({ routine: state.routine, log: state.log }),
   })
 }
 

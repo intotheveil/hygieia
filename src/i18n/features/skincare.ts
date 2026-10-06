@@ -61,6 +61,8 @@ export interface SkincareDictionary {
   skincareTipsCount: PluralForms
   skincareShowSteps: string
   skincareHideSteps: string
+  /** A routine card's link to the skincare-habit task plan (connect the features, 2026-10-06). */
+  skincareMakeHabit: string
   /** `aria-label` of a routine's ordered step list. */
   skincareSteps: string
   skincareOptionalStep: string
@@ -155,6 +157,7 @@ export const skincareEn: SkincareDictionary = {
   skincareTipsCount: { one: '{n} tip', other: '{n} tips' },
   skincareShowSteps: 'Show steps',
   skincareHideSteps: 'Hide steps',
+  skincareMakeHabit: 'Make it a daily habit',
   skincareSteps: 'Steps',
   skincareOptionalStep: 'optional',
   skincareStepUnavailable: 'This product type is not available yet',
@@ -249,6 +252,7 @@ export const skincareEl: SkincareDictionary = {
   skincareTipsCount: { one: '{n} συμβουλή', other: '{n} συμβουλές' },
   skincareShowSteps: 'Δες τα βήματα',
   skincareHideSteps: 'Κρύψε τα βήματα',
+  skincareMakeHabit: 'Κάν’ το καθημερινή συνήθεια',
   skincareSteps: 'Βήματα',
   skincareOptionalStep: 'προαιρετικό',
   skincareStepUnavailable: 'Αυτός ο τύπος προϊόντος δεν είναι διαθέσιμος ακόμη',
