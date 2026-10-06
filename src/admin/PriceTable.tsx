@@ -8,6 +8,7 @@
 import { useCallback, useState } from 'react'
 import { PRICE_PER, type PricePer } from '../content/enums.ts'
 import { useLang } from '../i18n/LangProvider'
+import { adminCopy } from '../i18n/features/admin.ts'
 import { useAsyncResult } from '../lib/useAsync.ts'
 import type { AdminContentSource, PricePatch } from './adminSource.ts'
 import { checkDraft, draftOf, sortByName, type PriceDraft } from './prices.ts'
@@ -26,7 +27,7 @@ export interface PriceTableProps {
 type Outcome = 'idle' | 'busy' | 'saved' | 'failed'
 
 export function PriceTable({ source }: PriceTableProps) {
-  const { t, lang } = useLang()
+  const { t, lang } = useLang(adminCopy)
   const load = useCallback(() => source.listAll('ingredients'), [source])
   // `ok: false` and a rejection are both `status: 'error'` → the load-failed line.
   const loaded = useAsyncResult(load)

@@ -9,6 +9,7 @@ import type { WorkoutTemplate } from '../../content'
 import { INTENSITIES, LEVELS, WORKOUT_TYPES } from '../../content/enums.ts'
 import type { Intensity, Level, WorkoutType } from '../../content/enums.ts'
 import { useLang } from '../../i18n/LangProvider'
+import { workoutPlansCopy } from '../../i18n/features/workoutPlans.ts'
 import { fill } from '../../i18n/fill'
 import { ERR, H2, INPUT, LABEL, PILL, PILL_PRIMARY, SECTION } from '../../profile/styles'
 import type { Result, WorkoutPlan, WorkoutPlanInput } from '../../user/source'
@@ -38,7 +39,7 @@ export function PlanBuilder({
   onCreate,
   onCancel,
 }: PlanBuilderProps) {
-  const { t, lang } = useLang()
+  const { t, lang } = useLang(workoutPlansCopy)
   const id = useId()
   const titleOf = (tpl: WorkoutTemplate) => (lang === 'el' ? tpl.title_el : tpl.title_en)
   const initial = templates.find((tpl) => tpl.id === initialTemplateId) ?? null

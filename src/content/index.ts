@@ -8,12 +8,15 @@
 // `kind` is known at once and whose every method awaits the real source, then delegates. A library
 // chunk that cannot be loaded resolves to `fail('network')` — the same outcome as a Supabase outage
 // or a bundled seed chunk that fails (./bundled.ts) — so the source still never throws.
+//
+// The supabase READER (./supabase.ts) is imported the same way, alongside the library (perf,
+// 2026-10-06): a static import put it in a chunk every local-only content page downloaded before
+// its first paint, to construct a source local mode never builds.
 
 import { appEnv } from '../lib/env'
 import { getSupabase } from '../lib/supabase'
 import { bundledSource } from './bundled.ts'
 import { fail, type ContentSource } from './source.ts'
-import { supabaseSource } from './supabase.ts'
 
 /** A source that is resolved once, on the first read; a failed resolution is retried next time. */
 export function deferredSource(
@@ -57,7 +60,7 @@ export function deferredSource(
 }
 
 async function loadSupabaseSource(): Promise<ContentSource> {
-  const client = await getSupabase()
+  const [client, { supabaseSource }] = await Promise.all([getSupabase(), import('./supabase.ts')])
   // Unreachable in configured mode (`clientFor` is null only for local mode); typed as a failure
   // rather than a non-null assertion so a future mode cannot crash a read.
   if (client === null) throw new Error('content: configured mode without a Supabase client')

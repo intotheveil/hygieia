@@ -16,7 +16,7 @@
 import { MEAL_TYPES, type MealType } from '../content/enums.ts'
 import type { RecipeSeed } from '../content/types.ts'
 import { normalizeForSearch } from '../fridge/match.ts'
-import type { Lang } from '../i18n/dictionary.ts'
+import type { Lang } from '../i18n/app.ts'
 
 /** The URL-backed part of a filter: what the user picked, independent of language. */
 export interface RecipeFilterParams {

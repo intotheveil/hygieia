@@ -1,7 +1,11 @@
 // PROFILE FORMATTING (P8.2) — the one place the profile turns numbers and dates into strings
 // (`Intl`, `el-GR` / `en-GB`, UTC dates — same rules as recipes/panelFormat.ts).
 
-import type { Dictionary, Lang } from '../i18n/dictionary'
+import type { AppDictionary, Lang } from '../i18n/app'
+import type { ProfileDictionary } from '../i18n/features/profile.ts'
+
+/** The `t` of a /profile component: `useLang(profileCopy)`. */
+type ProfileT = AppDictionary & ProfileDictionary
 import type { Entry } from '../user/source'
 import { dayNumber } from './stats'
 
@@ -30,14 +34,14 @@ export function formatDate(iso: string, lang: Lang): string {
 }
 
 /** `72,5 κιλά` / `30 min`; `null` for a value-less entry. */
-export function formatEntryValue(entry: Entry, t: Dictionary, lang: Lang): string | null {
+export function formatEntryValue(entry: Entry, t: ProfileT, lang: Lang): string | null {
   if (entry.value === null) return null
   const unit = entry.unit === null ? '' : ` ${t.profileUnit[entry.unit]}`
   return `${formatNumber(entry.value, lang)}${unit}`
 }
 
 /** `Water, 500 ml, Mon 6 October 2026` — the accessible name of an entry row. */
-export function entryLabel(entry: Entry, t: Dictionary, lang: Lang): string {
+export function entryLabel(entry: Entry, t: ProfileT, lang: Lang): string {
   const value = formatEntryValue(entry, t, lang)
   return [t.profileKind[entry.kind], value, formatDate(entry.entry_date, lang)]
     .filter((part): part is string => part !== null)

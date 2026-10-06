@@ -24,25 +24,17 @@
 // had read it as a font swap). Full width keeps the box where it is; `max-w-*` still caps it.
 //
 // The ONE Suspense boundary (P5.3 follow-up): every page but the home is a lazy chunk
-// (routes.tsx), and this is where the download is awaited, so the header and footer are painted
-// at once and only the page slot shows the bilingual loading line. The fallback is a `<main>`
-// like every page's, so the `[&>main]:` sizing applies to it too and the footer does not jump.
+// (routes.tsx), so the header and footer are painted at once and only the page slot shows the
+// bilingual loading line (`PageLoading`, a `<main>` like every page's, so the `[&>main]:` sizing
+// applies and the footer does not jump). Since 2026-10-06 `lazyPage` (routes/lazyPage.tsx) renders
+// that line itself and swaps the page in without suspending (React 19 holds a Suspense reveal
+// ~300 ms); this boundary now catches only lazyPage's failure path (a retried `React.lazy`).
 
 import { Suspense } from 'react'
 import { Outlet } from 'react-router-dom'
 import { useLang } from '../i18n/LangProvider'
+import { PageLoading } from './PageLoading'
 import { SiteHeader } from './SiteHeader'
-
-function PageLoading() {
-  const { t } = useLang()
-  return (
-    <main className="mx-auto flex min-h-dvh max-w-2xl items-center justify-center px-4">
-      <p role="status" className="text-olive-700">
-        {t.loading}
-      </p>
-    </main>
-  )
-}
 
 export function Layout() {
   const { t } = useLang()

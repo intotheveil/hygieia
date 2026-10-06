@@ -3,6 +3,7 @@
 // from ./stats.ts; the bars are real `role="progressbar"` elements with the figure as text too.
 
 import { useLang } from '../i18n/LangProvider'
+import { profileCopy } from '../i18n/features/profile.ts'
 import { fill, plural } from '../i18n/fill'
 import type { Entry, Goal, GoalKind } from '../user/source'
 import { formatNumber } from './format'
@@ -28,7 +29,7 @@ export function SummaryStrip({
   savedCount,
   today,
 }: SummaryStripProps) {
-  const { t, lang } = useLang()
+  const { t, lang } = useLang(profileCopy)
   const week = entriesThisWeek(entries, today).length
   const streak = currentStreak(entries, today)
   const longest = longestStreak(entries)

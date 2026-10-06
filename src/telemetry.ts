@@ -95,6 +95,18 @@ export function startTelemetryWith(raw: RawFleetEnv, environment?: string): Stop
  * Never throws.
  */
 export function startTelemetry(): StopTelemetry {
+  // Read inline so Vite substitutes the build's values: a build without the fleet names (the
+  // local-only artifact the Lighthouse gate audits, and the live site until OP6.a) folds this to
+  // `return noop`, and the bundler then drops the whole client (~14 kB) from the entry chunk every
+  // page downloads before its first paint (perf, 2026-10-06). Same outcome as before at runtime:
+  // `resolveFleetEnv` below still decides when the names are present.
+  if (
+    !import.meta.env.VITE_FLEET_URL ||
+    !import.meta.env.VITE_FLEET_KEY ||
+    !import.meta.env.VITE_FLEET_PRODUCT_ID
+  ) {
+    return noop
+  }
   try {
     return startTelemetryWith(
       {

@@ -4,7 +4,7 @@
 // cost, a long date for the price as-of. Greek uses comma decimals and puts the € after the
 // amount ("2,10 €"); English puts it before ("€2.10") — both come from `Intl`, never hand-built.
 
-import type { Lang } from '../i18n/dictionary.ts'
+import type { Lang } from '../i18n/app.ts'
 import type { Macros } from '../nutrition/compute.ts'
 
 /** Which figures the panels show; one state shared by both (the toggle lives in NutritionPanel). */

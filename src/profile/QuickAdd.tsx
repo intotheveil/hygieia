@@ -4,6 +4,7 @@
 
 import { useId, useState, type FormEvent } from 'react'
 import { useLang } from '../i18n/LangProvider'
+import { profileCopy } from '../i18n/features/profile.ts'
 import {
   ENTRY_KINDS,
   type Entry,
@@ -32,7 +33,7 @@ function asKind(value: string): EntryKind {
 }
 
 export function QuickAdd({ today, onSubmit }: QuickAddProps) {
-  const { t } = useLang()
+  const { t } = useLang(profileCopy)
   const id = useId()
   const [values, setValues] = useState<EntryFormValues>(() => emptyForm(today))
   const [errors, setErrors] = useState<Partial<Record<EntryFormField, EntryFormError>>>({})

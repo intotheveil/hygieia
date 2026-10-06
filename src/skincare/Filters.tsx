@@ -8,6 +8,7 @@
 
 import type { CareArea } from '../content/enums.ts'
 import { useLang } from '../i18n/LangProvider'
+import { skincareCopy } from '../i18n/features/skincare.ts'
 import {
   AUDIENCE_OPTIONS,
   REGION_OPTIONS,
@@ -115,7 +116,7 @@ const AUDIENCE_SEGMENTS = ['all', ...AUDIENCE_OPTIONS] as const
 type AudienceSegment = (typeof AUDIENCE_SEGMENTS)[number]
 
 export function Filters({ selection, onChange }: FiltersProps) {
-  const { t } = useLang()
+  const { t } = useLang(skincareCopy)
   const areaOptions: readonly CareArea[] = ['face', 'nails']
   const audienceValue: AudienceSegment = selection.audience ?? 'all'
 

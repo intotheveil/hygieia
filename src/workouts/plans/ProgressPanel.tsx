@@ -7,6 +7,7 @@
 import { useId, useState } from 'react'
 import type { Exercise } from '../../content'
 import { useLang } from '../../i18n/LangProvider'
+import { workoutPlansCopy } from '../../i18n/features/workoutPlans.ts'
 import { fill, plural } from '../../i18n/fill'
 import { buildSparkline } from '../../profile/chart'
 import { formatNumber } from '../../profile/format'
@@ -25,7 +26,7 @@ export interface ProgressPanelProps {
 }
 
 export function ProgressPanel({ sessions, exercises, today }: ProgressPanelProps) {
-  const { t, lang } = useLang()
+  const { t, lang } = useLang(workoutPlansCopy)
   const id = useId()
   const trained = trainedExercises(sessions)
   const [picked, setPicked] = useState<string | null>(null)

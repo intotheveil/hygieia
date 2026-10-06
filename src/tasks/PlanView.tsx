@@ -8,13 +8,13 @@
 // (the task title is its accessible name; minutes and the kick-off badge sit beside it).
 
 import { useState } from 'react'
-import type { Dictionary } from '../i18n/dictionary'
 import { fill, plural } from '../i18n/fill'
 import { useLang } from '../i18n/LangProvider'
+import { tasksCopy } from '../i18n/features/tasks.ts'
 import { dateKey, dayOf, monthKey, weekDates } from './dates'
 import type { Plan } from './generate'
 import { isTicked, type TasksState } from './storage'
-import { planToText } from './text'
+import { planToText, type TasksT } from './text'
 import { DAYS, type Task, type Topic } from './types'
 
 export interface PlanViewProps {
@@ -30,7 +30,7 @@ const BTN =
   'rounded-full border border-olive-900/20 bg-paper-50 px-4 py-1.5 text-sm font-medium text-olive-900 hover:border-olive-900/40'
 
 function Progress({ label, done, total }: { label: string; done: number; total: number }) {
-  const { t } = useLang()
+  const { t } = useLang(tasksCopy)
   const text = fill(t.tasksProgress, { done, total })
   const ratio = total === 0 ? 0 : done / total
   return (
@@ -65,7 +65,7 @@ function TaskItem({
   idPrefix: string
   checked: boolean
   onChange: () => void
-  t: Dictionary
+  t: TasksT
 }) {
   const { lang } = useLang()
   const id = `${idPrefix}-${task.id}`
@@ -100,7 +100,7 @@ function TaskItem({
 }
 
 export function PlanView({ topic, plan, state, now, onToggle, onRetake }: PlanViewProps) {
-  const { t, lang } = useLang()
+  const { t, lang } = useLang(tasksCopy)
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle')
 
   const today = dayOf(now)

@@ -23,7 +23,7 @@ import type { Block, Intensity, Level, WorkoutType } from '../content/enums.ts'
 import type { WorkoutBlockSeed } from '../content/types.ts'
 import { useLang } from '../i18n/LangProvider'
 import { fill } from '../i18n/fill'
-import type { Dictionary, Lang } from '../i18n/dictionary'
+import type { AppDictionary, Lang } from '../i18n/app'
 import { useAsyncResult } from '../lib/useAsync'
 import type { UserDataSource } from '../user/source'
 import { useUserData } from '../user/useUserData'
@@ -105,7 +105,7 @@ export function equipmentOf(blocks: readonly SessionBlock[], lang: Lang): string
 }
 
 /** "3 × 12 reps" or "2 × 40 s" — the work figure of one slot. */
-export function workFigure(slot: WorkoutBlockSeed, t: Dictionary): string {
+export function workFigure(slot: WorkoutBlockSeed, t: AppDictionary): string {
   const work = slot.reps !== null ? `${slot.reps} ${t.reps}` : `${slot.seconds ?? 0} ${t.seconds}`
   return `${slot.sets} × ${work}`
 }

@@ -1,5 +1,8 @@
+import type { ReactNode } from 'react'
 import { act, render, renderHook, screen } from '@testing-library/react'
 import { LANG_STORAGE_KEY, LangProvider, initialLang, toLang, useLang } from './LangProvider'
+import { appDictionaries } from './app'
+import { skincareCopy, skincareEl, skincareEn } from './features/skincare.ts'
 
 describe('initialLang (pure)', () => {
   it('prefers a stored choice over the browser locale', () => {
@@ -53,5 +56,42 @@ describe('LangProvider', () => {
 
   it('refuses to be used outside the provider', () => {
     expect(() => renderHook(() => useLang())).toThrow(/within <LangProvider>/)
+  })
+})
+
+describe('useLang(<feature>Copy) — route features (perf, 2026-10-06)', () => {
+  const wrapper = ({ children }: { children: ReactNode }) => (
+    <LangProvider initial="el">{children}</LangProvider>
+  )
+
+  it('gives the app dictionary plus the feature literal of the current language', () => {
+    const { result } = renderHook(() => useLang(skincareCopy), { wrapper })
+    expect(result.current.t.skincareTitle).toBe(skincareEl.skincareTitle)
+    expect(result.current.t.langName).toBe(appDictionaries.el.langName)
+    act(() => result.current.toggle())
+    expect(result.current.t.skincareTitle).toBe(skincareEn.skincareTitle)
+    expect(result.current.t.langName).toBe(appDictionaries.en.langName)
+  })
+
+  it('keeps the merged dictionary stable per language across renders (safe in memo deps)', () => {
+    const { result, rerender } = renderHook(() => useLang(skincareCopy), { wrapper })
+    const first = result.current.t
+    rerender()
+    expect(result.current.t).toBe(first)
+    act(() => result.current.toggle())
+    const english = result.current.t
+    expect(english).not.toBe(first)
+    act(() => result.current.toggle())
+    expect(result.current.t).toBe(first)
+  })
+
+  it('leaves the plain useLang() dictionary without the route feature', () => {
+    const { result } = renderHook(() => useLang(), { wrapper })
+    expect(result.current.t).toBe(appDictionaries.el)
+    expect(Object.hasOwn(result.current.t, 'skincareTitle')).toBe(false)
+  })
+
+  it('refuses to be used outside the provider with a feature too', () => {
+    expect(() => renderHook(() => useLang(skincareCopy))).toThrow(/within <LangProvider>/)
   })
 })

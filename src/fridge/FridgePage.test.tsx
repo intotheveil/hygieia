@@ -45,8 +45,18 @@ function renderPage(lang: Lang = 'en') {
   )
 }
 
+/**
+ * The page is ready when the picker is up (stage 1: ingredients) AND the results section is no
+ * longer busy (stage 2: the recipes, read after the frame paints — FridgePage header).
+ */
 async function ready() {
   await waitFor(() => expect(screen.getByRole('combobox')).toBeInTheDocument())
+  await waitFor(() =>
+    expect(document.querySelector('[aria-labelledby="fridge-results"]')).toHaveAttribute(
+      'aria-busy',
+      'false',
+    ),
+  )
   return screen.getByRole('combobox')
 }
 
@@ -415,6 +425,24 @@ describe('<FridgePage> async states (P5.1)', () => {
     expect(listRecipes).toHaveBeenCalledTimes(2)
     expect(screen.queryByRole('alert')).toBeNull()
     expect(screen.getByText(el.fridgeEmpty)).toBeInTheDocument()
+  })
+
+  it('shows the picker and the empty results frame before the recipes arrive (two-stage load)', async () => {
+    const pendingRecipes: ContentSource = {
+      ...bundledSource,
+      listRecipes: () => new Promise(() => {}),
+    }
+    renderWithSource(pendingRecipes, 'en')
+    expect(await screen.findByRole('combobox')).toBeInTheDocument()
+    const results = document.querySelector('[aria-labelledby="fridge-results"]')
+    expect(results).toHaveAttribute('aria-busy', 'true')
+    expect(screen.getByText(en.fridgeEmpty)).toBeInTheDocument()
+    expect(screen.getByText(en.draftRibbon)).toBeInTheDocument()
+    // With ingredients in the fridge, the results wait on the list skeleton, not on a wrong count.
+    addByTyping(screen.getByRole('combobox'), 'tomato', 'Tomato')
+    const skeleton = within(results as HTMLElement).getByRole('status')
+    expect(skeleton).toHaveAttribute('aria-busy', 'true')
+    expect(screen.queryAllByRole('article')).toHaveLength(0)
   })
 
   it('renders the empty fridge through the shared EmptyState with its hint', async () => {

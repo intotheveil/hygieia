@@ -7,6 +7,7 @@ import { useState } from 'react'
 import type { Exercise } from '../../content'
 import { EmptyState } from '../../components/AsyncState'
 import { useLang } from '../../i18n/LangProvider'
+import { workoutPlansCopy } from '../../i18n/features/workoutPlans.ts'
 import { fill } from '../../i18n/fill'
 import { formatDate, formatNumber } from '../../profile/format'
 import { DANGER, ERR, H2, SECTION } from '../../profile/styles'
@@ -28,7 +29,7 @@ export function SessionHistory({
   records,
   onDelete,
 }: SessionHistoryProps) {
-  const { t, lang } = useLang()
+  const { t, lang } = useLang(workoutPlansCopy)
   const [confirming, setConfirming] = useState<string | null>(null)
   const [failed, setFailed] = useState<string | null>(null)
   const kg = t.profileUnit.kg

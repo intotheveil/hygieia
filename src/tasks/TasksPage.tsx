@@ -12,6 +12,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { EmptyState, ErrorState, Loading } from '../components/AsyncState'
 import { useLang } from '../i18n/LangProvider'
+import { tasksCopy } from '../i18n/features/tasks.ts'
 import { useAsync } from '../lib/useAsync'
 import { loadTopic as defaultLoadTopic } from './content/index'
 import { TOPICS, TOPIC_IDS, isTopicId, type TopicId } from './content/topics'
@@ -51,7 +52,7 @@ const systemNow = () => new Date()
 const MAIN = 'mx-auto flex min-h-dvh max-w-6xl flex-col gap-8 px-4 py-10 sm:px-6'
 
 function TopicGrid() {
-  const { t, lang } = useLang()
+  const { t, lang } = useLang(tasksCopy)
   return (
     <main className={MAIN}>
       <header className="flex max-w-3xl flex-col gap-3">
@@ -101,7 +102,7 @@ function TopicGrid() {
 }
 
 function BackLink() {
-  const { t } = useLang()
+  const { t } = useLang(tasksCopy)
   return (
     <Link
       to="/tasks"
@@ -123,7 +124,7 @@ function TopicFlow({
   storage: TasksStorage | null
   load: (id: TopicId) => Promise<Topic>
 }) {
-  const { t, lang } = useLang()
+  const { t, lang } = useLang(tasksCopy)
   const meta = TOPICS[topicId]
   const run = useCallback(() => load(topicId), [load, topicId])
   const topic = useAsync(run)
@@ -184,7 +185,7 @@ export function TasksPage({
   storage = browserStorage(),
   loadTopic = defaultLoadTopic,
 }: TasksPageProps) {
-  const { t } = useLang()
+  const { t } = useLang(tasksCopy)
   const { topic } = useParams()
   if (topic === undefined) return <TopicGrid />
   if (!isTopicId(topic)) {

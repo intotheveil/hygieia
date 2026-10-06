@@ -1,9 +1,9 @@
-import { lazy } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import App from '../App'
 import { RequireAdmin } from '../auth/RequireAdmin'
 import { RequireAuth } from '../auth/RequireAuth'
 import { Layout } from '../components/Layout'
+import { lazyPage } from './lazyPage'
 import { NotFound } from './NotFound'
 
 // NotFound lives in ./NotFound.tsx (pages import it from there without pulling in this table);
@@ -11,51 +11,36 @@ import { NotFound } from './NotFound'
 export { NotFound }
 
 // ROUTE-LEVEL CODE SPLITTING (P5.3 performance follow-up). Every page but the home `App` is a
-// `React.lazy` chunk: a static import table put all twelve pages — and, through `contentSource`,
+// lazy chunk: a static import table put all twelve pages — and, through `contentSource`,
 // every seed table — into one 1.26 MB entry chunk, which is what held FCP at 3.5 s on every route.
 // `/` stays eager so the home page's first paint pays no extra round trip; `NotFound` stays eager
 // because it is tiny and the `*` route must render offline from the precached index.html alone;
 // the guards stay eager so the local-only "sign-in unavailable" copy never waits on a chunk.
-// Layout owns the single `<Suspense>` around its `<Outlet />`, so the header and footer stay put
-// while a page chunk downloads. The pages are named exports; `lazy` wants a default.
+// The header and footer stay put while a page chunk downloads; the page slot shows the bilingual
+// loading line. Since 2026-10-06 the pages are `lazyPage` (./lazyPage.tsx), not bare `React.lazy`:
+// the same split, but the page is swapped in through state, without React 19's ~300 ms Suspense
+// reveal throttle that held every lazy route on the loading line (CI Lighthouse diet 84). Layout's
+// `<Suspense>` stays for lazyPage's failure path (a retried `React.lazy`).
 //
 // Deliberately NOT here: pre-warming a page's seed chunks from its lazy factory. Measured (BUILD_LOG
 // P5.3 follow-up): the seed requests then start before the first paint and Lighthouse's slow-4G
 // model charges them to FCP (+0.3 s on every content route) for a saving of one 2 kB hop — the
 // page chunk is tiny, so there is almost nothing to overlap. The seeds load when the page asks.
-const RecipesPage = lazy(() =>
-  import('../recipes/RecipesPage').then((m) => ({ default: m.RecipesPage })),
-)
-const RecipePage = lazy(() =>
-  import('../recipes/RecipePage').then((m) => ({ default: m.RecipePage })),
-)
-const FridgePage = lazy(() =>
-  import('../fridge/FridgePage').then((m) => ({ default: m.FridgePage })),
-)
-const DietsPage = lazy(() => import('../diets/DietsPage').then((m) => ({ default: m.DietsPage })))
-const DietPage = lazy(() => import('../diets/DietPage').then((m) => ({ default: m.DietPage })))
-const WorkoutsPage = lazy(() =>
-  import('../workouts/WorkoutsPage').then((m) => ({ default: m.WorkoutsPage })),
-)
-const PlansPage = lazy(() =>
-  import('../workouts/plans/PlansPage').then((m) => ({ default: m.PlansPage })),
-)
-const TipsPage = lazy(() => import('../tips/TipsPage').then((m) => ({ default: m.TipsPage })))
-const SkincarePage = lazy(() =>
-  import('../skincare/SkincarePage').then((m) => ({ default: m.SkincarePage })),
-)
-const SignInPage = lazy(() => import('../auth/SignInPage').then((m) => ({ default: m.SignInPage })))
-const CallbackPage = lazy(() =>
-  import('../auth/CallbackPage').then((m) => ({ default: m.CallbackPage })),
-)
-const TasksPage = lazy(() => import('../tasks/TasksPage').then((m) => ({ default: m.TasksPage })))
-const AccountPage = lazy(() =>
-  import('../account/AccountPage').then((m) => ({ default: m.AccountPage })),
-)
-const AdminPage = lazy(() => import('../admin/AdminPage').then((m) => ({ default: m.AdminPage })))
-const ProfilePage = lazy(() =>
-  import('../profile/ProfilePage').then((m) => ({ default: m.ProfilePage })),
-)
+const RecipesPage = lazyPage(() => import('../recipes/RecipesPage').then((m) => m.RecipesPage))
+const RecipePage = lazyPage(() => import('../recipes/RecipePage').then((m) => m.RecipePage))
+const FridgePage = lazyPage(() => import('../fridge/FridgePage').then((m) => m.FridgePage))
+const DietsPage = lazyPage(() => import('../diets/DietsPage').then((m) => m.DietsPage))
+const DietPage = lazyPage(() => import('../diets/DietPage').then((m) => m.DietPage))
+const WorkoutsPage = lazyPage(() => import('../workouts/WorkoutsPage').then((m) => m.WorkoutsPage))
+const PlansPage = lazyPage(() => import('../workouts/plans/PlansPage').then((m) => m.PlansPage))
+const TipsPage = lazyPage(() => import('../tips/TipsPage').then((m) => m.TipsPage))
+const SkincarePage = lazyPage(() => import('../skincare/SkincarePage').then((m) => m.SkincarePage))
+const SignInPage = lazyPage(() => import('../auth/SignInPage').then((m) => m.SignInPage))
+const CallbackPage = lazyPage(() => import('../auth/CallbackPage').then((m) => m.CallbackPage))
+const TasksPage = lazyPage(() => import('../tasks/TasksPage').then((m) => m.TasksPage))
+const AccountPage = lazyPage(() => import('../account/AccountPage').then((m) => m.AccountPage))
+const AdminPage = lazyPage(() => import('../admin/AdminPage').then((m) => m.AdminPage))
+const ProfilePage = lazyPage(() => import('../profile/ProfilePage').then((m) => m.ProfilePage))
 
 /**
  * The router basename for Vite's BASE_URL: '/hygieia' on the Pages project site, '/' if a custom

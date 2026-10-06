@@ -7,6 +7,16 @@
 // disabled (local-only build or signed out). Route wiring is P3.5's. `source` is a prop (default:
 // the app's `contentSource`) so tests can inject a slow or failing one (P5.1); the catalogue read
 // is a `Result`, so the shared ErrorState's Retry re-runs it.
+//
+// TWO-STAGE LOAD (perf, 2026-10-06 — CI Lighthouse): the picker and the results frame (draft
+// ribbon, the empty-fridge state — the largest paint of a first visit) need only the INGREDIENT
+// catalogue (15 kB gzip); the recipes (47 kB) are needed only to rank matches. So the page reads
+// ingredients first and renders `FridgeWorkbench`, which reads the recipes once that frame is ON
+// SCREEN (`afterElementPainted(FRIDGE_FRAME)`, lib/afterPaint.ts) — on a slow network the frame no
+// longer waits behind the recipe corpus. Until the recipes arrive the results section is
+// `aria-busy` and, if the fridge already holds ingredients, shows the list skeleton. A failure of
+// either read shows the same fridge ErrorState below the header (Retry re-runs the read that
+// failed).
 
 import { useCallback, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
@@ -21,11 +31,11 @@ import {
   type Recipe,
   type Result,
 } from '../content/index.ts'
-import { fail, ok } from '../content/source.ts'
 import type { IngredientSeed } from '../content/types.ts'
 import { useLang } from '../i18n/LangProvider'
-import type { Lang } from '../i18n/dictionary'
+import type { Lang } from '../i18n/app'
 import { fill } from '../i18n/fill.ts'
+import { afterElementPainted } from '../lib/afterPaint.ts'
 import { useAsync, useAsyncResult } from '../lib/useAsync.ts'
 import type { FridgeList } from '../user/source'
 import { useUserData } from '../user/useUserData'
@@ -38,18 +48,8 @@ import {
   type FridgeState,
 } from './storage.ts'
 
-interface Catalogue {
-  ingredients: Ingredient[]
-  recipes: Recipe[]
-}
-
-/** Both catalogues in one round trip; the first failure wins (the page needs both). */
-async function loadCatalogue(source: ContentSource): Promise<Result<Catalogue>> {
-  const [ingredients, recipes] = await Promise.all([source.listIngredients(), source.listRecipes()])
-  if (!ingredients.ok) return fail(ingredients.error)
-  if (!recipes.ok) return fail(recipes.error)
-  return ok({ ingredients: ingredients.data, recipes: recipes.data })
-}
+/** Element Timing id of the staples hint, painted with the stage-1 frame; stage 2 waits for it. */
+const FRIDGE_FRAME = 'fridge-frame'
 
 /** `window.localStorage` itself can throw on access (blocked storage); treat that as "none". */
 function fridgeStorage(): Storage | null {
@@ -73,9 +73,45 @@ export interface FridgePageProps {
 }
 
 export function FridgePage({ source = contentSource }: FridgePageProps) {
-  const { t, lang } = useLang()
-  const load = useCallback(() => loadCatalogue(source), [source])
+  const { t } = useLang()
+  const load = useCallback((): Promise<Result<Ingredient[]>> => source.listIngredients(), [source])
   const catalogue = useAsyncResult(load)
+
+  return (
+    <main className="mx-auto flex min-h-dvh max-w-4xl flex-col gap-8 px-4 py-10 sm:px-6">
+      <header className="flex flex-col gap-3">
+        <h1 className="font-display text-3xl font-semibold text-olive-950 sm:text-4xl">
+          {t.fridgeTitle}
+        </h1>
+        <p className="max-w-2xl leading-relaxed text-olive-700">{t.fridgeIntro}</p>
+      </header>
+
+      {catalogue.status === 'loading' ? (
+        <Loading variant="detail" />
+      ) : catalogue.status === 'error' ? (
+        <ErrorState message={t.fridgeLoadFailed} onRetry={catalogue.reload} />
+      ) : (
+        <FridgeWorkbench source={source} ingredients={catalogue.data} />
+      )}
+    </main>
+  )
+}
+
+/** Stage 2 of the page (see the header): the picker, the results and saving, over the recipes. */
+function FridgeWorkbench({
+  source,
+  ingredients,
+}: {
+  source: ContentSource
+  ingredients: Ingredient[]
+}) {
+  const { t, lang } = useLang()
+  const loadRecipes = useCallback(
+    (): Promise<Result<Recipe[]>> =>
+      afterElementPainted(FRIDGE_FRAME).then(() => source.listRecipes()),
+    [source],
+  )
+  const recipesState = useAsyncResult(loadRecipes)
 
   const [fridge, setFridge] = useState<FridgeState>(() => {
     const storage = fridgeStorage()
@@ -97,17 +133,17 @@ export function FridgePage({ source = contentSource }: FridgePageProps) {
   const clearAll = () => commit({ ...fridge, slugs: [] })
   const setIgnoreStaples = (ignoreStaples: boolean) => commit({ ...fridge, ignoreStaples })
 
-  const data = catalogue.status === 'ready' ? catalogue.data : null
+  const recipes = recipesState.status === 'ready' ? recipesState.data : null
   const haveSlugs = useMemo(() => new Set(fridge.slugs), [fridge.slugs])
-  const bySlug = useMemo(() => indexBySlug(data?.ingredients ?? []), [data])
+  const bySlug = useMemo(() => indexBySlug(ingredients), [ingredients])
   const results = useMemo(
     () =>
-      data === null
+      recipes === null
         ? []
-        : matchRecipes(data.recipes, data.ingredients, haveSlugs, {
+        : matchRecipes(recipes, ingredients, haveSlugs, {
             ignorePantryStaples: fridge.ignoreStaples,
           }),
-    [data, haveSlugs, fridge.ignoreStaples],
+    [recipes, ingredients, haveSlugs, fridge.ignoreStaples],
   )
   // Chips show what resolves in the catalogue; a stale slug stays stored but is invisible.
   const chips = fridge.slugs.flatMap((slug) => {
@@ -118,115 +154,114 @@ export function FridgePage({ source = contentSource }: FridgePageProps) {
   const staplesId = 'fridge-ignore-staples'
   const staplesHintId = `${staplesId}-hint`
 
+  if (recipesState.status === 'error') {
+    return <ErrorState message={t.fridgeLoadFailed} onRetry={recipesState.reload} />
+  }
+
   return (
-    <main className="mx-auto flex min-h-dvh max-w-4xl flex-col gap-8 px-4 py-10 sm:px-6">
-      <header className="flex flex-col gap-3">
-        <h1 className="font-display text-3xl font-semibold text-olive-950 sm:text-4xl">
-          {t.fridgeTitle}
-        </h1>
-        <p className="max-w-2xl leading-relaxed text-olive-700">{t.fridgeIntro}</p>
-      </header>
+    <>
+      <section
+        aria-labelledby="fridge-ingredients"
+        className="flex flex-col gap-5 rounded-2xl border border-olive-900/10 bg-paper-50/80 p-6 shadow-sm"
+      >
+        <h2 id="fridge-ingredients" className="sr-only">
+          {t.yourIngredients}
+        </h2>
+        <IngredientPicker ingredients={ingredients} selected={haveSlugs} onAdd={add} />
 
-      {catalogue.status === 'loading' ? (
-        <Loading variant="detail" />
-      ) : catalogue.status === 'error' || data === null ? (
-        <ErrorState message={t.fridgeLoadFailed} onRetry={catalogue.reload} />
-      ) : (
-        <>
-          <section
-            aria-labelledby="fridge-ingredients"
-            className="flex flex-col gap-5 rounded-2xl border border-olive-900/10 bg-paper-50/80 p-6 shadow-sm"
-          >
-            <h2 id="fridge-ingredients" className="sr-only">
-              {t.yourIngredients}
-            </h2>
-            <IngredientPicker ingredients={data.ingredients} selected={haveSlugs} onAdd={add} />
-
-            {chips.length > 0 && (
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center justify-between gap-4">
-                  <p className="text-sm font-medium text-olive-900">{t.yourIngredients}</p>
-                  <button
-                    type="button"
-                    onClick={clearAll}
-                    className="text-sm font-medium text-olive-700 underline hover:text-olive-950"
-                  >
-                    {t.clearAll}
-                  </button>
-                </div>
-                <ul aria-label={t.yourIngredients} className="flex flex-wrap gap-2">
-                  {chips.map((ingredient) => {
-                    const name = ingredientName(ingredient, lang)
-                    return (
-                      <li
-                        key={ingredient.slug}
-                        className="flex items-center gap-1 rounded-full bg-sage-500/15 py-1 pr-1 pl-3 text-sm text-olive-950"
-                      >
-                        <span>{name}</span>
-                        <button
-                          type="button"
-                          onClick={() => remove(ingredient.slug)}
-                          aria-label={`${t.removeIngredient}: ${name}`}
-                          className="grid size-6 place-items-center rounded-full text-olive-700 hover:bg-sage-500/25 hover:text-olive-950"
-                        >
-                          <span aria-hidden="true">×</span>
-                        </button>
-                      </li>
-                    )
-                  })}
-                </ul>
-              </div>
-            )}
-
-            <div className="flex items-start gap-3">
-              <input
-                id={staplesId}
-                type="checkbox"
-                checked={fridge.ignoreStaples}
-                onChange={(event) => setIgnoreStaples(event.target.checked)}
-                aria-describedby={staplesHintId}
-                className="mt-1 size-4 accent-sage-600"
-              />
-              <div className="flex flex-col gap-0.5">
-                <label htmlFor={staplesId} className="text-sm font-medium text-olive-900">
-                  {t.ignoreStaples}
-                </label>
-                <p id={staplesHintId} className="text-xs leading-relaxed text-olive-700">
-                  {t.ignoreStaplesHint}
-                </p>
-              </div>
+        {chips.length > 0 && (
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-sm font-medium text-olive-900">{t.yourIngredients}</p>
+              <button
+                type="button"
+                onClick={clearAll}
+                className="text-sm font-medium text-olive-700 underline hover:text-olive-950"
+              >
+                {t.clearAll}
+              </button>
             </div>
-          </section>
+            <ul aria-label={t.yourIngredients} className="flex flex-wrap gap-2">
+              {chips.map((ingredient) => {
+                const name = ingredientName(ingredient, lang)
+                return (
+                  <li
+                    key={ingredient.slug}
+                    className="flex items-center gap-1 rounded-full bg-sage-500/15 py-1 pr-1 pl-3 text-sm text-olive-950"
+                  >
+                    <span>{name}</span>
+                    <button
+                      type="button"
+                      onClick={() => remove(ingredient.slug)}
+                      aria-label={`${t.removeIngredient}: ${name}`}
+                      className="grid size-6 place-items-center rounded-full text-olive-700 hover:bg-sage-500/25 hover:text-olive-950"
+                    >
+                      <span aria-hidden="true">×</span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        )}
 
-          <section aria-labelledby="fridge-results" className="flex flex-col gap-4">
-            <h2 id="fridge-results" className="sr-only">
-              {t.coverage}
-            </h2>
-            <DraftRibbon kind={source.kind} />
-            {fridge.slugs.length === 0 ? (
-              <EmptyState title={t.fridgeEmpty} hint={t.fridgeEmptyHint} icon="✿" />
-            ) : (
-              <>
-                <p role="status" aria-live="polite" className="text-sm font-medium text-olive-700">
-                  {results.length === 0 ? t.noMatches : fill(t.matchesCount, { n: results.length })}
-                </p>
-                {results.length > 0 && (
-                  <ol className="grid gap-4 sm:grid-cols-2">
-                    {results.map((result) => (
-                      <li key={result.recipe.slug}>
-                        <ResultCard result={result} lang={lang} />
-                      </li>
-                    ))}
-                  </ol>
-                )}
-              </>
+        <div className="flex items-start gap-3">
+          <input
+            id={staplesId}
+            type="checkbox"
+            checked={fridge.ignoreStaples}
+            onChange={(event) => setIgnoreStaples(event.target.checked)}
+            aria-describedby={staplesHintId}
+            className="mt-1 size-4 accent-sage-600"
+          />
+          <div className="flex flex-col gap-0.5">
+            <label htmlFor={staplesId} className="text-sm font-medium text-olive-900">
+              {t.ignoreStaples}
+            </label>
+            <p
+              id={staplesHintId}
+              elementtiming={FRIDGE_FRAME}
+              className="text-xs leading-relaxed text-olive-700"
+            >
+              {t.ignoreStaplesHint}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section
+        aria-labelledby="fridge-results"
+        aria-busy={recipes === null}
+        className="flex flex-col gap-4"
+      >
+        <h2 id="fridge-results" className="sr-only">
+          {t.coverage}
+        </h2>
+        <DraftRibbon kind={source.kind} />
+        {fridge.slugs.length === 0 ? (
+          <EmptyState title={t.fridgeEmpty} hint={t.fridgeEmptyHint} icon="✿" />
+        ) : recipes === null ? (
+          <Loading variant="list" />
+        ) : (
+          <>
+            <p role="status" aria-live="polite" className="text-sm font-medium text-olive-700">
+              {results.length === 0 ? t.noMatches : fill(t.matchesCount, { n: results.length })}
+            </p>
+            {results.length > 0 && (
+              <ol className="grid gap-4 sm:grid-cols-2">
+                {results.map((result) => (
+                  <li key={result.recipe.slug}>
+                    <ResultCard result={result} lang={lang} />
+                  </li>
+                ))}
+              </ol>
             )}
-          </section>
+          </>
+        )}
+      </section>
 
-          <SaveList slugs={fridge.slugs} onLoad={(slugs) => commit({ ...fridge, slugs })} />
-        </>
-      )}
-    </main>
+      <SaveList slugs={fridge.slugs} onLoad={(slugs) => commit({ ...fridge, slugs })} />
+    </>
   )
 }
 

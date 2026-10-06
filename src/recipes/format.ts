@@ -6,11 +6,11 @@
 import type { Unit } from '../content/enums.ts'
 import type { Diet, Ingredient, RecipeLine } from '../content/source.ts'
 import type { RecipeLineSeed } from '../content/types.ts'
-import type { Dictionary, Lang } from '../i18n/dictionary.ts'
+import type { AppDictionary, Lang } from '../i18n/app.ts'
 import { pluralForm } from '../i18n/fill.ts'
 
 /** The dictionary slice this module reads — a page passes its full `t`. */
-export type UnitLabels = Pick<Dictionary, 'units'>
+export type UnitLabels = Pick<AppDictionary, 'units'>
 
 /** The common cooking fractions, shown as glyphs: 0.25 → ¼, 0.5 → ½, 0.75 → ¾ (also 1.5 → 1½). */
 const FRACTION_GLYPHS: Record<string, string> = { '0.25': '¼', '0.50': '½', '0.75': '¾' }

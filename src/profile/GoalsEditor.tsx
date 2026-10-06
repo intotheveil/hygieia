@@ -5,6 +5,7 @@
 
 import { useId, useState } from 'react'
 import { useLang } from '../i18n/LangProvider'
+import { profileCopy } from '../i18n/features/profile.ts'
 import {
   GOAL_KINDS,
   type Cadence,
@@ -45,7 +46,7 @@ function draftFrom(goals: readonly Goal[], kind: GoalKind): Draft {
 }
 
 export function GoalsEditor({ goals, onSave }: GoalsEditorProps) {
-  const { t } = useLang()
+  const { t } = useLang(profileCopy)
   const id = useId()
   const [edits, setEdits] = useState<Partial<Record<GoalKind, Draft>>>({})
   const [status, setStatus] = useState<Partial<Record<GoalKind, RowStatus>>>({})

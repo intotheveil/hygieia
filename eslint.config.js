@@ -76,4 +76,29 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    // THE EAGER-CHUNK BOUNDARY FOR COPY (perf, 2026-10-06; src/i18n/app.ts). App code reads the APP
+    // dictionary (`i18n/app`) and merges a route feature with `useLang(<feature>Copy)`. The FULL
+    // dictionary (`i18n/dictionary`) and the route-feature composition (`features/routeFeatures`)
+    // import every route feature's strings; one static import of either from app code puts them all
+    // back into the chunk every page downloads before its first paint (11 kB gzip, measured: CI
+    // Lighthouse diet 84). Tests and e2e use the full dictionary freely.
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/**/*.test.{ts,tsx}', 'src/test/**', 'src/i18n/dictionary.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              regex:
+                '(^|/)i18n/dictionary(\\.ts)?$|^\\.{1,2}/dictionary(\\.ts)?$|(^|/)routeFeatures(\\.ts)?$',
+              message:
+                'App code imports the app dictionary from i18n/app (route features via useLang(<feature>Copy)); the full dictionary is for tests and e2e only.',
+            },
+          ],
+        },
+      ],
+    },
+  },
 )

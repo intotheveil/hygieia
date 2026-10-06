@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { LANGS, dictionaries, type Dictionary, type Lang } from './dictionary'
+import { LANGS, appDictionaries, type AppDictionary, type FeatureCopy, type Lang } from './app'
 
 export const LANG_STORAGE_KEY = 'hygieia.lang'
 
@@ -39,9 +39,9 @@ function writeStored(lang: Lang): void {
   }
 }
 
-interface LangContextValue {
+interface LangContextValue<T = AppDictionary> {
   lang: Lang
-  t: Dictionary
+  t: T
   setLang: (lang: Lang) => void
   toggle: () => void
 }
@@ -64,15 +64,48 @@ export function LangProvider({ children, initial }: { children: ReactNode; initi
   const toggle = useCallback(() => setLang(lang === 'el' ? 'en' : 'el'), [lang, setLang])
 
   const value = useMemo<LangContextValue>(
-    () => ({ lang, t: dictionaries[lang], setLang, toggle }),
+    () => ({ lang, t: appDictionaries[lang], setLang, toggle }),
     [lang, setLang, toggle],
   )
   return <LangContext.Provider value={value}>{children}</LangContext.Provider>
 }
 
-/** The current language, its dictionary and the switchers. Must be used under LangProvider. */
-export function useLang(): LangContextValue {
+/**
+ * The app dictionary merged with one route feature's literal for `lang`, built once per (feature,
+ * language) and then reused, so `t` keeps a stable identity across renders (callers memoise on it).
+ */
+const merged = new WeakMap<object, Map<AppDictionary, object>>()
+function withFeature<F extends object>(t: AppDictionary, lang: Lang, feature: FeatureCopy<F>) {
+  let byBase = merged.get(feature)
+  if (!byBase) {
+    byBase = new Map()
+    merged.set(feature, byBase)
+  }
+  let result = byBase.get(t) as (AppDictionary & F) | undefined
+  if (!result) {
+    result = { ...t, ...feature[lang] }
+    byBase.set(t, result)
+  }
+  return result
+}
+
+/**
+ * The current language, its dictionary and the switchers. Must be used under LangProvider.
+ *
+ * `useLang()` gives the APP dictionary (every page's copy). A lazily-loaded route whose strings are
+ * a ROUTE feature (features/index.ts: admin, profile, skincare, tasks, workoutPlans) passes that
+ * feature's copy — `useLang(skincareCopy)` — and gets `t` typed and filled with both, so the
+ * feature's strings travel in the route's chunk instead of the eager one every page downloads.
+ */
+export function useLang(): LangContextValue
+export function useLang<F extends object>(
+  feature: FeatureCopy<F>,
+): LangContextValue<AppDictionary & F>
+export function useLang<F extends object>(
+  feature?: FeatureCopy<F>,
+): LangContextValue | LangContextValue<AppDictionary & F> {
   const ctx = useContext(LangContext)
   if (!ctx) throw new Error('useLang must be used within <LangProvider>')
-  return ctx
+  if (!feature) return ctx
+  return { ...ctx, t: withFeature(ctx.t, ctx.lang, feature) }
 }
