@@ -17,7 +17,8 @@ import type {
 } from '../content'
 import type { Result as ContentResult } from '../content/source'
 import { useLang } from '../i18n/LangProvider'
-import type { Lang } from '../i18n/dictionary'
+import { profileCopy } from '../i18n/features/profile.ts'
+import type { Lang } from '../i18n/app'
 import { useAsync } from '../lib/useAsync'
 import {
   SAVED_ITEM_KINDS,
@@ -139,7 +140,7 @@ export function SavedSection({
   onUnsave,
   onUnfavourite,
 }: SavedSectionProps) {
-  const { t } = useLang()
+  const { t } = useLang(profileCopy)
   const [failed, setFailed] = useState<string | null>(null)
   const needs = [
     ...(favourites.length > 0 ? ['recipes'] : []),
@@ -201,7 +202,7 @@ function Groups({
   onUnsave: SavedSectionProps['onUnsave']
   onUnfavourite: SavedSectionProps['onUnfavourite']
 }) {
-  const { t, lang } = useLang()
+  const { t, lang } = useLang(profileCopy)
   const groups: Array<{ heading: string; rows: Row[] }> = []
 
   if (favourites.length > 0) {

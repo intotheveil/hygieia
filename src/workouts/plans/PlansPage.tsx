@@ -20,6 +20,7 @@ import {
   type WorkoutTemplate,
 } from '../../content'
 import { useLang } from '../../i18n/LangProvider'
+import { workoutPlansCopy } from '../../i18n/features/workoutPlans.ts'
 import { fill } from '../../i18n/fill'
 import { useAsyncResult, type ResultLike } from '../../lib/useAsync'
 import { formatDate } from '../../profile/format'
@@ -81,7 +82,7 @@ export interface PlansPageProps {
 }
 
 export function PlansPage({ source, content = contentSource, today }: PlansPageProps) {
-  const { t, lang } = useLang()
+  const { t, lang } = useLang(workoutPlansCopy)
   const fromHook = useUserData()
   const userData = source ?? fromHook
   const todayIso = today ?? localIsoDate(new Date())

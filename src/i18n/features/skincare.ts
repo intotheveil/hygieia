@@ -1,6 +1,6 @@
 // SKINCARE DICTIONARY (P7.2 UI) — every string the `/skincare` page shows, in both languages
-// (ADR-0002 at feature scale). Composed into the app `Dictionary` by ./index.ts. Every enum label
-// table is keyed by its content enum (`Audience`, `SkinType`, `SkinConcern`, `Region`, `RoutineTime`,
+// (ADR-0002 at feature scale). Part of the full `Dictionary` (./index.ts). Every enum label table
+// is keyed by its content enum (`Audience`, `SkinType`, `SkinConcern`, `Region`, `RoutineTime`,
 // `StepTime`, `CareArea`, `SkincareCategory`, `PriceBand`), so a new enum member without a label is
 // a type error. Counted strings are `PluralForms` filled by `plural()` (../fill.ts).
 //
@@ -8,6 +8,10 @@
 // `duration` + `minutesUnit` (workouts), `retry` (plans), `loading` + `notMedicalAdvice` (base).
 // Greek: loanwords the Greek shopper uses stay Latin-script (SPF, PA, retinol); everything else is
 // written as a Greek pharmacist would say it.
+//
+// ROUTE FEATURE (perf, 2026-10-06): read only by `/skincare`, so it is NOT composed into the
+// dictionary every page gets from `useLang()` — the route's components call `useLang(skincareCopy)`
+// and these strings ship in that route's lazy chunk (./routeFeatures.ts).
 
 import type {
   Audience,
@@ -21,6 +25,7 @@ import type {
   StepTime,
 } from '../../content/enums.ts'
 import type { PluralForms } from '../fill.ts'
+import type { FeatureCopy } from '../app.ts'
 
 export interface SkincareDictionary {
   skincareTitle: string
@@ -260,3 +265,6 @@ export const skincareEl: SkincareDictionary = {
   skincareDisclaimer:
     'Πρόκειται για γενικές πληροφορίες περιποίησης δέρματος και νυχιών, όχι για δερματολογικές συμβουλές. Για οτιδήποτε επίμονο, επώδυνο ή που εξαπλώνεται, επισκέψου δερματολόγο.',
 }
+
+/** Both literals, for `useLang(skincareCopy)` on the `/skincare` route. */
+export const skincareCopy: FeatureCopy<SkincareDictionary> = { el: skincareEl, en: skincareEn }

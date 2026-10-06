@@ -3,6 +3,96 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+### PERF — restore Lighthouse margin after P7–P9 (CI diet 84) — 2026-10-06 — PARTIAL (16/17 routes ≥ 88 in all three runs; `recipe` 86–87 — residual is the webfonts, a design call for the lead)
+
+- **Incident:** CI run 37478306863 (`main` `c1d5929`) red on the cold gate, `/hygieia/diets/keto (diet): performance 84 < 85`.
+  Thresholds, block patterns and the gate are UNCHANGED (ADR-0006) — this entry moves the artifact, not the bar.
+- **Baseline, measured here on `c1d5929`** (fresh `npm run build`, quiet machine, one run): home 91 · recipes 90 · **recipe 86** ·
+  **fridge 85** · diets 88 · **diet 87** · **workouts 87** · plans 88 · tips 90 · **skincare 86** · tasks 91 · task-topic 90 · auth 91 ·
+  account 92 · profile 90 · admin 92 · not-found 92.
+- **Diagnosis (from the LHRs, not guessed):** every lazy route's OBSERVED LCP sat at ~380–420 ms although its page chunk arrived at
+  ~48 ms — React 19's Suspense fallback throttle (~300 ms) held the reveal, so the page committed and asked for its seed at ~355 ms;
+  Lantern's paint graph contains every request that has FINISHED by the observed LCP, so seed bytes the LCP element never needed (the
+  header intro on workouts / skincare / tips) were charged to LCP. On data-LCP routes (diet, fridge, recipe) the LCP waited for every
+  seed the page reads, not only the one above the fold. The eager chunk `LangProvider-*.js` had grown 28.9 → 39.9 kB gzip: 11 kB of it
+  the strings of profile / workoutPlans / skincare / tasks / admin. react-router's "development" export is byte-identical to its
+  production build (no lever). Fonts: ~136 kB of woff2 finish before the first paint on every route (see RESIDUAL).
+- **Levers (each measured before keeping it):**
+  1. `src/routes/lazyPage.tsx` — pages are swapped in through state, not a Suspense reveal (memoised import, loading line, already-loaded
+     renders at once, failure → retried `React.lazy` so errors propagate as before). Seeds now requested at ~80–100 ms.
+  2. `src/lib/afterPaint.ts` `afterNextPaint()` — the bundled seed loaders start their `import()` after two animation frames + a task
+     (at once for a hidden document). workouts 87 → 90, skincare 86 → 90–93, tips 90 → 92 (subset runs).
+  3. **Dictionary split** — `src/i18n/dictionary.ts` → `src/i18n/app.ts` (base + APP features = `AppDictionary`, what `useLang().t`
+     carries); new `src/i18n/dictionary.ts` = full `Dictionary` / `en` / `el` / `dictionaries` (tests, e2e, one-owner check);
+     `features/routeFeatures.ts` composes admin / profile / skincare / tasks / workoutPlans, each exporting `<feature>Copy`; their
+     components call `useLang(<feature>Copy)` (typed `AppDictionary & F`, cached merge, stable identity). Ten keys read outside their
+     route moved (not copied) to `features/shared.ts`. ESLint `no-restricted-imports` keeps app code off the full dictionary.
+     `LangProvider-*.js` 120.8 kB / **39.9 → 82.9 kB / 29.3 kB gzip**; route chunks +1.7 to +3.6 kB gzip each.
+  4. **DietPage two-stage load** (`src/diets/DietPage.tsx`) — the frame needs only `listDiets()`; `DietRecipesAndPlan` reads recipes +
+     ingredients (62 of 86 kB gzip) once the frame is ON SCREEN — `afterElementPainted('diet-frame')` (Element Timing entry on the
+     summary paragraph; double rAF fallback; 1 s cap). Double rAF alone was NOT enough: Chrome pipelines frames and the large frame was
+     presented 20–40 ms after the second rAF (stage 2 still finished before the observed LCP). diet 84–87 → **88–89**.
+  5. **FridgePage two-stage load** (`src/fridge/FridgePage.tsx`) — ingredients first (picker + results frame with the draft ribbon, the
+     LCP element), recipes after `afterElementPainted('fridge-frame')`; results section `aria-busy` until then, list skeleton if the fridge
+     already holds ingredients; a recipes failure shows the same fridge ErrorState below the header. fridge 85–87 → **89–90**.
+  6. `src/content/index.ts` — the supabase content READER is `import()`ed with supabase-js (a local-only page no longer downloads it).
+  7. `src/telemetry.ts` `startTelemetry()` reads the three `VITE_FLEET_*` inline, so a build without them drops the client (~14 kB raw)
+     from the entry. Same runtime outcome; a build WITH them still carries it (scratch build: `fleet_errors` present, entry 238.7 kB).
+- **Entry sizes (production `npm run build`):** `index-*.js` **238.62 kB / 74.71 kB gzip → 229.27 kB / 71.64 kB gzip**;
+  `LangProvider-*.js` 120.84 / 39.94 → 82.85 / 29.25; JS before first paint 114.7 → 100.9 kB gzip. CSS unchanged (42.71 / 8.61).
+- **Measured and rejected:** single-rAF deferral (seed still finished before the LCP frame); a fixed timer for stage 2 (worked — 88 ×3 —
+  but is latency for real users; Element Timing gives the same with no wait); pre-warming recipe's tables at page-module eval (87/88/87,
+  noise-level, couples the page to its reads — reverted); deferring `listDiets()` on the recipe page (its chips are in the first viewport
+  and the names differ widely from the slugs — "Carnivore (αποκλειστικά ζωική διατροφή)" — a layout shift); a deferred user-data source
+  (~3 kB gzip, a typed proxy over ten tables — not worth it); relying on tree-shaking to drop unused route features from the eager chunk
+  (rolldown keeps any module statically imported from the entry graph — hence the separate `routeFeatures.ts` + lint rule).
+- **RESIDUAL — `recipe` 86–87.** Its header (the LCP element is the draft ribbon) needs `getRecipe` (recipes + ingredients, 62 kB gzip)
+  and the diet chips right under it need `listDiets()` (25 kB): 354 kB finish before its observed LCP — **136 kB webfonts**, 107 kB shell,
+  86 kB above-the-fold seed data, 17 kB page chunks. Upper bound measured on a throwaway build with the two `@fontsource-variable` imports
+  removed: **recipe 96 / 96, diet 96 / 97** — the self-hosted variable fonts cost ~9–10 points on EVERY route. Not changed here: how the
+  brand fonts load is a design decision (DECISIONS P5.3 kept `swap`, rejected `optional` and preload). Options for the lead: (a) load the
+  font stylesheet after the first paint (the metric-matched fallbacks already exist — a FOUT on every cold visit), (b) narrow the
+  variable `wght` axis to the weights used (400–700) with a vendored subset, (c) accept recipe at 86–87 locally (CI was 85 on it before
+  this entry and the gate is 85).
+- **Verification (worktree `wt/g`, quiet machine except long-lived desktop apps):** `npm run lint` → 0 errors, 23 warnings (unchanged) ·
+  `npm run typecheck` → clean · `npm test` → **88 files / 3762 tests passed** (was 86 / 3739; new: `lib/afterPaint.test.ts`,
+  `routes/lazyPage.test.tsx`, `useLang(copy)` cases, dictionary split cases, diet / fridge two-stage cases) · `npm run build` (after the
+  tests) → entry `index-CcLil4fY.js` 229.27 kB / 71.64 kB gzip · `npm run build:dead` OK · `E2E_PREBUILT=1 npm run e2e` → **99 passed** ·
+  `check:pwa` OK · `check:bundle` OK (61 files) · `check:lighthouse` × 3 on that same `dist/`:
+
+  | route | run 1 | run 2 | run 3 |
+  | --- | --- | --- | --- |
+  | home | 92 | 94 | 92 |
+  | recipes | 91 | 93 | 91 |
+  | **recipe** | **86** | **87** | **86** |
+  | fridge | 90 | 89 | 89 |
+  | diets | 89 | 89 | 89 |
+  | diet | 89 | 88 | 89 |
+  | workouts | 92 | 89 | 91 |
+  | plans | 90 | 90 | 90 |
+  | tips | 91 | 91 | 92 |
+  | skincare | 91 | 92 | 92 |
+  | tasks | 93 | 93 | 93 |
+  | task-topic | 92 | 92 | 92 |
+  | auth | 93 | 93 | 93 |
+  | account | 94 | 94 | 94 |
+  | profile | 90 | 90 | 91 |
+  | admin | 94 | 94 | 94 |
+  | not-found | 94 | 97 | 94 |
+
+  a11y / best-practices / seo 100 on every route in every run; every run `check:lighthouse OK` (cold, SW blocked, verified per LHR).
+- **Files:** `src/routes/{lazyPage.tsx,lazyPage.test.tsx,routes.tsx}` · `src/components/{PageLoading.tsx,Layout.tsx}` ·
+  `src/lib/{afterPaint.ts,afterPaint.test.ts}` · `src/content/{bundled.ts,index.ts}` · `src/telemetry.ts` · `src/diets/DietPage{,.test}.tsx` ·
+  `src/fridge/FridgePage{,.test}.tsx` · `src/i18n/{app.ts (was dictionary.ts),dictionary.ts,LangProvider.tsx,LangProvider.test.tsx,dictionary.test.ts}` ·
+  `src/i18n/features/{index.ts,routeFeatures.ts,shared.ts,admin.ts,profile.ts,skincare.ts,tasks.ts,workoutPlans.ts}` · the
+  `useLang(<feature>Copy)` call sites in `src/{admin,profile,skincare,tasks,workouts/plans}/*` · `i18n/app` imports in the other app
+  modules · typed helpers `profile/format.ts`, `tasks/{text.ts,PlanView.tsx}`, `workouts/WorkoutsPage.tsx`, `recipes/format.ts` ·
+  `eslint.config.js` (the import boundary). No migration, no dependency, no gate/threshold change.
+- **For the lead's BRAIN pass (not edited here):** §2 i18n (app vs route features, `useLang(copy)`, `i18n/app.ts`, lint boundary) and
+  pages (`lazyPage`, two-stage diet/fridge); §5 gotchas — React 19's ~300 ms Suspense reveal throttle; Lantern charges requests that
+  FINISH before the observed LCP; two rAFs ≠ "on screen" (frame pipelining — Element Timing is the reliable signal); rolldown keeps a
+  module statically imported from the entry graph in the eager chunk even when only lazy chunks read it; fonts ≈ 9–10 points per route.
+
 ### P8.QA — 2026-10-06 — FAILURES (every LOCAL P8 criterion PASS; criterion 5 live SQL NOT RUNNABLE by qa; LIVE grant drift found on the pre-O1 tables)
 
 - **Setup:** `git clone https://github.com/intotheveil/hygieia <scratch>/hygieia-qa8` → HEAD **`d9d05c4`**, tree clean · `npm ci` · `npx playwright install chromium`. Nothing run inside `D:/projects/hygieia`; no product file edited (clone `git status` = only the untracked `.qa8/` scratch). The `FIX — fridge list rename …` entry below landed AFTER `d9d05c4` and is NOT covered by this run.

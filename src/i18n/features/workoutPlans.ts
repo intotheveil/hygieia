@@ -1,25 +1,27 @@
 // WORKOUT PLANS DICTIONARY (P8.3) — every string of `/workouts/plans` (plan builder, active plan
-// grid, session logger, progress and PRs, session history) plus the "My plans" / "Start plan" links
-// on /workouts and /profile. Named `workoutPlans` because `plans.ts` is the MEAL-plan module (P4.6),
-// which also owns the shared `loadFailed` / `retry`. Every key is prefixed `wp` so it can never
-// collide with another module's key (one owner per key, dictionary.test.ts). Reused from their
-// owners, never redeclared: `minutesUnit` (workouts), `profileUnit.kg`, `profileDelete`,
-// `profileConfirmDelete` (profile), `types` / `levels` / `intensities` / `pickType`… (workouts).
+// grid, session logger, progress and PRs, session history); the "My plans" / "Start plan" links on
+// /workouts and /profile live in ./shared.ts. Named `workoutPlans` because `plans.ts` is the
+// MEAL-plan module (P4.6), which also owns the shared `loadFailed` / `retry`. Every key is prefixed
+// `wp` so it can never collide with another module's key (one owner per key, dictionary.test.ts).
+// Reused from their owners, never redeclared: `minutesUnit` (workouts), `profileUnit.kg`,
+// `profileDelete`, `profileConfirmDelete` (shared), `types` / `levels` / `intensities` /
+// `pickType`… (workouts).
+//
+// ROUTE FEATURE (perf, 2026-10-06): read only by `/workouts/plans`, so it is NOT composed into the
+// dictionary every page gets from `useLang()` — the route's components call
+// `useLang(workoutPlansCopy)` and these strings ship in that route's lazy chunk
+// (./routeFeatures.ts).
 
 import type { PluralForms } from '../fill.ts'
 import type { PlanStatus } from '../../user/source.ts'
 import type { LoggerError, SetFieldError } from '../../workouts/plans/logger.ts'
 import type { PlanFormError } from '../../workouts/plans/builder.ts'
 import type { PersonalRecordKind } from '../../workouts/plans/progress.ts'
+import type { FeatureCopy } from '../app.ts'
 
 export interface WorkoutPlansDictionary {
   wpTitle: string
   wpIntro: string
-  /** Link text to the page from /workouts and /profile. */
-  wpLink: string
-  /** The /workouts card button; `{name}` = the session title (accessible name). */
-  wpStartPlan: string
-  wpStartPlanFor: string
   wpLoadFailed: string
 
   // builder
@@ -122,9 +124,6 @@ export const workoutPlansEn: WorkoutPlansDictionary = {
   wpTitle: 'My workout plans',
   wpIntro:
     'Turn any session into a plan of a few weeks, log every set as you train, and watch your records and weekly volume grow.',
-  wpLink: 'My plans',
-  wpStartPlan: 'Start plan',
-  wpStartPlanFor: 'Start plan: {name}',
   wpLoadFailed: 'Your plans could not be loaded.',
 
   wpBuilderHeading: 'New plan',
@@ -242,9 +241,6 @@ export const workoutPlansEl: WorkoutPlansDictionary = {
   wpTitle: 'Τα προγράμματα προπόνησής μου',
   wpIntro:
     'Κάνε οποιαδήποτε προπόνηση πρόγραμμα λίγων εβδομάδων, κατέγραψε κάθε σετ καθώς γυμνάζεσαι και δες τα ρεκόρ και τον εβδομαδιαίο όγκο σου να ανεβαίνουν.',
-  wpLink: 'Τα προγράμματά μου',
-  wpStartPlan: 'Ξεκίνα πρόγραμμα',
-  wpStartPlanFor: 'Ξεκίνα πρόγραμμα: {name}',
   wpLoadFailed: 'Δεν φορτώθηκαν τα προγράμματά σου.',
 
   wpBuilderHeading: 'Νέο πρόγραμμα',
@@ -357,4 +353,10 @@ export const workoutPlansEl: WorkoutPlansDictionary = {
   wpSessionSummary: '{exercises} ασκήσεις · {sets} σετ έγιναν · όγκος {volume} κιλά',
   wpDeleteFailed: 'Η προπόνηση δεν διαγράφηκε. Δοκίμασε ξανά.',
   wpUnknownExercise: 'Η άσκηση δεν είναι πια διαθέσιμη',
+}
+
+/** Both literals, for `useLang(workoutPlansCopy)` on the `/workouts/plans` route. */
+export const workoutPlansCopy: FeatureCopy<WorkoutPlansDictionary> = {
+  el: workoutPlansEl,
+  en: workoutPlansEn,
 }

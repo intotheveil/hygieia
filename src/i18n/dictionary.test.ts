@@ -1,33 +1,53 @@
 import { containsPlaceholderMarkers, hasGreek, leaves, looksUntranslated } from '../test/bilingual'
-import { LANGS, MODULE_IDS, dictionaries, el, en, type Dictionary } from './dictionary'
-import { adminEn } from './features/admin.ts'
+import {
+  LANGS,
+  MODULE_IDS,
+  appDictionaries,
+  dictionaries,
+  el,
+  en,
+  type Dictionary,
+} from './dictionary'
+import { adminCopy, adminEl, adminEn } from './features/admin.ts'
 import { dietsEn } from './features/diets.ts'
 import { fridgeEn } from './features/fridge.ts'
 import { featuresEn } from './features/index.ts'
 import { plansEn } from './features/plans.ts'
-import { profileEn } from './features/profile.ts'
+import { profileCopy, profileEl, profileEn } from './features/profile.ts'
 import { recipesEn } from './features/recipes.ts'
-import { skincareEn } from './features/skincare.ts'
-import { tasksEn } from './features/tasks.ts'
+import { routeFeaturesEn } from './features/routeFeatures.ts'
+import { sharedEn } from './features/shared.ts'
+import { skincareCopy, skincareEl, skincareEn } from './features/skincare.ts'
+import { tasksCopy, tasksEl, tasksEn } from './features/tasks.ts'
 import { themeEn } from './features/theme.ts'
 import { tipsEn } from './features/tips.ts'
-import { workoutPlansEn } from './features/workoutPlans.ts'
+import { workoutPlansCopy, workoutPlansEl, workoutPlansEn } from './features/workoutPlans.ts'
 import { workoutsEn } from './features/workouts.ts'
 
-/** The eleven feature modules composed by `features/index.ts`, by name, over their `en` literal. */
-const FEATURE_MODULES: Readonly<Record<string, object>> = {
-  admin: adminEn,
+/**
+ * Every feature module, by name, over its `en` literal: the eight APP features composed by
+ * `features/index.ts` and the five ROUTE features composed by `features/routeFeatures.ts`.
+ */
+const APP_FEATURE_MODULES: Readonly<Record<string, object>> = {
   diets: dietsEn,
   fridge: fridgeEn,
   plans: plansEn,
-  profile: profileEn,
   recipes: recipesEn,
-  skincare: skincareEn,
-  tasks: tasksEn,
+  shared: sharedEn,
   theme: themeEn,
   tips: tipsEn,
-  workoutPlans: workoutPlansEn,
   workouts: workoutsEn,
+}
+const ROUTE_FEATURE_MODULES: Readonly<Record<string, object>> = {
+  admin: adminEn,
+  profile: profileEn,
+  skincare: skincareEn,
+  tasks: tasksEn,
+  workoutPlans: workoutPlansEn,
+}
+const FEATURE_MODULES: Readonly<Record<string, object>> = {
+  ...APP_FEATURE_MODULES,
+  ...ROUTE_FEATURE_MODULES,
 }
 
 /**
@@ -194,9 +214,11 @@ describe('bilingual dictionary — one owner per key (features/index.ts rule; P3
     }
   }
 
-  it('composes exactly the eleven feature modules and nothing else', () => {
-    const union = new Set(Object.values(FEATURE_MODULES).flatMap((literal) => Object.keys(literal)))
-    expect([...union].sort()).toEqual(Object.keys(featuresEn).sort())
+  it('composes exactly the app feature modules (index.ts) and the route ones (routeFeatures.ts)', () => {
+    const keysOf = (modules: Readonly<Record<string, object>>) =>
+      [...new Set(Object.values(modules).flatMap((literal) => Object.keys(literal)))].sort()
+    expect(keysOf(APP_FEATURE_MODULES)).toEqual(Object.keys(featuresEn).sort())
+    expect(keysOf(ROUTE_FEATURE_MODULES)).toEqual(Object.keys(routeFeaturesEn).sort())
   })
 
   it('gives every feature key exactly one owning module (no key declared by two features)', () => {
@@ -211,7 +233,7 @@ describe('bilingual dictionary — one owner per key (features/index.ts rule; P3
     // position even when a feature re-declares it, so the feature-owned keys must form exactly the
     // tail of `Object.keys(en)` (base keys first, then every feature key, nothing interleaved).
     const keys = Object.keys(en)
-    const featureKeys = Object.keys(featuresEn)
+    const featureKeys = [...Object.keys(featuresEn), ...Object.keys(routeFeaturesEn)]
     const firstFeature = keys.findIndex((key) => owners.has(key))
     expect(firstFeature).toBeGreaterThan(0) // the base owns at least one key, and it comes first
     const head = keys.slice(0, firstFeature)
@@ -219,5 +241,41 @@ describe('bilingual dictionary — one owner per key (features/index.ts rule; P3
     expect(head.filter((key) => owners.has(key))).toEqual([])
     expect(tail).toEqual(featureKeys)
     expect(keys.length).toBe(head.length + featureKeys.length)
+  })
+})
+
+describe('bilingual dictionary — app / route split (perf, 2026-10-06; features/index.ts)', () => {
+  it('keeps every route-feature key OUT of the app dictionary every page gets from useLang()', () => {
+    for (const lang of LANGS) {
+      const app = appDictionaries[lang]
+      for (const key of Object.keys(routeFeaturesEn)) {
+        expect(
+          Object.hasOwn(app, key),
+          `${lang}: route-feature key ${key} in the app dictionary`,
+        ).toBe(false)
+      }
+    }
+  })
+
+  it('the full dictionary is exactly the app dictionary plus the route features, per language', () => {
+    for (const lang of LANGS) {
+      expect(Object.keys(dictionaries[lang]).sort()).toEqual(
+        [...Object.keys(appDictionaries[lang]), ...Object.keys(routeFeaturesEn)].sort(),
+      )
+    }
+  })
+
+  it('pairs each route feature with its own two literals in its <feature>Copy', () => {
+    const copies = [
+      [adminCopy, adminEl, adminEn],
+      [profileCopy, profileEl, profileEn],
+      [skincareCopy, skincareEl, skincareEn],
+      [tasksCopy, tasksEl, tasksEn],
+      [workoutPlansCopy, workoutPlansEl, workoutPlansEn],
+    ] as const
+    for (const [copy, elLiteral, enLiteral] of copies) {
+      expect(copy.el).toBe(elLiteral)
+      expect(copy.en).toBe(enLiteral)
+    }
   })
 })

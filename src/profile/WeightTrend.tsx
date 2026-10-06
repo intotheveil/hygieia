@@ -3,6 +3,7 @@
 // the figure is never image-only. Fewer than two readings → the empty copy, no chart.
 
 import { useLang } from '../i18n/LangProvider'
+import { profileCopy } from '../i18n/features/profile.ts'
 import { fill } from '../i18n/fill'
 import type { Entry } from '../user/source'
 import { buildSparkline, weightPoints } from './chart'
@@ -13,7 +14,7 @@ const WIDTH = 320
 const HEIGHT = 96
 
 export function WeightTrend({ entries, today }: { entries: readonly Entry[]; today: string }) {
-  const { t, lang } = useLang()
+  const { t, lang } = useLang(profileCopy)
   const chart = buildSparkline(weightPoints(entries, today), {
     width: WIDTH,
     height: HEIGHT,

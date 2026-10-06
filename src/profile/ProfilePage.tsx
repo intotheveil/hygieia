@@ -14,6 +14,7 @@ import { ErrorState, Loading } from '../components/AsyncState'
 import { SignedOutNote } from '../components/SignedOutNote'
 import { contentSource, type ContentSource } from '../content/index.ts'
 import { useLang } from '../i18n/LangProvider'
+import { profileCopy } from '../i18n/features/profile.ts'
 import { useAsyncResult } from '../lib/useAsync'
 import {
   ok,
@@ -73,7 +74,7 @@ export interface ProfilePageProps {
 }
 
 export function ProfilePage({ source, content = contentSource, today }: ProfilePageProps) {
-  const { t } = useLang()
+  const { t } = useLang(profileCopy)
   const fromHook = useUserData()
   const userData = source ?? fromHook
   const todayIso = today ?? localIsoDate(new Date())

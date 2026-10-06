@@ -11,7 +11,7 @@ import { EmptyState, ErrorState, Loading } from '../components/AsyncState'
 import { SignedOutNote } from '../components/SignedOutNote'
 import { contentSource, type ContentSource, type Diet, type Recipe } from '../content/index.ts'
 import { useLang } from '../i18n/LangProvider'
-import type { Lang } from '../i18n/dictionary'
+import type { Lang } from '../i18n/app'
 import { useAsync } from '../lib/useAsync'
 import type {
   Favourite,

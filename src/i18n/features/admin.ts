@@ -1,10 +1,15 @@
 // ADMIN DICTIONARY (P4.10 review page + P4.11 price table). One interface, two literals that must
-// both satisfy it (ADR-0002 at feature scale); composed into the app `Dictionary` by ./index.ts.
+// both satisfy it (ADR-0002 at feature scale); part of the full `Dictionary` (./index.ts).
 // `adminTitle` and the 403 copy (`notAllowedTitle` / `notAllowedBody`) already live in the base
 // dictionary (P2.5) and are reused, not redefined. Content kinds are keyed by `ContentTable`, so a
 // new content table is a type error here, not an unlabelled tab.
+//
+// ROUTE FEATURE (perf, 2026-10-06): read only by `/admin`, so it is NOT composed into the
+// dictionary every page gets from `useLang()` — the route's components call `useLang(adminCopy)`
+// and these strings ship in that route's lazy chunk (./routeFeatures.ts).
 
 import type { ContentTable } from '../../content/enums.ts'
+import type { FeatureCopy } from '../app.ts'
 
 export interface AdminDictionary {
   adminIntro: string
@@ -136,3 +141,6 @@ export const adminEl: AdminDictionary = {
   editRow: 'Επεξεργασία',
   cancel: 'Άκυρο',
 }
+
+/** Both literals, for `useLang(adminCopy)` on the `/admin` route. */
+export const adminCopy: FeatureCopy<AdminDictionary> = { el: adminEl, en: adminEn }

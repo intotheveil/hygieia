@@ -1,7 +1,20 @@
 // DIET DETAIL `/diets/:slug` (P4.4 + P4.6): what the diet is, the five lists (allowed, avoided,
 // pros, cons, who should avoid it), the medical disclaimer, the source (or "pending"), the recipes
 // tagged with it (plain links — P3.5 may swap in RecipeCard) and the weekly plan generator
-// (plans/PlanView.tsx). An unknown slug renders the app's NotFound. `source` is injectable for tests.
+// (plans/PlanView.tsx). An unknown slug renders the app's NotFound. `source` is injectable for
+// tests.
+//
+// TWO-STAGE LOAD (perf, 2026-10-06 — CI diet 84): the frame (name, summary, the five lists, the
+// disclaimer, the source) needs only the diets table, so it renders as soon as `listDiets()`
+// answers; the recipes + ingredients that the recipe list and the plan generator need are read by
+// `DietRecipesAndPlan`, which mounts WITH the frame and starts its reads once the frame is ON
+// SCREEN (`afterElementPainted(DIET_FRAME)` on the summary paragraph, lib/afterPaint.ts), so their
+// seed chunks (62 kB gzip of the 86 kB) download after the above-the-fold frame instead of in front
+// of it — on a slow network they no longer share its bandwidth. While they load, one list skeleton
+// stands where the two sections go (below the fold on a phone); once loaded the two sections render
+// exactly as before, so `#diet-recipes` still means "the page has settled". A failure of the second
+// stage shows the shared ErrorState (with Retry) in that slot; the frame stays, because the diet
+// itself did load.
 
 import { useCallback } from 'react'
 import { Link, useParams } from 'react-router-dom'
@@ -15,8 +28,10 @@ import {
   type Recipe,
   type Result,
 } from '../content/index.ts'
+import { ok } from '../content/source.ts'
 import { useLang } from '../i18n/LangProvider'
-import type { Lang } from '../i18n/dictionary'
+import type { Lang } from '../i18n/app'
+import { afterElementPainted } from '../lib/afterPaint'
 import { useAsyncResult } from '../lib/useAsync'
 import { PlanView } from '../plans/PlanView'
 import { NotFound } from '../routes/routes'
@@ -42,30 +57,31 @@ export function recipeTitle(recipe: Recipe, lang: Lang): string {
   return lang === 'el' ? recipe.title_el : recipe.title_en
 }
 
-interface Loaded {
-  diet: Diet | null
+/** Stage 1 — the diet row (null when no visible diet has the slug). */
+async function loadDiet(source: ContentSource, slug: string): Promise<Result<Diet | null>> {
+  const diets = await source.listDiets()
+  if (!diets.ok) return diets
+  return ok(diets.data.find((row) => row.slug === slug) ?? null)
+}
+
+interface PlanData {
   recipes: Recipe[]
   ingredients: Ingredient[]
 }
 
-async function loadDiet(source: ContentSource, slug: string): Promise<Result<Loaded>> {
-  const [diets, recipes, ingredients] = await Promise.all([
-    source.listDiets(),
+/** Stage 2 — the recipes tagged with the diet + the ingredient catalogue the plan prices with. */
+async function loadPlanData(source: ContentSource, slug: string): Promise<Result<PlanData>> {
+  const [recipes, ingredients] = await Promise.all([
     source.listRecipes({ dietSlugs: [slug] }),
     source.listIngredients(),
   ])
-  if (!diets.ok) return diets
   if (!recipes.ok) return recipes
   if (!ingredients.ok) return ingredients
-  return {
-    ok: true,
-    data: {
-      diet: diets.data.find((row) => row.slug === slug) ?? null,
-      recipes: recipes.data,
-      ingredients: ingredients.data,
-    },
-  }
+  return ok({ recipes: recipes.data, ingredients: ingredients.data })
 }
+
+/** Element Timing id of the frame's summary paragraph — stage 2 waits for it to be on screen. */
+const DIET_FRAME = 'diet-frame'
 
 const SHELL = 'mx-auto flex min-h-dvh max-w-4xl flex-col gap-8 px-4 py-10 sm:px-6'
 
@@ -89,7 +105,7 @@ export function DietPage({ source = contentSource }: { source?: ContentSource })
       </main>
     )
   }
-  const { diet, recipes, ingredients } = state.data
+  const diet = state.data
   if (diet === null) return <NotFound />
 
   return (
@@ -109,7 +125,9 @@ export function DietPage({ source = contentSource }: { source?: ContentSource })
           <h2 id="diet-what" className="font-display text-xl font-semibold text-olive-950">
             {t.whatItIs}
           </h2>
-          <p className="leading-relaxed text-olive-700">{dietSummary(diet, lang)}</p>
+          <p elementtiming={DIET_FRAME} className="leading-relaxed text-olive-700">
+            {dietSummary(diet, lang)}
+          </p>
         </section>
       </header>
 
@@ -157,6 +175,28 @@ export function DietPage({ source = contentSource }: { source?: ContentSource })
         )}
       </p>
 
+      <DietRecipesAndPlan source={source} diet={diet} />
+    </main>
+  )
+}
+
+/** Stage 2 of the page (see the header): the recipes tagged with the diet and the plan generator. */
+function DietRecipesAndPlan({ source, diet }: { source: ContentSource; diet: Diet }) {
+  const { t, lang } = useLang()
+  const load = useCallback(
+    () => afterElementPainted(DIET_FRAME).then(() => loadPlanData(source, diet.slug)),
+    [source, diet.slug],
+  )
+  const state = useAsyncResult(load)
+
+  if (state.status === 'loading') return <Loading variant="list" />
+  if (state.status === 'error') {
+    return <ErrorState message={t.loadFailed} onRetry={state.reload} />
+  }
+  const { recipes, ingredients } = state.data
+
+  return (
+    <>
       <section aria-labelledby="diet-recipes" className="flex flex-col gap-3">
         <h2 id="diet-recipes" className="font-display text-xl font-semibold text-olive-950">
           {t.recipesForDiet}
@@ -186,6 +226,6 @@ export function DietPage({ source = contentSource }: { source?: ContentSource })
         <p className="text-sm leading-relaxed text-olive-700">{t.generatePlanIntro}</p>
         <PlanView diet={diet} recipes={recipes} ingredients={ingredients} />
       </section>
-    </main>
+    </>
   )
 }

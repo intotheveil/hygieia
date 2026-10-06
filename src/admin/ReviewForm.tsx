@@ -15,6 +15,7 @@
 import { useState } from 'react'
 import type { ContentTable } from '../content/enums.ts'
 import { useLang } from '../i18n/LangProvider'
+import { adminCopy } from '../i18n/features/admin.ts'
 import type { AdminContentSource, AdminPatch, AdminRow } from './adminSource.ts'
 import {
   diffDraft,
@@ -153,7 +154,7 @@ interface LinesEditorProps {
  * line to each column and "remove" deletes index `i` from each column.
  */
 function LinesEditor({ base, columns, onChange }: LinesEditorProps) {
-  const { t } = useLang()
+  const { t } = useLang(adminCopy)
   const count = Math.max(0, ...columns.map(([, , lines]) => lines.length))
   const set = (col: number, index: number, text: string) =>
     onChange(
@@ -241,7 +242,7 @@ export interface ReviewFormProps {
 type Outcome = 'idle' | 'busy' | 'saved' | 'failed'
 
 export function ReviewForm({ table, row, source, onBack, onReviewed, onSaved }: ReviewFormProps) {
-  const { t, lang } = useLang()
+  const { t, lang } = useLang(adminCopy)
   const [groups] = useState(() => fieldGroups(table, row))
   const [fields] = useState(() => fieldsOf(groups))
   // `baseline` is the row as loaded (then as last saved); `draft` is what the inputs hold.

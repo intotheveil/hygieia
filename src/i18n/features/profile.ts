@@ -1,23 +1,25 @@
-// PROFILE DICTIONARY (P8.2) — every string of `/profile` and of the save buttons, in both
-// languages (ADR-0002 at feature scale). Composed into the app `Dictionary` by ./index.ts. Label
+// PROFILE DICTIONARY (P8.2) — every string of `/profile`, in both
+// languages (ADR-0002 at feature scale). Part of the full `Dictionary` (./index.ts). Label
 // tables are keyed by the P8 contract enums (`EntryKind`, `EntryUnit`, `Cadence`, `SavedItemKind`),
 // by the form's `EntryFormError` and by the badge ids, so a new member without a label is a type
 // error in both languages at once.
 //
 // Reused from their owners, never re-declared (one owner per key): `open` + `retry` + `loadFailed`
-// (plans), `favourites` + `remove` + `account` (base). Greek: "kcal" and "ml" stay Latin-script as
-// every Greek label does; everything else is written the way a Greek coach or pharmacist says it.
+// (plans), `favourites` + `remove` + `account` (base), `profileUnit` + `profileDelete` +
+// `profileConfirmDelete` (shared — /workouts/plans shows them too). The save-button copy and the
+// `profileLink` live in ./shared.ts (read on every page). Greek: "kcal" and "ml" stay Latin-script
+// as every Greek label does; everything else is written the way a Greek coach or pharmacist says
+// it.
+//
+// ROUTE FEATURE (perf, 2026-10-06): read only by `/profile`, so it is NOT composed into the
+// dictionary every page gets from `useLang()` — the route's components call `useLang(profileCopy)`
+// and these strings ship in that route's lazy chunk (./routeFeatures.ts).
 
 import type { BadgeId } from '../../profile/achievements.ts'
 import type { EntryFormError } from '../../profile/entryForm.ts'
-import type {
-  Cadence,
-  EntryKind,
-  EntryUnit,
-  GoalKind,
-  SavedItemKind,
-} from '../../user/source.ts'
+import type { Cadence, EntryKind, GoalKind, SavedItemKind } from '../../user/source.ts'
 import type { PluralForms } from '../fill.ts'
+import type { FeatureCopy } from '../app.ts'
 
 export interface BadgeCopy {
   name: string
@@ -27,8 +29,6 @@ export interface BadgeCopy {
 export interface ProfileDictionary {
   profileTitle: string
   profileIntro: string
-  /** The account-menu / account-page link to `/profile`. */
-  profileLink: string
   profileLoadFailed: string
   // Summary strip
   profileSummaryHeading: string
@@ -54,7 +54,6 @@ export interface ProfileDictionary {
   profileAddFailed: string
   profileFormError: Record<EntryFormError, string>
   profileKind: Record<EntryKind, string>
-  profileUnit: Record<EntryUnit, string>
   /** The unit a goal of each kind is set in (skincare: sessions). */
   profileGoalUnit: Record<GoalKind, string>
   // Weight trend
@@ -65,9 +64,6 @@ export interface ProfileDictionary {
   // History
   profileHistory: string
   profileHistoryEmpty: string
-  profileDelete: string
-  /** The second-click confirmation label ("Sure?"). */
-  profileConfirmDelete: string
   profileDeleteFailed: string
   // Goals
   profileGoals: string
@@ -96,17 +92,12 @@ export interface ProfileDictionary {
   profileUnsaveFailed: string
   /** A saved id whose content is no longer visible. */
   profileItemUnavailable: string
-  // Save buttons (on the content cards)
-  saveItemAdd: string
-  saveItemRemove: string
-  saveItemFailed: string
 }
 
 export const profileEn: ProfileDictionary = {
   profileTitle: 'Profile',
   profileIntro:
     'Your log: weight, meals, workouts, water, sleep, steps, skincare, nails and mood — with streaks, goals, badges and everything you have saved.',
-  profileLink: 'Profile',
   profileLoadFailed: 'Your profile could not be loaded.',
   profileSummaryHeading: 'At a glance',
   profileEntriesThisWeek: 'Entries this week',
@@ -145,15 +136,6 @@ export const profileEn: ProfileDictionary = {
     nails: 'Nails',
     mood: 'Mood',
   },
-  profileUnit: {
-    kg: 'kg',
-    kcal: 'kcal',
-    min: 'min',
-    ml: 'ml',
-    h: 'h',
-    steps: 'steps',
-    score: 'out of 5',
-  },
   profileGoalUnit: {
     water: 'ml',
     sleep: 'h',
@@ -167,8 +149,6 @@ export const profileEn: ProfileDictionary = {
   profileWeightTrendSummary: 'Weight from {first} to {last} kg, {delta} kg over {n} readings.',
   profileHistory: 'History',
   profileHistoryEmpty: 'Nothing logged yet. Add your first entry above.',
-  profileDelete: 'Delete',
-  profileConfirmDelete: 'Sure?',
   profileDeleteFailed: 'The entry was not deleted. Try again.',
   profileGoals: 'Goals',
   profileGoalsIntro: 'Set a target per day or per week. Progress shows on the summary above.',
@@ -223,16 +203,12 @@ export const profileEn: ProfileDictionary = {
   profileUnsave: 'Unsave',
   profileUnsaveFailed: 'Could not remove it. Try again.',
   profileItemUnavailable: 'No longer available',
-  saveItemAdd: 'Save',
-  saveItemRemove: 'Saved — remove',
-  saveItemFailed: 'Could not save. Try again.',
 }
 
 export const profileEl: ProfileDictionary = {
   profileTitle: 'Προφίλ',
   profileIntro:
     'Το ημερολόγιό σου: βάρος, γεύματα, προπονήσεις, νερό, ύπνος, βήματα, περιποίηση δέρματος, νύχια και διάθεση — με σερί, στόχους, παράσημα και ό,τι έχεις αποθηκεύσει.',
-  profileLink: 'Προφίλ',
   profileLoadFailed: 'Το προφίλ σου δεν φορτώθηκε.',
   profileSummaryHeading: 'Με μια ματιά',
   profileEntriesThisWeek: 'Καταχωρίσεις αυτή την εβδομάδα',
@@ -271,15 +247,6 @@ export const profileEl: ProfileDictionary = {
     nails: 'Νύχια',
     mood: 'Διάθεση',
   },
-  profileUnit: {
-    kg: 'κιλά',
-    kcal: 'kcal',
-    min: 'λεπτά',
-    ml: 'ml',
-    h: 'ώρες',
-    steps: 'βήματα',
-    score: 'στα 5',
-  },
   profileGoalUnit: {
     water: 'ml',
     sleep: 'ώρες',
@@ -295,8 +262,6 @@ export const profileEl: ProfileDictionary = {
   profileHistory: 'Ιστορικό',
   profileHistoryEmpty:
     'Δεν έχεις καταχωρίσει τίποτα ακόμη. Πρόσθεσε την πρώτη σου καταχώριση παραπάνω.',
-  profileDelete: 'Διαγραφή',
-  profileConfirmDelete: 'Σίγουρα;',
   profileDeleteFailed: 'Η καταχώριση δεν διαγράφηκε. Δοκίμασε ξανά.',
   profileGoals: 'Στόχοι',
   profileGoalsIntro:
@@ -377,7 +342,7 @@ export const profileEl: ProfileDictionary = {
   profileUnsave: 'Αφαίρεση από τα αποθηκευμένα',
   profileUnsaveFailed: 'Δεν αφαιρέθηκε. Δοκίμασε ξανά.',
   profileItemUnavailable: 'Δεν είναι πλέον διαθέσιμο',
-  saveItemAdd: 'Αποθήκευση',
-  saveItemRemove: 'Αποθηκεύτηκε — αφαίρεση',
-  saveItemFailed: 'Δεν αποθηκεύτηκε. Δοκίμασε ξανά.',
 }
+
+/** Both literals, for `useLang(profileCopy)` on the `/profile` route. */
+export const profileCopy: FeatureCopy<ProfileDictionary> = { el: profileEl, en: profileEn }

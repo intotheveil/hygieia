@@ -15,6 +15,7 @@ import { useProfile } from '../auth/profile'
 import { ErrorState, Loading } from '../components/AsyncState'
 import { CONTENT_TABLES, type ContentStatus, type ContentTable } from '../content/enums.ts'
 import { useLang } from '../i18n/LangProvider'
+import { adminCopy } from '../i18n/features/admin.ts'
 import { useAsync, useAsyncResult } from '../lib/useAsync.ts'
 import {
   adminSource,
@@ -38,7 +39,7 @@ const TAB_ON = 'bg-olive-900 text-paper-50'
 const TAB_OFF = 'border border-olive-900/20 bg-paper-50/70 text-olive-900 hover:bg-paper-50'
 
 function Shell({ children }: { children: ReactNode }) {
-  const { t } = useLang()
+  const { t } = useLang(adminCopy)
   return (
     <main className="mx-auto flex min-h-dvh max-w-5xl flex-col gap-6 px-4 py-10 sm:px-6">
       <h1 className="font-display text-3xl font-semibold text-olive-950">{t.adminTitle}</h1>
@@ -48,7 +49,7 @@ function Shell({ children }: { children: ReactNode }) {
 }
 
 export function AdminPage() {
-  const { t } = useLang()
+  const { t } = useLang(adminCopy)
   const { client } = useAuth()
   const profile = useProfile()
   const source = useMemo(() => (client === null ? null : adminSource(client)), [client])
@@ -109,7 +110,7 @@ async function loadPending(source: AdminContentSource): Promise<PendingByTable> 
 type Rows = AdminRow[] | null | undefined
 
 function Workbench({ source }: { source: AdminContentSource }) {
-  const { t } = useLang()
+  const { t } = useLang(adminCopy)
   const [tab, setTab] = useState<Tab>(CONTENT_TABLES[0])
   const [status, setStatus] = useState<ContentStatus>('pending')
   const [selected, setSelected] = useState<AdminRow | null>(null)

@@ -1,11 +1,17 @@
 // TASKS ADVISOR DICTIONARY (P9) — every string the `/tasks` pages show, in both languages (ADR-0002
 // at feature scale). The topics, questions and tasks themselves are bilingual CONTENT in
-// src/tasks/content/*.ts; this module holds only the page chrome. Composed by ./index.ts.
+// src/tasks/content/*.ts; this module holds only the page chrome. Part of the full `Dictionary`
+// (./index.ts).
 //
 // Reused from their owners, never re-declared (one owner per key): `minutes` (recipes),
 // `retry` (plans), `loading` (base).
+//
+// ROUTE FEATURE (perf, 2026-10-06): read only by the `/tasks` pages, so it is NOT composed into the
+// dictionary every page gets from `useLang()` — the route's components call `useLang(tasksCopy)`
+// and these strings ship in that route's lazy chunk (./routeFeatures.ts).
 
 import type { Day } from '../../tasks/types.ts'
+import type { FeatureCopy } from '../app.ts'
 
 export interface TasksDictionary {
   tasksTitle: string
@@ -150,3 +156,6 @@ export const tasksEl: TasksDictionary = {
   tasksCopyFailed: 'Η αντιγραφή δεν έγινε — ο browser δεν το επέτρεψε.',
   tasksEveryDay: 'Κάθε μέρα',
 }
+
+/** Both literals, for `useLang(tasksCopy)` on the `/tasks` pages. */
+export const tasksCopy: FeatureCopy<TasksDictionary> = { el: tasksEl, en: tasksEn }

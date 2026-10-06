@@ -15,9 +15,10 @@
 
 import { useId, useState } from 'react'
 import type { SkincareProductType, SkincareRoutine, SkincareTip } from '../content'
-import type { Lang } from '../i18n/dictionary'
+import type { Lang } from '../i18n/app'
 import { SaveButton } from '../components/SaveButton'
 import { useLang } from '../i18n/LangProvider'
+import { skincareCopy } from '../i18n/features/skincare.ts'
 import { isUrl, resolveSteps, sourceLabel } from './select'
 
 const CARD =
@@ -51,7 +52,7 @@ export interface RoutineCardProps {
 }
 
 export function RoutineCard({ routine, types }: RoutineCardProps) {
-  const { t, lang } = useLang()
+  const { t, lang } = useLang(skincareCopy)
   const [open, setOpen] = useState(false)
   const id = useId()
   const stepsId = `${id}-steps`
@@ -138,7 +139,7 @@ export function RoutineCard({ routine, types }: RoutineCardProps) {
 // --- product guide -------------------------------------------------------------------------------
 
 export function ProductTypeCard({ type }: { type: SkincareProductType }) {
-  const { t, lang } = useLang()
+  const { t, lang } = useLang(skincareCopy)
   const id = useId()
   const note = pick(lang, type.notes_el, type.notes_en)
   return (
@@ -185,7 +186,7 @@ export function ProductTypeCard({ type }: { type: SkincareProductType }) {
 // --- tips ----------------------------------------------------------------------------------------
 
 export function SkincareTipCard({ tip }: { tip: SkincareTip }) {
-  const { t, lang } = useLang()
+  const { t, lang } = useLang(skincareCopy)
   const id = useId()
   const sourced = !tip.needs_source && tip.sources.length > 0
   return (

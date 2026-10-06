@@ -7,12 +7,19 @@
 // LAZY SEEDS (P5.3 performance follow-up). The six seed tables are hundreds of kB of bilingual
 // text; importing them statically put every one of them in the entry chunk (1.26 MB, FCP 3.5 s on
 // every route). Each table is now a dynamic `import()` behind a cached promise, so Vite emits one
-// chunk per table and a page pulls only what it reads: /recipes loads recipes + ingredients (+ diets
-// for the filter), /workouts loads exercises + workouts, /tips loads tips. The public `ContentSource`
-// API is unchanged (every method already returned a promise); `bundledSource` is still synchronous
-// to construct. A chunk that fails to load (offline before the service worker precached it, or a
-// stale deploy whose hashed chunk is gone) resolves to `fail('network')` like a supabase outage would,
-// and the loader forgets the rejection so a later call retries.
+// chunk per table and a page pulls only what it reads: /recipes loads recipes + ingredients (+
+// diets for the filter), /workouts loads exercises + workouts, /tips loads tips. The public
+// `ContentSource` API is unchanged (every method already returned a promise); `bundledSource` is
+// still synchronous to construct. A chunk that fails to load (offline before the service worker
+// precached it, or a stale deploy whose hashed chunk is gone) resolves to `fail('network')` like a
+// supabase outage would, and the loader forgets the rejection so a later call retries.
+//
+// AFTER THE PAINT (perf, 2026-10-06 — CI Lighthouse diet 84). The real loaders start their
+// `import()` only after the frame being rendered is on screen (`afterNextPaint`,
+// lib/afterPaint.ts): a page that asks for a seed table on mount paints its header, intro and
+// skeleton first, and the seed chunk then downloads on its own instead of sharing the first paint's
+// bandwidth. The wait is two animation frames on the first call per table (the loaders are memoised
+// below); the injected fixture tables used by tests are untouched.
 
 import {
   CONTENT_STATUSES,
@@ -21,6 +28,7 @@ import {
   type Level,
   type WorkoutType,
 } from './enums.ts'
+import { afterNextPaint } from '../lib/afterPaint.ts'
 import { hexToUuid, md5 } from './md5.ts'
 import {
   fail,
@@ -82,20 +90,28 @@ export interface BundledSeeds {
   skincareTips: SeedTable<SkincareTipSeed>
 }
 
+/** Run `load` once the current frame has painted (see the header: AFTER THE PAINT). */
+const afterPaint =
+  <T>(load: () => Promise<T>) =>
+  (): Promise<T> =>
+    afterNextPaint().then(load)
+
 /**
  * The real seed modules, each behind a dynamic import so Vite splits it into its own chunk. The
  * `.ts` paths are literal on purpose: the bundler needs a static string to know the chunk graph.
  */
 export const BUNDLED_SEEDS: BundledSeeds = {
-  ingredients: () => import('./seed/ingredients.ts').then((m) => m.INGREDIENTS),
-  diets: () => import('./seed/diets.ts').then((m) => m.DIETS),
-  recipes: () => import('./seed/recipes.ts').then((m) => m.RECIPES),
-  exercises: () => import('./seed/exercises.ts').then((m) => m.EXERCISES),
-  workoutTemplates: () => import('./seed/workouts.ts').then((m) => m.WORKOUT_TEMPLATES),
-  tips: () => import('./seed/tips.ts').then((m) => m.HEALTH_TIPS),
-  skincareProductTypes: () => import('./seed/skincare.ts').then((m) => m.SKINCARE_PRODUCT_TYPES),
-  skincareRoutines: () => import('./seed/skincare.ts').then((m) => m.SKINCARE_ROUTINES),
-  skincareTips: () => import('./seed/skincare.ts').then((m) => m.SKINCARE_TIPS),
+  ingredients: afterPaint(() => import('./seed/ingredients.ts').then((m) => m.INGREDIENTS)),
+  diets: afterPaint(() => import('./seed/diets.ts').then((m) => m.DIETS)),
+  recipes: afterPaint(() => import('./seed/recipes.ts').then((m) => m.RECIPES)),
+  exercises: afterPaint(() => import('./seed/exercises.ts').then((m) => m.EXERCISES)),
+  workoutTemplates: afterPaint(() => import('./seed/workouts.ts').then((m) => m.WORKOUT_TEMPLATES)),
+  tips: afterPaint(() => import('./seed/tips.ts').then((m) => m.HEALTH_TIPS)),
+  skincareProductTypes: afterPaint(() =>
+    import('./seed/skincare.ts').then((m) => m.SKINCARE_PRODUCT_TYPES),
+  ),
+  skincareRoutines: afterPaint(() => import('./seed/skincare.ts').then((m) => m.SKINCARE_ROUTINES)),
+  skincareTips: afterPaint(() => import('./seed/skincare.ts').then((m) => m.SKINCARE_TIPS)),
 }
 
 /** Resolve a `SeedTable` to its rows (an array resolves at once; a loader is called). */
@@ -105,8 +121,8 @@ function rowsOf<T>(table: SeedTable<T>): Promise<readonly T[]> {
 
 /**
  * Compute once on first call and share the promise with every concurrent caller; the seed arrays
- * never change at runtime. A REJECTED promise is dropped, so the next call tries again (a chunk that
- * failed to download once may well download the second time).
+ * never change at runtime. A REJECTED promise is dropped, so the next call tries again (a chunk
+ * that failed to download once may well download the second time).
  */
 function lazy<T>(compute: () => Promise<T>): () => Promise<T> {
   let pending: Promise<T> | undefined

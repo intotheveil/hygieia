@@ -5,6 +5,7 @@
 import { useState } from 'react'
 import { EmptyState } from '../components/AsyncState'
 import { useLang } from '../i18n/LangProvider'
+import { profileCopy } from '../i18n/features/profile.ts'
 import type { Entry, EntryKind, Result } from '../user/source'
 import { entryLabel, formatDate, formatEntryValue } from './format'
 import { groupByDate } from './stats'
@@ -28,7 +29,7 @@ export interface HistoryProps {
 }
 
 export function History({ entries, onDelete }: HistoryProps) {
-  const { t, lang } = useLang()
+  const { t, lang } = useLang(profileCopy)
   const [confirming, setConfirming] = useState<string | null>(null)
   const [failed, setFailed] = useState<string | null>(null)
   const groups = groupByDate(entries)

@@ -9,7 +9,7 @@ import { useId, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import type { IngredientSeed } from '../content/types.ts'
 import { useLang } from '../i18n/LangProvider'
-import type { Lang } from '../i18n/dictionary'
+import type { Lang } from '../i18n/app'
 import { normalizeForSearch } from './match.ts'
 
 export interface IngredientPickerProps {

@@ -8,6 +8,7 @@
 import { useState } from 'react'
 import type { WorkoutTemplate } from '../../content'
 import { useLang } from '../../i18n/LangProvider'
+import { workoutPlansCopy } from '../../i18n/features/workoutPlans.ts'
 import { fill } from '../../i18n/fill'
 import { formatDate } from '../../profile/format'
 import { DANGER, ERR, PILL, PILL_PRIMARY } from '../../profile/styles'
@@ -33,7 +34,7 @@ export function ActivePlanCard({
   onLog,
   onStatus,
 }: ActivePlanCardProps) {
-  const { t, lang } = useLang()
+  const { t, lang } = useLang(workoutPlansCopy)
   const [confirmAbandon, setConfirmAbandon] = useState(false)
   const [failed, setFailed] = useState(false)
   const [busy, setBusy] = useState(false)

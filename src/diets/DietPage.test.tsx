@@ -1,9 +1,9 @@
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 import { bundledSource } from '../content/bundled.ts'
 import { DIETS } from '../content/seed/diets.ts'
-import { ok, type ContentSource, type Recipe } from '../content/source.ts'
+import { fail, ok, type ContentSource, type Recipe } from '../content/source.ts'
 import { LangProvider } from '../i18n/LangProvider'
 import { dictionaries, type Lang } from '../i18n/dictionary'
 import { DietPage } from './DietPage'
@@ -55,8 +55,12 @@ describe('<DietPage>', () => {
         expect(screen.getByText(t.sourcePending)).toBeInTheDocument()
       }
 
-      // At least one recipe tagged with the diet, linked to /recipes/:slug.
-      const recipesHeading = screen.getByRole('heading', { level: 2, name: t.recipesForDiet })
+      // At least one recipe tagged with the diet, linked to /recipes/:slug (stage 2: the recipes +
+      // ingredients load after the frame, so the section is awaited).
+      const recipesHeading = await screen.findByRole('heading', {
+        level: 2,
+        name: t.recipesForDiet,
+      })
       const recipeLinks = within(recipesHeading.closest('section')!).getAllByRole('link')
       expect(recipeLinks.length).toBeGreaterThan(0)
       for (const link of recipeLinks) {
@@ -109,14 +113,56 @@ describe('<DietPage> async states (P5.1)', () => {
     const none: ContentSource = { ...bundledSource, listRecipes: async () => ok<Recipe[]>([]) }
     renderAt('keto', 'en', none)
     await screen.findByRole('heading', { level: 1 })
-    const section = screen
-      .getByRole('heading', { level: 2, name: dictionaries.en.recipesForDiet })
-      .closest('section')!
+    const section = (
+      await screen.findByRole('heading', { level: 2, name: dictionaries.en.recipesForDiet })
+    ).closest('section')!
     expect(within(section).getByText(dictionaries.en.noRecipesForDiet)).toBeInTheDocument()
     expect(within(section).queryByRole('link')).toBeNull()
     // The rest of the page is unaffected by the empty section.
     expect(
       screen.getByRole('heading', { level: 2, name: dictionaries.en.generatePlan }),
     ).toBeInTheDocument()
+  })
+
+  it('renders the diet frame first while the recipes for the plan are still loading (two-stage load)', async () => {
+    const pendingRecipes: ContentSource = {
+      ...bundledSource,
+      listRecipes: () => new Promise(() => {}),
+    }
+    renderAt('keto', 'en', pendingRecipes)
+    const keto = DIETS.find((d) => d.slug === 'keto')!
+    expect(await screen.findByRole('heading', { level: 1, name: keto.name_en })).toBeInTheDocument()
+    expect(screen.getByText(keto.summary_en)).toBeVisible()
+    expect(screen.getByText(dictionaries.en.notMedicalAdvice)).toBeInTheDocument()
+    // Stage 2 has not answered: one list skeleton stands where the two sections go.
+    const status = screen.getByRole('status')
+    expect(status).toHaveAttribute('aria-busy', 'true')
+    expect(status).toHaveAttribute('data-skeleton', 'list')
+    expect(document.getElementById('diet-recipes')).toBeNull()
+    expect(
+      screen.queryByRole('heading', { level: 2, name: dictionaries.en.generatePlan }),
+    ).toBeNull()
+  })
+
+  it('shows the shared ErrorState under the frame when only the recipes fail, and Retry re-reads them', async () => {
+    let calls = 0
+    const flaky: ContentSource = {
+      ...bundledSource,
+      listRecipes: (filter) => {
+        calls += 1
+        return calls === 1 ? Promise.resolve(fail('network')) : bundledSource.listRecipes(filter)
+      },
+    }
+    renderAt('keto', 'en', flaky)
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent(dictionaries.en.loadFailed)
+    // The frame stays: the diet itself loaded.
+    expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument()
+    fireEvent.click(within(alert).getByRole('button', { name: dictionaries.en.retry }))
+    expect(
+      await screen.findByRole('heading', { level: 2, name: dictionaries.en.recipesForDiet }),
+    ).toBeInTheDocument()
+    expect(calls).toBe(2)
+    expect(screen.queryByRole('alert')).toBeNull()
   })
 })

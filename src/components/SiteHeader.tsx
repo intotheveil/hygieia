@@ -13,7 +13,7 @@
 // (a gradient under text blinds axe to contrast — src/index.css); the arrow is a sibling SVG.
 
 import { Link, NavLink } from 'react-router-dom'
-import { NAV_IDS, type NavId } from '../i18n/dictionary'
+import { NAV_IDS, type NavId } from '../i18n/app'
 import { useLang } from '../i18n/LangProvider'
 import { useTheme } from '../theme/ThemeProvider'
 import { THEMES, toTheme } from '../theme/themes'

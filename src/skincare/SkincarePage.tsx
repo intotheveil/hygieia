@@ -20,6 +20,7 @@ import { contentSource } from '../content'
 import type { ContentSource } from '../content'
 import { ok, type Result } from '../content/source'
 import { useLang } from '../i18n/LangProvider'
+import { skincareCopy } from '../i18n/features/skincare.ts'
 import { plural, type PluralForms } from '../i18n/fill'
 import { useAsyncResult } from '../lib/useAsync'
 import { ProductTypeCard, RoutineCard, SkincareTipCard } from './cards'
@@ -89,7 +90,7 @@ function Section({
 }
 
 export function SkincarePage({ source = contentSource }: SkincarePageProps) {
-  const { t } = useLang()
+  const { t } = useLang(skincareCopy)
   const [params, setParams] = useSearchParams()
   const selection = parseSelection(params)
 

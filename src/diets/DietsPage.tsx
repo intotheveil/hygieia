@@ -9,7 +9,7 @@ import { DraftRibbon } from '../components/DraftRibbon'
 import { SaveButton, SavedItemsScope } from '../components/SaveButton'
 import { contentSource, type ContentSource, type Diet, type Result } from '../content/index.ts'
 import { useLang } from '../i18n/LangProvider'
-import type { Lang } from '../i18n/dictionary'
+import type { Lang } from '../i18n/app'
 import { useAsyncResult } from '../lib/useAsync'
 
 export function dietName(diet: Diet, lang: Lang): string {

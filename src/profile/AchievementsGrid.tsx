@@ -4,6 +4,7 @@
 // by badge id, so a badge without copy in either language is a type error.
 
 import { useLang } from '../i18n/LangProvider'
+import { profileCopy } from '../i18n/features/profile.ts'
 import { fill } from '../i18n/fill'
 import type { Achievement, BadgeId } from './achievements'
 import { formatDate } from './format'
@@ -29,7 +30,7 @@ const GLYPH: Readonly<Record<BadgeId, string>> = {
 }
 
 export function AchievementsGrid({ achievements }: { achievements: readonly Achievement[] }) {
-  const { t, lang } = useLang()
+  const { t, lang } = useLang(profileCopy)
   const earned = achievements.filter((a) => a.earned).length
   return (
     <section aria-labelledby="profile-achievements" className={SECTION}>

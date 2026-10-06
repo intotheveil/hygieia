@@ -9,6 +9,7 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import type { Exercise, WorkoutTemplate } from '../../content'
 import { useLang } from '../../i18n/LangProvider'
+import { workoutPlansCopy } from '../../i18n/features/workoutPlans.ts'
 import { fill } from '../../i18n/fill'
 import { ERR, H2, INPUT, LABEL, PILL, PILL_PRIMARY, SECTION } from '../../profile/styles'
 import type { UserDataSource, WorkoutPlan, WorkoutSession } from '../../user/source'
@@ -56,7 +57,7 @@ export function SessionLogger({
   onSaved,
   onCancel,
 }: SessionLoggerProps) {
-  const { t, lang } = useLang()
+  const { t, lang } = useLang(workoutPlansCopy)
   const id = useId()
   const headingRef = useRef<HTMLHeadingElement>(null)
   const [draft, setDraft] = useState<LoggerDraft>(() => draftFromTemplate(template, today))

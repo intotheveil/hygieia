@@ -6,7 +6,7 @@
 // a live route. Eight cards on a 3-column grid leave one short row (3 + 3 + 2); accepted.
 
 import { Link } from 'react-router-dom'
-import { MODULE_IDS, type ModuleId } from './i18n/dictionary'
+import { MODULE_IDS, type ModuleId } from './i18n/app'
 import { useLang } from './i18n/LangProvider'
 import { appEnv } from './lib/env'
 import { useTheme } from './theme/ThemeProvider'

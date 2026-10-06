@@ -8,6 +8,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { fill } from '../i18n/fill'
 import { useLang } from '../i18n/LangProvider'
+import { tasksCopy } from '../i18n/features/tasks.ts'
 import type { Answers, Topic } from './types'
 
 export interface QuestionnaireProps {
@@ -21,7 +22,7 @@ const BTN_PRIMARY =
   'rounded-full bg-olive-900 px-5 py-2 text-sm font-medium text-paper-50 hover:bg-olive-950 disabled:cursor-not-allowed disabled:opacity-50'
 
 export function Questionnaire({ topic, onDone }: QuestionnaireProps) {
-  const { t, lang } = useLang()
+  const { t, lang } = useLang(tasksCopy)
   const [step, setStep] = useState(0)
   const [answers, setAnswers] = useState<Record<string, string[]>>({})
   const heading = useRef<HTMLHeadingElement>(null)
