@@ -4,10 +4,17 @@
 // seeded from the persisted session (`getSession()`, `persistSession: true` in CLIENT_OPTIONS) and
 // then follows `onAuthStateChange` — including the PKCE exchange the client runs on
 // `/auth/callback` (`detectSessionInUrl: true`).
+//
+// The app's client is created LAZILY (src/lib/supabase.ts, P5.3 perf follow-up): with no `client`
+// prop the provider asks `getSupabase()` once mounted. In local-only mode that is known
+// synchronously (`appEnv`), so the first render is still `unavailable` and nothing is loaded; in
+// configured mode the state is `loading` until the library chunk and the persisted session have
+// both arrived. Tests inject a fake (or `null`) and never reach `getSupabase()`.
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { supabase, type HygieiaClient } from '../lib/supabase'
+import { appEnv } from '../lib/env'
+import { getSupabase, type HygieiaClient } from '../lib/supabase'
 import { LOADING, UNAVAILABLE, reduceAuthEvent, stateFromSession, type AuthState } from './session'
 
 export interface AuthContextValue {
@@ -19,15 +26,41 @@ export interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
+/** Whether a client is still to come when none was injected: only in configured mode. */
+const APP_CLIENT_PENDING = appEnv.mode === 'configured'
+
 export function AuthProvider({
   children,
-  client = supabase,
+  client: injected,
 }: {
   children: ReactNode
-  /** Injected in tests (a fake) or explicitly `null`; defaults to the app's client. */
+  /** Injected in tests (a fake) or explicitly `null`; absent → the app's client, resolved lazily. */
   client?: HygieiaClient | null
 }) {
-  const [state, setState] = useState<AuthState>(() => (client === null ? UNAVAILABLE : LOADING))
+  const [appClient, setAppClient] = useState<HygieiaClient | null>(null)
+  const client = injected === undefined ? appClient : injected
+  const pending = injected === undefined && APP_CLIENT_PENDING
+  const [state, setState] = useState<AuthState>(() =>
+    client === null && !pending ? UNAVAILABLE : LOADING,
+  )
+
+  // Resolve the app's client once, when nothing was injected and the build is configured.
+  useEffect(() => {
+    if (!pending) return
+    let active = true
+    getSupabase().then(
+      (resolved) => {
+        if (active) setAppClient(resolved)
+      },
+      () => {
+        // The library chunk did not load: auth is unavailable, honestly, rather than loading forever.
+        if (active) setState(UNAVAILABLE)
+      },
+    )
+    return () => {
+      active = false
+    }
+  }, [pending])
 
   useEffect(() => {
     if (client === null) return

@@ -34,9 +34,9 @@ describe('resolveAppEnv', () => {
 })
 
 describe('clientFor', () => {
-  it('creates no client in local-only mode and a client when configured', () => {
-    expect(clientFor({ mode: 'local', reason: 'missing-url' })).toBeNull()
-    const client = clientFor({
+  it('creates no client in local-only mode and a client when configured', async () => {
+    await expect(clientFor({ mode: 'local', reason: 'missing-url' })).resolves.toBeNull()
+    const client = await clientFor({
       mode: 'configured',
       supabase: { url: 'https://x.supabase.co', anonKey: 'anon' },
     })

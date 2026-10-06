@@ -6,9 +6,49 @@
 @import '@fontsource-variable/inter';
 @import '@fontsource-variable/literata';
 
+/* Fallback faces with the WEBFONTS' metrics (P5.3 perf follow-up; DECISIONS.md 2026-10-06). With
+   `font-display: swap` the page first paints in a local font and reflows when the woff2 arrives;
+   Lighthouse measured that swap as CLS 0.13 on /diets/:slug (dense Greek lists wrap differently)
+   and 0.03–0.04 on /tips. Each alias below is a local font sized and positioned to match the
+   webfont it stands in for, so the swap changes glyph shapes but not line breaks or line boxes.
+   `font-display: optional` would have been simpler and would have dropped the Greek webfont on a
+   slow first visit — rejected. The numbers come from the font files themselves (head.unitsPerEm,
+   OS/2 typo ascender/descender, average advance of a Greek + English sample): size-adjust is the
+   width ratio webfont/fallback (the Greek sample weighs slightly more: Greek is the default
+   language), the vertical overrides are the webfont's metrics divided by that ratio. A face whose
+   local() font is absent (Android has neither Georgia nor Arial) is skipped and the stack falls
+   through to the generic family exactly as before. */
+@font-face {
+  /* Literata 1177 / 308 / 0 per 1000 · widths vs Georgia: el 1.055, en 1.077 */
+  font-family: 'Literata Fallback';
+  src: local('Georgia');
+  size-adjust: 106%;
+  ascent-override: 111%;
+  descent-override: 29%;
+  line-gap-override: 0%;
+}
+@font-face {
+  /* Same, vs Times New Roman (and Liberation Serif, its metric twin on Linux runners): 1.159 / 1.165 */
+  font-family: 'Literata Fallback Times';
+  src: local('Times New Roman'), local('Liberation Serif');
+  size-adjust: 116%;
+  ascent-override: 101.5%;
+  descent-override: 26.5%;
+  line-gap-override: 0%;
+}
+@font-face {
+  /* Inter 1984 / 494 / 0 per 2048 · widths vs Arial (Liberation Sans, Helvetica): el 1.104, en 1.070 */
+  font-family: 'Inter Fallback';
+  src: local('Arial'), local('Liberation Sans'), local('Helvetica');
+  size-adjust: 108%;
+  ascent-override: 89.7%;
+  descent-override: 22.3%;
+  line-gap-override: 0%;
+}
+
 @theme {
-  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
-  --font-display: 'Literata Variable', Georgia, 'Times New Roman', serif;
+  --font-sans: 'Inter Variable', 'Inter Fallback', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Literata Variable', 'Literata Fallback', 'Literata Fallback Times', serif;
   /* Warm cream paper, deep olive ink, a sage accent: a kitchen table, not a clinic. */
   --color-paper-50: #fbfaf6;
   --color-paper-100: #f6f3ea;

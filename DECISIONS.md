@@ -543,6 +543,7 @@ otherwise. Named in `.claude/CLAUDE.project.md` §2 "Deviations".
   settles (~7.2 s), so the project carries `expect: 20 s`, `timeout: 90 s`, and the spec arms `requestfailed` for the Retry proof
   only AFTER the alert has settled (a dead-host request after that can only be the click's). CI builds dist-dead/ once more
   before `npm run e2e` (E2E_PREBUILT=1 serves both directories; the configured Pages build stays LAST).
+
 ## 2026-10-06 — P5.3 follow-up: route-level code splitting, per-table lazy seeds, full Chromium in CI
 
 - **Every page but the home is a `React.lazy` chunk, with ONE `Suspense` in `Layout` around `<Outlet />`**
@@ -588,3 +589,72 @@ otherwise. Named in `.claude/CLAUDE.project.md` §2 "Deviations".
   list arrives). Left as found — `Layout.tsx` overrides the pages' `min-h-dvh` on purpose so the disclaimer is
   visible on short pages, and changing that is a design call for the lead (reserve `min-h-dvh` on the content
   slot, or a reserved height for loading states). `diet`'s 0.827 is DietPage content (P5.1 lane).
+
+## 2026-10-06 — P5.3 perf follow-up (last): footer below the fold, lazy supabase-js, fallback font metrics
+
+- **The Layout content slot is `min-h-dvh`, so the disclaimer footer starts BELOW the first viewport on every
+  route** (`src/components/Layout.tsx`: `flex min-h-dvh flex-1 flex-col [&>main]:min-h-0 [&>main]:flex-1`). The
+  previous rule — override the pages' `min-h-dvh` so the footer is visible on short pages — left the footer inside
+  the first screen during every loading state (the one-line Suspense fallback, or a skeleton shorter than the
+  viewport) and the arriving content pushed it thousands of pixels down: ONE shift of 0.099 on recipes, diets,
+  tips (0.080 workouts, 0.017–0.036 recipe/fridge/diet), a quarter of the Lighthouse performance score on each.
+  Measured after: CLS 0.000 on every one of those routes. The trade accepted: on a short page (auth, not-found,
+  the local-only account/admin) the disclaimer is reached by scrolling one screen. Rejected alternative: a
+  reserved height per loading state — the skeletons already reserve height (P5.1) and the shift survived them,
+  because the FOOTER's position, not the skeleton's, is what moved.
+- **The slot also sets `[&>main]:w-full` — the `diet` residual (CLS 0.126) was the skeleton's WIDTH, not a font swap.**
+  Every page's `<main>` is `mx-auto max-w-*`; as a flex item with auto horizontal margins it shrinks to its
+  max-content width instead of stretching, so while the `detail` skeleton (widest bone `w-24`) was showing, `<main>`
+  on `/diets/:slug` was a 128 px column centred at x=142 that snapped to x=16 / 396 px when the seeds arrived — a
+  horizontal shift of the whole box (layout-shift `PerformanceObserver` with `sources`, Moto G viewport:
+  `[142,154,128,669] → [16,154,396,669]` at t≈404 ms; no "web font loaded" cause). The P5.1 lane had attributed it to
+  the font swap because the header nav re-wraps in the same frame (that one is 0.0004). `w-full` keeps the box in
+  place and `max-w-*` still caps it; measured after: `diet` CLS 0.0004. Fixed in Layout rather than in `DietPage`
+  because the rule is "the slot decides the size" and any page whose loading state is narrower than its content
+  has the same bug.
+- **`@supabase/supabase-js` is loaded ONLY through `import()`; the app's client is `getSupabase(): Promise<HygieiaClient | null>`,
+  created once on first demand** (`src/lib/supabase.ts`). The old `export const supabase = clientFor(appEnv)` created the
+  client at module load, which bundled the library (GoTrue + PostgREST + Realtime + Storage) into the shared eager chunk
+  of every route — in local-only mode too, where the client is null; Lighthouse's `unused-javascript` reported 79 % of
+  that chunk unused on every audit. Now: `clientFor(env, load?)` resolves null for local mode WITHOUT calling `load`
+  (unit-tested with a spy), `createHygieiaClient(library, config)` is the synchronous, request-free constructor,
+  `HygieiaClient` is still `ReturnType<typeof createHygieiaClient>` and `SupabaseLibrary` is `Pick<typeof
+import('@supabase/supabase-js'), 'createClient'>` — a type query, erased at build. A failed library load is not
+  memoised (the next call retries). The two consumers: `AuthProvider` with no `client` prop asks `getSupabase()` once
+  mounted — local-only is still `unavailable` on the FIRST render (decided from `appEnv`, nothing loaded); configured
+  stays `loading` until the chunk and the persisted session have arrived; a chunk-load failure sets `unavailable`
+  rather than loading forever. `content/index.ts` wraps the configured source in `deferredSource('supabase', …)` — every
+  `ContentSource` method awaits the real source, a load failure resolves `fail('network')` like a seed chunk failure.
+  The user/admin/profile sources are unchanged (they take the client from `useAuth().client`). Result: the shared chunk
+  `LangProvider-*.js` fell from 297 kB / 83 kB gzip to 82.6 kB / 28.9 kB gzip; the library is its own
+  `dist-*.js` (219 kB / 56.5 kB gzip, named after the package's `dist/` entry) that the local-only build never requests
+  (it is still precached by the service worker — harmless, post-load). The `build:dead` artifact and the 9 dead-backend
+  e2e specs cover the configured path, where the chunk IS loaded and every read still fails `network`.
+- **Fallback `@font-face` aliases with the webfonts' metrics, second in both token stacks** (`src/index.css`:
+  `'Literata Fallback'` = local Georgia, `'Literata Fallback Times'` = local Times New Roman / Liberation Serif (the
+  Linux runner's metric twin), `'Inter Fallback'` = local Arial / Liberation Sans / Helvetica; each with `size-adjust`,
+  `ascent-override`, `descent-override`, `line-gap-override`). With `font-display: swap` the first paint is in the local
+  font and the woff2 arrival reflows: P5.1 measured CLS 0.13 on `/diets/:slug` (dense Greek lists re-wrap) and 0.03–0.04
+  on `/tips`. The numbers are read from the font files, not copied from a table: `head.unitsPerEm`, OS/2 typo
+  ascender/descender (Literata 1177/308 per 1000; Inter 1984/494 per 2048), and the average advance width of a Greek +
+  English sample through `cmap`/`hmtx` (scratch parser over the woff2 — brotli via `node:zlib` — and the Windows TTFs).
+  `size-adjust` is the webfont/fallback width ratio, weighted a little towards the Greek sample because Greek is the
+  default language (Literata/Georgia el 1.055 · en 1.077 → 106 %; Literata/Times 1.159 · 1.165 → 116 %; Inter/Arial
+  el 1.104 · en 1.070 → 108 %); the vertical overrides are the webfont's metrics divided by that ratio (they matter
+  little here — Tailwind sets explicit line-heights — the width ratio is what fixes the line breaks). Measured
+  effect on THIS gate: at the noise floor — the audit server hands the woff2 subsets over in ~3 ms, so they arrive
+  (57–65 ms) before the first paint (74 ms) and the only swap left is the header nav's 0.0003–0.0004; the aliases
+  earn their keep on a real slow network, where the swap happens after paint and would re-wrap the dense lists.
+  The `tips` residual of 0.026 is content, not fonts: the topic filter chips grow when their "(12)" counts render
+  after the seeds load (`src/tips/TipsPage.tsx`, out of this task's scope; within the 0.05 target). Rejected:
+  `font-display: optional` (drops the Greek webfont on a slow first visit, which for the default-language users is
+  the brand font never showing) and `<link rel="preload">` of the woff2 (hashed Vite URLs; the subsets are already
+  modulepreload-adjacent and the swap would still happen on a cold cache). Where neither local font exists (Android)
+  the alias is skipped and the stack falls through to the generic family exactly as before — no regression, no gain.
+- **Known trap, out of this task's scope, for the lead:** `scripts/check-bundle-secrets.test.ts` ("the REAL build")
+  spawns `npm run build` INTO `dist/` with `{ ...process.env }` — under vitest that carries `NODE_ENV=test`, so React
+  resolves to its development build and the entry becomes 431 kB raw (vs 235 kB production). `npm test` therefore
+  overwrites a production `dist/` with a slower artifact; a `check:lighthouse` run after `npm test` without rebuilding
+  audits that (measured here: home 88, admin 85 on an otherwise identical tree). Always `npm run build` (or
+  `check:lighthouse -- --build`) after `npm test`; the fix belongs to that test (`NODE_ENV: 'production'` in the spawn
+  env, or a temp `--outDir`).

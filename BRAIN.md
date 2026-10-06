@@ -5,7 +5,7 @@
 > intent — there was no code to investigate yet beyond the P0 scaffold. Genuine unknowns are
 > marked **❓ needs human input**.
 
-**Last updated:** 2026-10-05 by Claude Code (Fable 5.1, Windows desktop, run from zeus) — P0 scaffold.
+**Last updated:** 2026-10-06 by Claude Code (Fable 5.1, builder, worktree `wt/g`) — P5.3 perf follow-up (last): Lighthouse gate green on all 12 routes locally.
 **Status:** in-development (P0 Foundation done; P1 decisions taken 2026-10-05).
 **Repo:** `intotheveil/hygieia` (public) · `D:\projects\hygieia` · **Deployed:** https://intotheveil.github.io/hygieia/ (GitHub Pages, from `main` via CI)
 
@@ -43,7 +43,9 @@ intensities."_ Named for the goddess of health and preventive wellbeing (source 
   `404.html` at build (GitHub Pages has no rewrites).
 - **Env / backend:** `src/lib/env.ts` is the ONLY reader of `VITE_SUPABASE_URL` /
   `VITE_SUPABASE_ANON_KEY`; `resolveAppEnv` never throws → `configured | local`. `src/lib/supabase.ts`
-  `supabase` is **null** in local-only mode. **DB = Alyssos's shared Supabase project, own schema `hygieia`, shared auth — see DECISIONS.md ADR-0003** (supersedes ADR-0001's no-Supabase clause). Nothing provisioned yet. The
+  `getSupabase(): Promise<HygieiaClient | null>` resolves **null** in local-only mode WITHOUT loading
+  `@supabase/supabase-js` (reached only via `import()`, its own chunk — P5.3 follow-up, 2026-10-06); the
+  `AuthProvider` and `content/index.ts` await it, every other module is handed a `HygieiaClient`. **DB = Alyssos's shared Supabase project, own schema `hygieia`, shared auth — see DECISIONS.md ADR-0003** (supersedes ADR-0001's no-Supabase clause). Nothing provisioned yet. The
   eslint config blocks server-only names and non-allow-listed `VITE_*` reads in `src/**`.
 - **Env var NAMES** (`.env.example`): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`,
   `VITE_FLEET_URL`, `VITE_FLEET_KEY`, `VITE_FLEET_PRODUCT_ID` (telemetry, not wired yet).
@@ -61,6 +63,11 @@ intensities."_ Named for the goddess of health and preventive wellbeing (source 
 
 ## 3. CURRENT STATE (what's true RIGHT NOW — the thing a resuming session reads)
 
+- **Lighthouse mobile gate GREEN locally (2026-10-06, `wt/g`, not yet merged):** `npm run check:lighthouse` → all 12 routes
+  performance 91–97 in three consecutive runs, a11y/bp/seo 100, CLS ≤ 0.020 (baseline on main: 82–91, 8 routes failing).
+  Levers: Layout slot `min-h-dvh` + `[&>main]:w-full`, lazy supabase-js (`getSupabase()`), fallback `@font-face` metrics.
+  Cold first visit of a content route (seeds from the network, not the SW) still measures ~87–88 — see BUILD_LOG entry.
+  (§3 below this line is the P0 snapshot; P1–P5 state lives in BUILD_LOG.md — the lead consolidates at the phase gate.)
 - **P0 scaffold built and proven locally (2026-10-05):** lint ✅ (0 errors, 4 fast-refresh
   warnings) · typecheck ✅ · **19 tests ✅** (4 files) · build ✅ (267 kB JS / 86 kB gzip,
   `404.html` byte-equal to `index.html`).
@@ -148,7 +155,31 @@ table (14)` is right; P1.QA.2's `(13)` is the typo.
 - **Feature-dictionary keys with the SAME type collide silently (last spread in `src/i18n/features/index.ts` wins); only DIFFERENT types are a TS error** (reviewer, 2026-10-06; found live: `sourcePending` in both diets and tips). One owner per key; the one-owner test in `dictionary.test.ts` (P3/P4 review fix 3) is what makes the rule bind — a key you want to share is reused from its owner, never re-declared.
 - **`useAsync(run)` keys its outcome on `run`'s identity: pass a `useCallback`-memoised function (or `deps`), or every render creates a new loader and the page sits on `loading` forever** (reviewer, 2026-10-06). Module-level loaders are fine; inline arrows are not. `useAsyncResult` unwraps `{ ok, data | error }`, so `ok: false` is `status: 'error'` with the code as `error`.
 
+- **`npm test` OVERWRITES `dist/` with a development React build** (P5.3 follow-up, 2026-10-06): `scripts/check-bundle-secrets.test.ts`
+  spawns `npm run build` into `dist/` with `{ ...process.env }`, which under vitest carries `NODE_ENV=test` → entry 431 kB raw instead of
+  235 kB. Any `check:lighthouse` (or e2e timing) after `npm test` without a fresh `npm run build` measures that artifact (home 88, admin 85
+  on an otherwise green tree). Build after test; fix belongs to that test (`NODE_ENV: 'production'` or a temp `--outDir`).
+- **A `<main class="mx-auto max-w-*">` inside Layout's flex column SHRINKS TO ITS CONTENT while loading** (auto horizontal margins on a
+  flex item do not stretch). A skeleton narrower than the page (the `detail` variant's widest bone is `w-24`) rendered `main` as a 128 px
+  centred column that snapped to full width when the data arrived — CLS 0.126 on `/diets/:slug`, misread by P5.1 as a font swap. Layout
+  now forces `[&>main]:w-full`; do not remove it, and attribute CLS with a layout-shift `PerformanceObserver` (`sources` → rects), not by
+  what else happens in the same frame.
+- **The Lighthouse gate's content-route scores are partly a repeat-visit number:** in 20 of 21 audits the seed chunks were served by the
+  just-installed service worker (`transferSize 0`); the one network-served audit (`fridge`, run 1) scored 87 with simulated LCP 3.5 s. A
+  single sub-90 content route with LCP ≈3.5 s and seed chunks > 0 kB in the LHR request list is that race, not a regression.
+- **Scratch Playwright probes under Git Bash need `MSYS_NO_PATHCONV=1`**, or a `/hygieia/...` argument becomes `C:/Program Files/Git/hygieia/...`.
+
 ## 6. CHANGELOG (append-only — what happened, newest first)
+
+### 2026-10-06 — P5.3 perf follow-up (last): footer below the fold, lazy supabase-js, fallback font metrics (builder, `wt/g`)
+
+- Did: Layout slot `min-h-dvh` + `[&>main]:w-full`; `@supabase/supabase-js` behind `import()` with `getSupabase()`; `AuthProvider` and
+  `content/index.ts` (`deferredSource`) await it; three fallback `@font-face` aliases with metrics read from the font files. Tests 3192 green.
+- Decided: see §7 (2026-10-06, three entries) and DECISIONS.md.
+- Resolved: the Lighthouse gate — 12/12 routes ≥ 90 in three consecutive local runs (91–97), CLS ≤ 0.020. Found the real cause of the `diet`
+  shift (skeleton width, not fonts) and the `npm test` → dev `dist/` trap (§5).
+- Left off: not committed (the loop commits after test-writer + reviewer). For the lead: `TipsPage` chip counts (CLS 0.02), the supabase
+  chunk's `dist-*.js` name (cosmetic), the `check-bundle-secrets.test.ts` fix — all out of this task's scope.
 
 ### 2026-10-05 (later) — decisions interview, shared-DB ruling, installable PWA
 
@@ -183,6 +214,13 @@ table (14)` is right; P1.QA.2's `(13)` is the typo.
   Google); curated EUR price table; 7 workout types; metric/EUR; keep P0 brand.
 - **2026-10-05:** Greek is the default language (`lang="el"`), English for everyone else; a
   stored choice wins — the operator and first users are Greek-speaking.
+
+- **2026-10-06 (P5.3 follow-up, last):** the disclaimer footer lives BELOW the first viewport on every route (Layout slot `min-h-dvh`;
+  short pages scroll to it) and the slot sizes `<main>` (`w-full`) — one shift of 0.099–0.126 per content route was the price of the
+  old "footer visible on short pages" rule. (`DECISIONS.md`)
+- **2026-10-06:** supabase-js is lazy — `getSupabase()` + `import()`; local-only builds never load it. (`DECISIONS.md`)
+- **2026-10-06:** fallback fonts carry the webfonts' metrics (`size-adjust` from measured Greek/English advance widths) rather than
+  `font-display: optional`, which would drop the Greek webfont on slow first visits. (`DECISIONS.md`)
 
 ## 8. TELEMETRY FIX LEDGER (every production error we've closed — keyed by fingerprint)
 
