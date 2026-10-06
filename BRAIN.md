@@ -153,11 +153,15 @@ pending|approved|rejected` stamped by `stamp_review()` BEFORE UPDATE · per-user
   - **Live DB:** ledger 13/13 (… 001100 skincare, 001200 seed_skincare, 001300 profile — 5 user tables, RLS per verb). Every content row
     approved on the operator's "aprove all" (incl. unsourced tips, labelled "source pending" on the page). Alyssos ledger 8.
   - **Gates at `c3d16b9`/`5b832ab`:** tests ~3675+ / 81 files, e2e 88, db:gate 357, prove-red 28/28, Lighthouse 15 routes ≥ 85/90/90.
-  - **IN FLIGHT — P9 Tasks Advisor** (lane `D:/projects/hygieia-wt/d`, branch `wt/d` at `7bacf64`, 13 files UNCOMMITTED when the session was
-    saved; a builder agent may have been cut off): topics → questionnaire → generated daily / weekly / monthly task lists, bundled content,
-    deterministic `src/tasks/generate.ts`, ticks in localStorage, `/tasks` + `/tasks/:topic`, eighth home card. Next session: inspect
-    `git -C D:/projects/hygieia-wt/d status`, finish + verify (lint, typecheck, test, build, e2e, Lighthouse), commit, merge, push.
-  - **Owed:** P8.QA + P8.REVIEW (profile + plans), P9.QA + REVIEW; BRAIN §2 reconciliation for P7/P8 (routes, modules, counts — see BUILD_LOG
+  - **P9 Tasks Advisor DONE + merged (`63aa5b1`)**: 11 topics, 479 bundled tasks (el/en), questionnaire → deterministic daily/weekly/monthly
+    plan (`src/tasks/generate.ts`, all 17,424 answer combinations tested), ticks in localStorage `hygieia:tasks:<topic>`, `/tasks` +
+    `/tasks/:topic`, eighth home card. Gates at `63aa5b1`: 3739 tests / 86 files, e2e 99, db:gate 361, prove-red 31/31.
+  - **SECURITY FIX (P8.QA finding, 2026-10-06):** exposing schema `hygieia` in the Dashboard (O1) had granted ALL to anon/authenticated on
+    the 16 tables that existed then — `profiles.is_admin` was self-writable by any signed-in user. Verified unexploited (0 profiles).
+    New migration `20261006001400_hygieia_regrant.sql` re-asserts the original grants; applied live (ledger 14/14); live grants re-read and
+    match. Fridge-list rename now uses UPDATE…WHERE id (`79abb46`). `db:live-check` probe 3 still expects `profiles → 200 []` (drift-blind) —
+    fix it to expect 401 for anon.
+  - **Owed:** P8.QA re-run (first run FAILURES = the grant drift above, now fixed; live SQL criterion run by the lead) + P8.REVIEW, P9.QA + REVIEW; BRAIN §2 reconciliation for P7/P8 (routes, modules, counts — see BUILD_LOG
     P7 REVIEW entry for the list); ~~the fridge-list rename grant finding from P8.1~~ FIXED on `wt/a` 2026-10-06 (client
     `update().eq('id')`, no migration; merge pending); operator: sign in once → admin flag (OP2.b), OP6.a telemetry, Google later.
 
