@@ -16,6 +16,7 @@ import { plansEn } from './features/plans.ts'
 import { profileCopy, profileEl, profileEn } from './features/profile.ts'
 import { recipesEn } from './features/recipes.ts'
 import { routeFeaturesEn } from './features/routeFeatures.ts'
+import { seasonCopy, seasonEl, seasonEn } from './features/season.ts'
 import { sharedEn } from './features/shared.ts'
 import { skincareCopy, skincareEl, skincareEn } from './features/skincare.ts'
 import { tasksCopy, tasksEl, tasksEn } from './features/tasks.ts'
@@ -26,7 +27,7 @@ import { workoutsEn } from './features/workouts.ts'
 
 /**
  * Every feature module, by name, over its `en` literal: the eight APP features composed by
- * `features/index.ts` and the five ROUTE features composed by `features/routeFeatures.ts`.
+ * `features/index.ts` and the six ROUTE features composed by `features/routeFeatures.ts`.
  */
 const APP_FEATURE_MODULES: Readonly<Record<string, object>> = {
   diets: dietsEn,
@@ -41,6 +42,7 @@ const APP_FEATURE_MODULES: Readonly<Record<string, object>> = {
 const ROUTE_FEATURE_MODULES: Readonly<Record<string, object>> = {
   admin: adminEn,
   profile: profileEn,
+  season: seasonEn,
   skincare: skincareEn,
   tasks: tasksEn,
   workoutPlans: workoutPlansEn,
@@ -269,6 +271,7 @@ describe('bilingual dictionary — app / route split (perf, 2026-10-06; features
     const copies = [
       [adminCopy, adminEl, adminEn],
       [profileCopy, profileEl, profileEn],
+      [seasonCopy, seasonEl, seasonEn],
       [skincareCopy, skincareEl, skincareEn],
       [tasksCopy, tasksEl, tasksEn],
       [workoutPlansCopy, workoutPlansEl, workoutPlansEn],

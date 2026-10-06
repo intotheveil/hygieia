@@ -1,9 +1,12 @@
-import { DIETS } from '../../src/content/seed/diets'
-import { RECIPES } from '../../src/content/seed/recipes'
+import { OVERLAID_SEED } from '../../src/test/overlaidSeed'
 import { el, en } from '../../src/i18n/dictionary'
 import { plural } from '../../src/i18n/fill'
 import { dietName } from '../../src/recipes/format'
 import { expect, test } from '../support/fixtures'
+
+// The seed AS SERVED (base + content overlays, src/content/seed/overlays/): the build is local-only,
+// so the bundled seed with every overlay applied IS the content the pages render.
+const { diets: DIETS, recipes: RECIPES } = OVERLAID_SEED
 
 // RECIPES WORKFLOW on the PRODUCTION build (PLAN P3.7): list → keto filter → a card → the detail
 // page (steps + draft ribbon); a deep link to a recipe is a 404 DOCUMENT that renders the recipe;

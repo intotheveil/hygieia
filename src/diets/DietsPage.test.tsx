@@ -2,11 +2,14 @@ import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 import { bundledSource } from '../content/bundled.ts'
-import { DIETS } from '../content/seed/diets.ts'
+import { OVERLAID_SEED } from '../test/overlaidSeed'
 import { fail, ok, type ContentSource, type Diet } from '../content/source.ts'
 import { LangProvider } from '../i18n/LangProvider'
 import { dictionaries, type Lang } from '../i18n/dictionary'
 import { DietsPage } from './DietsPage'
+
+// The seed AS SERVED (base + content overlays) — what the bundled source hands the page.
+const { diets: DIETS } = OVERLAID_SEED
 
 function renderPage(lang: Lang, source: ContentSource = bundledSource) {
   return render(
@@ -19,23 +22,26 @@ function renderPage(lang: Lang, source: ContentSource = bundledSource) {
 }
 
 describe('<DietsPage>', () => {
-  it.each(['el', 'en'] as const)('renders one card per seeded diet (16) in %s', async (lang) => {
-    renderPage(lang)
-    const t = dictionaries[lang]
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(t.dietsTitle)
-    const links = await screen.findAllByRole('link', { name: new RegExp(`^${t.viewDiet}: `) })
-    expect(DIETS).toHaveLength(16)
-    expect(links).toHaveLength(16)
-    for (const diet of DIETS) {
-      const name = lang === 'el' ? diet.name_el : diet.name_en
-      expect(screen.getByRole('heading', { level: 2, name })).toBeInTheDocument()
-      expect(screen.getByRole('link', { name: `${t.viewDiet}: ${name}` })).toHaveAttribute(
-        'href',
-        `/diets/${diet.slug}`,
-      )
-    }
-    expect(screen.getByText(t.dietsIntro)).toBeInTheDocument()
-  })
+  it.each(['el', 'en'] as const)(
+    'renders one card per served diet (16 base + fasting, overlay 0003) in %s',
+    async (lang) => {
+      renderPage(lang)
+      const t = dictionaries[lang]
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(t.dietsTitle)
+      const links = await screen.findAllByRole('link', { name: new RegExp(`^${t.viewDiet}: `) })
+      expect(DIETS).toHaveLength(17)
+      expect(links).toHaveLength(17)
+      for (const diet of DIETS) {
+        const name = lang === 'el' ? diet.name_el : diet.name_en
+        expect(screen.getByRole('heading', { level: 2, name })).toBeInTheDocument()
+        expect(screen.getByRole('link', { name: `${t.viewDiet}: ${name}` })).toHaveAttribute(
+          'href',
+          `/diets/${diet.slug}`,
+        )
+      }
+      expect(screen.getByText(t.dietsIntro)).toBeInTheDocument()
+    },
+  )
 
   it('shows the draft ribbon once for the bundled source', async () => {
     renderPage('en')

@@ -1,8 +1,11 @@
+import { OVERLAID_SEED } from '../../src/test/overlaidSeed'
 import type { Page } from '@playwright/test'
-import { DIETS } from '../../src/content/seed/diets'
-import { RECIPES } from '../../src/content/seed/recipes'
 import { el } from '../../src/i18n/dictionary'
 import { expect, test } from '../support/fixtures'
+
+// The seed AS SERVED (base + content overlays, src/content/seed/overlays/): the build is local-only,
+// so the bundled seed with every overlay applied IS the content the pages render.
+const { diets: DIETS, recipes: RECIPES } = OVERLAID_SEED
 
 // Offline / PWA behaviour on the PRODUCTION build (PLAN P5.4). vite.config.ts registers a Workbox
 // service worker (`registerType: 'autoUpdate'`, explicit `clientsClaim` + `skipWaiting`) that

@@ -386,13 +386,16 @@ describe('the real overlay list (./index.ts)', () => {
     expect(sun?.body_el).toContain('Βάλ’ το ως τελευταίο βήμα')
     expect(sun?.body_el).not.toContain('το το')
     expect(out.health_tips).toHaveLength(HEALTH_TIPS.length)
-    expect(out.ingredients).toBe(INGREDIENTS)
+    // a table no overlay touches comes back as the SAME array (0003 adds ingredients, diets, recipes)
+    expect(out.exercises).toBe(EXERCISES)
+    expect(out.ingredients).toHaveLength(INGREDIENTS.length + 2)
   })
 
   it('overlayTable applies the list to one table (what the bundled loaders call)', () => {
     const tips = overlayTable('health_tips', HEALTH_TIPS, OVERLAYS)
     expect(tips.find((t) => t.slug === 'nutrition-fish-twice-a-week')?.body_en).toMatch(/they make/)
-    expect(overlayTable('diets', DIETS, OVERLAYS)).toBe(DIETS)
+    expect(overlayTable('exercises', EXERCISES, OVERLAYS)).toBe(EXERCISES)
+    expect(overlayTable('diets', DIETS, OVERLAYS).map((d) => d.slug)).toContain('fasting')
   })
 
   it('the bundled source serves the overlaid rows', async () => {

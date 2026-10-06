@@ -1,7 +1,11 @@
-import { RECIPES } from '../../src/content/seed/recipes'
+import { OVERLAID_SEED } from '../../src/test/overlaidSeed'
 import { el } from '../../src/i18n/dictionary'
 import { plural } from '../../src/i18n/fill'
 import { expect, test } from '../support/fixtures'
+
+// The seed AS SERVED (base + content overlays, src/content/seed/overlays/): the build is local-only,
+// so the bundled seed with every overlay applied IS the content the pages render.
+const { recipes: RECIPES } = OVERLAID_SEED
 
 // EMPTY STATES on the PRODUCTION build (PLAN P5.1), through the shared EmptyState
 // (src/components/AsyncState.tsx): a DEEP LINK into a filter nothing matches renders

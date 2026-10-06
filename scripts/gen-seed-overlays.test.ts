@@ -19,6 +19,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { applyOverlays } from '../src/content/seed/overlays/apply.ts'
+import { OVERLAYS } from '../src/content/seed/overlays/index.ts'
 import { OVERLAY_TABLES, PATCH_COLUMNS, type Overlay } from '../src/content/seed/overlays/types.ts'
 import { DIETS } from '../src/content/seed/diets.ts'
 import { INGREDIENTS } from '../src/content/seed/ingredients.ts'
@@ -251,7 +252,9 @@ describe('an overlay with every shape, end to end on Postgres', () => {
   })
 
   it('the DB equals applyOverlays (the bundled source) for every touched recipe and template', async () => {
+    // The DB holds the REAL overlays first (0003 tags R0 `fasting`), then the test overlay.
     const expected = applyOverlays({ recipes: RECIPES, workout_templates: WORKOUT_TEMPLATES }, [
+      ...OVERLAYS,
       TEST_OVERLAY,
     ])
     for (const slug of [R0.slug, 'zz-test-dish']) {
@@ -362,7 +365,9 @@ describe('generator errors and seed:check drift', () => {
     const o: Overlay = { id: '0901-x', summary: 'x', patches: TEST_OVERLAY.patches }
     await expect(
       generateOverlays({ seedDir: seedCopy('unlisted', [o], { listExtra: false }) }),
-    ).rejects.toThrow(/overlays\/index\.ts lists \[0001-fix-typos\.ts\] but the directory holds/)
+    ).rejects.toThrow(
+      /overlays\/index\.ts lists \[0001-fix-typos\.ts[^\]]*\] but the directory holds \[[^\]]*0901-x\.ts\]/,
+    )
   })
   it('differs / missing / extra overlay files are named', async () => {
     const gen = await generateOverlays()

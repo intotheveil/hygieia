@@ -1,13 +1,16 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { contentSource } from '../content/index'
-import { RECIPES } from '../content/seed/recipes'
+import { OVERLAID_SEED } from '../test/overlaidSeed'
 import { fail, type ContentSource } from '../content/source'
 import { normalizeForSearch } from '../fridge/match'
 import { LangProvider } from '../i18n/LangProvider'
 import { el, en, type Lang } from '../i18n/dictionary'
 import { plural } from '../i18n/fill'
 import { RecipesPage } from './RecipesPage'
+
+// The seed AS SERVED (base + content overlays) — what the bundled source hands the page.
+const { recipes: RECIPES } = OVERLAID_SEED
 
 /** The current URL search string, so a test can assert what the address bar carries. */
 function LocationProbe() {
