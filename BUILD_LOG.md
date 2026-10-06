@@ -3,6 +3,113 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+### P5.QA + P6.QA — 2026-10-06 — FAILURES (one local criterion red: `check:lighthouse` is non-deterministic on a clean clone — 2 of 3 runs FAIL with one content route at 87; every other local P5/P6 criterion PASS; operator items NOT RUN)
+
+**Independent QA (agent `qa`, not a builder).** Fresh clone `git clone https://github.com/intotheveil/hygieia` → scratchpad `hygieia-qa56` at **`b14b2f9`**
+(= remote `main` = `D:/projects/hygieia` HEAD, clean tree); `npm ci` exit 0 (node v24.11.1 / npm 11.6.2); `npx playwright install chromium` exit 0. `db:gate` and
+`prove-red` ran in a sibling clone of the same commit (`hygieia-qa56-db`) so PGlite never shared a `dist/` with the build chain. Nothing under `D:/projects/hygieia`
+was touched except this entry. Every line below was produced by me in the clone; nothing is taken from a builder's claim. No `VITE_*` / `SUPABASE_ACCESS_TOKEN` in the
+shell (the unrelated un-prefixed Supabase URL/anon pair noted by P3/P4 QA is still exported and still unread by this repo) → local-only build.
+Clone `git status --short` → 0 at the end (the RED-verify edit below was reverted with `git checkout -- .`).
+
+**P5.QA.1 / P6.QA.1 — G6 chain on the fresh clone (verdict lines verbatim; run in this order):**
+- `npm run lint` → `✖ 21 problems (0 errors, 21 warnings)` (all `react-refresh/only-export-components`), exit 0 — PASS
+- `npm run typecheck` → `tsc -b` silent, exit 0 — PASS
+- `npm test` → `Test Files  63 passed (63)` · `Tests  3197 passed (3197)` · `Duration 25.86s` — PASS (≥ 3197 — P5.QA.5 count)
+- `npm run build` → `dist/assets/index-BfBCudBw.js 235.37 kB │ gzip: 73.63 kB` · `✓ built in 283ms` · `precache 69 entries (2103.20 KiB)` — PASS
+- `npm run build:dead` → `build:dead → dist-dead/ (VITE_SUPABASE_URL=http://127.0.0.1:9/, anon key "dead-anon")` · `✓ built in 252ms` · `precache 69 entries` — PASS
+- `npm run check:pwa` → `check:pwa OK — Hygieia · Υγίεια, 3 icons, sw.js present` — PASS
+- `npm run check:bundle` → `check:bundle: OK, no secret-looking value or server-only name in 37 files (1338480 bytes) in dist` — PASS
+- `npm run db:check` → `PASS  migration guard: 10 migration(s) stay inside schema hygieia` — PASS
+- `npm run db:gate` → `GATE PASSED — 227 checks green: migrations apply (twice) on a fresh copy of the shared project; the structural sweep, catalogue coverage, orphan scan and isolation + role matrix hold; Alyssos is untouched.` (228 `PASS` lines, 0 `FAIL`, exit 0) — PASS
+- `npm run seed:check` → `seed:check: OK — 6 seed migration(s) identical to the generator's output` — PASS
+- `PROVE_RED_JOBS=4 npm run db:gate:prove-red` → `PROVE-RED PASSED — 25/25 sabotages went RED on the expected FAIL line; control GREEN. Wall 17.5s (4 jobs).` (0 `WRONG LINE`/`CRASH`) — PASS
+- `E2E_PREBUILT=1 npm run e2e -- --reporter=list` → **`66 passed (37.4s)`**, 0 failed, 0 flaky, exit 0 — PASS. Per project:
+  `[local]` 57 = `a11y-matrix.spec.ts` 24 (12 routes × el/en, every cell "renders the <lang> H1 and has no serious/critical axe violations") ·
+  `admin-local-only` 3 · `diets` 3 · `empty-states` 2 · `fridge` 3 · `offline` 1 · `recipe-panels` 2 · `recipes` 5 · `smoke` 9 · `tips` 3 · `workouts` 2;
+  `[dead-backend]` 9 = `error-states.spec.ts`: "bilingual ErrorState, Retry re-requests the dead host and stays in error" on **7 pages** (`/recipes`, `/recipes/carnivore-bacon-and-eggs`,
+  `/fridge`, `/diets`, `/diets/keto`, `/workouts`, `/tips`; 15.1–17.2 s each = the supabase-js 4× retry) + "the header and nav still work from an error state: recipes → diets → tips" (22.4 s)
+  + "/auth shows the sign-in form (configured mode); a magic-link submit that cannot reach the backend shows signInFailed".
+- `npm run build` AGAIN (after `npm test` rewrote `dist/` with the dev React build — BRAIN §5) → `index-9VGkqBHE.js 235.37 kB` · `precache 69 entries (2104.29 KiB)` — PASS
+- `npm run check:lighthouse` — **FAIL, see P5.QA.4 below** (runs 1 and 2 exit 1, run 3 exit 0).
+
+**P5.QA.2 — e2e report contents:** `error-states.spec.ts` passing with the error copy + Retry on 7 pages (≥ 4 required) — PASS · `a11y-matrix.spec.ts` 24/24 cells, 0 serious/critical — PASS ·
+`offline.spec.ts` passing ("installs a service worker, then works offline: client-side nav, hard load, deep link", 2.7 s) — PASS.
+
+**P5.QA.3 — manual offline check (scratch Playwright script, not a spec; served `dist/` with `MSYS_NO_PATHCONV=1 node e2e/support/pages-server.mjs --port 4191 --root <native dist> --base /hygieia`, `locale: el-GR`):**
+```
+online load /fridge status 404          (Pages semantics: deep link = 404 DOCUMENT, renders the app)
+h1 = Τι έχω στο ψυγείο;
+SW controls page = true
+[context.setOffline(true)]  navigator.onLine = false
+addIngredient Αυγό, Ντοματίνια, Φέτα via the combobox → chips = 3 | result articles = 57 | progressbars = [75, 50, 50, 50, 50, 40, ...]
+offline HARD load /hygieia/fridge → status 200, fromServiceWorker true → articles = 57 (chips from localStorage)
+pageerror count = 0 []
+console.error count = 1 [Failed to load resource: the server responded with a status of 404 (Not Found)]   <- the ONLINE deep-link 404 document above, before going offline; not an app error
+requestfailed = []
+```
+Results compute offline from the bundled seeds, no unhandled rejection, no failed request — PASS.
+
+**P5.QA.4 — Lighthouse (mobile, thresholds perf/a11y/bp ≥ 90, seo informational), three consecutive runs on the SAME production `dist/`, nothing else heavy running:**
+```
+route        run 1   run 2   run 3   | a11y · bp · seo (all runs)
+home            92      92      92   | 100 · 100 · 100
+recipes         91      91      91   |
+recipe          87*     91      91   |
+fridge          91      87*     91   |
+diets           93      93      93   |
+diet            91      91      91   |
+workouts        93      93      93   |
+tips            90      93      93   |
+auth            93      94      93   |
+account         94      94      94   |
+admin           94      97      94   |
+not-found       94      94      94   |
+gate          FAIL    FAIL      OK
+```
+- run 1: `FAIL  /hygieia/recipes/carnivore-bacon-and-eggs (recipe): performance 87 < 90` · `largest-contentful-paint (score 0.64, weight 25): 3.5 s` · `first-contentful-paint (score 0.64): 2.6 s` → `check:lighthouse FAILED — 1 route/category pair(s) below threshold`, exit 1
+- run 2: `FAIL  /hygieia/fridge (fridge): performance 87 < 90` · LCP 3.5 s · FCP 2.6 s → exit 1
+- run 3: `check:lighthouse OK — 12 route(s) at or above every threshold`, exit 0
+- **Cause, read from the LHRs (not from the builder's note):** run 2 `fridge` → `network-requests` shows `ingredients-DwZv3rQQ.js transferSize 15209` and `recipes-Dq_qi9iR.js transferSize 48089`
+  (fetched over the network); run 2 `recipe` (91) and every content route of run 3 (all 91–93) show those same seed chunks at `transferSize 0` (served by the just-installed
+  service worker). LCP 2.9 s when the SW wins the race, 3.5 s when it loses → 87. This is exactly the BRAIN §5 gotcha ("a cold first visit of a content route scores ~87–88; the 90
+  is met when the service worker serves the seed chunks"). The builder recorded 1 miss in 4 runs (P5.3 final); here 2 misses in 3. Combined 3 of 7 runs red.
+- **Verdict on this criterion: FAIL.** The criterion is "`check:lighthouse` green" and "all ≥ 90": on a clean clone the gate exits 1 on two of three attempts, each time on a
+  different route, for a cold-visit number the thresholds do not meet. A gate that is red ~40 % of the time on an unchanged artifact is not a passed gate, and the honest cold-visit
+  performance of every content route is 87–88, below the 90 bar. Note the CI run (P6.QA.5) is NOT evidence for this criterion: CI uses the 85 bar (`check-lighthouse.mjs`, `CI` env).
+
+**P5.QA.5 — `grep -rn "\.skip(\|test\.fixme\|it\.only\|describe\.only" e2e src scripts` → empty (grep exit 1) — PASS · `npm test` 3197 ≥ 3197 — PASS.**
+
+**QA RED-verify (`clientsClaim`):** removed `clientsClaim: true,` from `vite.config.ts` (`git diff --stat` → `vite.config.ts | 1 -`), `npm run build` → `dist/sw.js` has 0 `clientsClaim` references;
+`E2E_PREBUILT=1 npm run e2e -- --project=local e2e/local/offline.spec.ts` → `✘ … › 1. online load: a service worker controls the page on the FIRST load (clientsClaim)` ·
+`Error: a service worker controls the page · Expected: true · Received: false` · `1 failed`, exit 1 — RED as required. `git checkout -- .` → `vite.config.ts` has `clientsClaim: true` again,
+rebuild → `sw.js` 1 reference, spec → `✓ … (686ms) · 1 passed`, exit 0 — GREEN. The spec binds. PASS.
+
+**P6.QA.2 — `npm run smoke:live` against `https://intotheveil.github.io/hygieia/`:** run twice, because the Pages deploy landed DURING this QA:
+- about 04:30 Z, before the deploy (live = P0 shell): `SMOKE PASSED — 14 probes` (static), `SKIPPED (backend)` (the two public Supabase names unset). The served bundle was one `index-CBnCk_GT.js`
+  512 938 chars, `"/recipes` strings 0, `index.html` still linked `fonts.googleapis.com` → the P0 shell.
+- **04:36:03 Z, after CI run 37413728863 deployed `b14b2f9`:** `SMOKE PASSED — 13 probes against https://intotheveil.github.io/hygieia/ (2366 ms)` — every static probe PASS (`GET / → 200, lang="el", title "Hygieia · Υγίεια", #root,
+  manifest linked` · manifest `start_url + scope /hygieia/, display standalone, 3 icons` · 3 icons 200 · `sw.js` 200 · `registerSW.js` 200 · deep-link probe `→ 404 with the SPA fallback document` · `favicon.svg` 200 ·
+  `script /hygieia/assets/index-w_FjhxYD.js → 200, 235343 chars, no secret-looking value or server-only name` · stylesheet `index-C-VKBQg-.css → 200, 33791 chars` · `brand/og-hygieia.jpg` 200);
+  backend probes `SKIPPED (backend)` → **NOT RUN — operator** (needs OP2.c variables; the approved-rows / pending `[]` / profiles `[]` probes are unproven).
+  **The live site is the NEW build:** `index.html` now modulepreloads `LangProvider-B9HbHilp.js`, no `googleapis` link (0), entry 235 364 bytes with a `RecipesPage-Ard_cwxR.js` chunk reference; the
+  `curl … | grep -c aria-label` on the HTML gives **0** on purpose — the SPA shell carries no nav markup (the nav `aria-label` is rendered client-side; 4 occurrences in the entry chunk). Local-only mode, as BRAIN §3 predicts.
+**P6.QA.3 — install prompt, magic-link sign-in, favourite persists, second-account isolation on the live URL → NOT RUN — operator** (needs OP2.a/OP2.b/OP2.c; the live build is local-only, no sign-in offered).
+**P6.QA.4 — telemetry fingerprint on the Zeus dashboard → NOT RUN — operator** (needs OP6.a; the `?__fleet_test=1` hook was rejected by the lead — use DevTools `throw new Error(...)` once the variables exist).
+**P6.QA.5 — CI for the release commit:** `gh run list --limit 3` → `completed success · docs: P1/P2 + P3/P4 re-review — PASS · main · 37413728863 · 7m13s` and `completed success · merge: wt/g perf final · 37413677962 · 7m31s`
+(the earlier `merge: wt/g code splitting + CI chromium` 37410976353 is `failure`). `gh run view 37413728863 --json jobs` (headSha `b14b2f9…`): job "Lint + typecheck + tests + build + e2e" — every step `success`:
+`npm ci` · `lint` · `typecheck` · `test` · `db:check` · `Migration gate (db:gate)` · `Prove the gate red (prove-red)` · `seed:check` · `Build, local-only mode` · `check:bundle` · `check:pwa` · `Build, dead-backend mode` ·
+`Install chromium` · `e2e … local + dead-backend` · (`Upload e2e failure artefacts` skipped, as it should) · `Lighthouse mobile gate` · `Upload Lighthouse reports` · `Build, configured mode (Pages artifact)` ·
+`Bundle secret scan of the Pages artifact` · `Installability check of the Pages artifact` · `upload-pages-artifact`; job "Deploy to GitHub Pages" → `deploy-pages@v4` `success`. — PASS (with the caveat that the CI Lighthouse bar is 85, not the 90 of P5.QA.4).
+
+**VERDICT: FAILURES — P5 not validated; P6 not validated (its criterion 1 includes the same `check:lighthouse`).** Everything else local is green and the artifact is live and smoke-tested statically.
+**Failure, exactly one, for the builder:**
+1. `npm run check:lighthouse` on a clean clone of `b14b2f9`: run 1 exit 1 (`recipe` performance 87, LCP 3.5 s), run 2 exit 1 (`fridge` 87, LCP 3.5 s), run 3 exit 0 (all 91–94). Expected: exit 0 with every route ≥ 90 on every run.
+   Root cause in the LHRs: the audit's cold navigation sometimes fetches the route's seed chunks (`ingredients` 15 kB + `recipes` 48 kB gzip) from the network instead of the SW precache; the cold-visit LCP is 3.5 s → 87.
+   Either the artifact must score ≥ 90 on a COLD visit (seed bytes behind LCP), or the gate must measure deterministically (e.g. warm the service worker before each audit and SAY it measures a repeat visit, or
+   audit with the SW disabled and set an honest cold-visit bar) — the choice is the lead's and needs a DECISIONS line, since the current gate passes or fails on a race the code does not control.
+   Reports from runs 1–3 are in the QA scratchpad (`lh-run{1,2,3}.out`, `lh-run2-fridge.json`); the clone's `lighthouse-report/` holds run 3.
+
 ### P1/P2 + P3/P4 RE-REVIEW — 2026-10-06 — PASS (both phases; every required fix landed and verified on `main`)
 
 **Independent reviewer (agent `reviewer`, not a builder, not QA), re-review scoped to the REQUIRED FIXES of the two REVISE verdicts below.**
