@@ -1,7 +1,7 @@
 import { OVERLAID_SEED } from '../../src/test/overlaidSeed'
 import type { Page } from '@playwright/test'
 import { el } from '../../src/i18n/dictionary'
-import { expect, test } from '../support/fixtures'
+import { expect, test, type ConsoleEntry } from '../support/fixtures'
 
 // The seed AS SERVED (base + content overlays, src/content/seed/overlays/): the build is local-only,
 // so the bundled seed with every overlay applied IS the content the pages render.
@@ -60,9 +60,20 @@ const recipeCards = (page: Page) =>
 // DietsPage's <ul> has no accessible name; its one link per card does (diets.spec.ts counts the same).
 const dietLinks = (page: Page) => page.getByRole('link', { name: new RegExp(`^${el.viewDiet}: `) })
 
+// Recipe photos are runtime-cached, never precached (vite.config.ts, 2026-10-06): offline, a photo
+// this browser never viewed cannot load, and Chromium logs that as a console error. That is the
+// designed behaviour (the card keeps its reserved 4:3 box), so ONLY those lines are dropped from
+// the watchdog; any other failed resource is still an error.
+const UNCACHED_PHOTO = /\/recipes\/[a-z0-9-]+-(480|960)\.webp$/
+const isUncachedPhoto = (entry: ConsoleEntry) =>
+  entry.kind === 'console' &&
+  /^Failed to load resource: net::ERR_/.test(entry.text) &&
+  UNCACHED_PHOTO.test(entry.url)
+
 test('the app installs a service worker, then serves content offline: recipes client-side, diets hard-loaded, deep link', async ({
   page,
   context,
+  consoleErrors,
 }) => {
   await test.step('1. online load: a service worker controls the page on the FIRST load (clientsClaim)', async () => {
     const response = await page.goto(`${BASE}/`)
@@ -152,4 +163,8 @@ test('the app installs a service worker, then serves content offline: recipes cl
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(el.heroTitle)
     await expect(page.getByRole('button', { name: el.switchTo })).toBeVisible()
   })
+
+  // In place: the fixture asserts on this same array after the test body.
+  const kept = consoleErrors.filter((entry) => !isUncachedPhoto(entry))
+  consoleErrors.splice(0, consoleErrors.length, ...kept)
 })

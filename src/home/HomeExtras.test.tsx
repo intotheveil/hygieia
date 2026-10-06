@@ -2,7 +2,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { bundledSource } from '../content/bundled'
 import { HEALTH_TIPS } from '../content/seed/tips'
-import { RECIPES } from '../content/seed/recipes'
+import { OVERLAID_SEED } from '../test/overlaidSeed'
 import { fail, ok, type ContentSource } from '../content/source'
 import { LangProvider } from '../i18n/LangProvider'
 import { dictionaries, type Lang } from '../i18n/dictionary'
@@ -106,7 +106,7 @@ describe('<Onboarding> (inside HomeExtras)', () => {
 describe('<OfTheDay> (inside HomeExtras)', () => {
   it("shows today's recipe and tip for a fixed date, linking to them", async () => {
     renderExtras()
-    const recipe = pickOfTheDay(RECIPES, NOW, 'recipe')
+    const recipe = pickOfTheDay(OVERLAID_SEED.recipes, NOW, 'recipe')
     const tip = pickOfTheDay(HEALTH_TIPS, NOW, 'tip')
     if (recipe === null || tip === null) throw new Error('seed lists are not empty')
 
@@ -126,7 +126,7 @@ describe('<OfTheDay> (inside HomeExtras)', () => {
 
   it('is the same pick on a re-render the same day', async () => {
     const first = renderExtras()
-    const recipe = pickOfTheDay(RECIPES, NOW, 'recipe')
+    const recipe = pickOfTheDay(OVERLAID_SEED.recipes, NOW, 'recipe')
     await within(screen.getByTestId('recipe-of-the-day')).findByRole('link')
     const title = screen.getByTestId('recipe-of-the-day').textContent
     first.unmount()
@@ -140,7 +140,9 @@ describe('<OfTheDay> (inside HomeExtras)', () => {
   it('honours the diet preference', async () => {
     const prefs: Prefs = { ...NO_PREFS, diet: 'keto' }
     renderExtras({ prefs })
-    const expected = pickOfTheDay(RECIPES, NOW, 'recipe', (r) => r.diet_slugs.includes('keto'))
+    const expected = pickOfTheDay(OVERLAID_SEED.recipes, NOW, 'recipe', (r) =>
+      r.diet_slugs.includes('keto'),
+    )
     expect(expected?.diet_slugs).toContain('keto')
     const card = screen.getByTestId('recipe-of-the-day')
     expect(await within(card).findByRole('link', { name: expected?.title_en })).toBeInTheDocument()

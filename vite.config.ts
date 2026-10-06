@@ -78,6 +78,25 @@ export default defineConfig({
       workbox: {
         // woff2: the self-hosted font subsets; webp: the hero variants (scripts/brand.mjs).
         globPatterns: ['**/*.{js,css,html,svg,png,jpg,webp,woff2,webmanifest}'],
+        // Recipe photos (public/recipes/, 2 × 152 WebP, several MB) are NOT precached: an install
+        // must not download every photo. The runtime rule below keeps the ones the user viewed.
+        globIgnores: ['**/recipes/**'],
+        runtimeCaching: [
+          {
+            // Images only: `/hygieia/recipes/<slug>` is also the SPA route of the detail page, and a
+            // navigation must never be answered from this cache.
+            urlPattern: ({ request, url }) =>
+              request.destination === 'image' &&
+              url.pathname.startsWith('/hygieia/recipes/') &&
+              url.pathname.endsWith('.webp'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'recipe-images',
+              expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 60 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+        ],
         // Explicit, because `injectRegister: 'script-defer'` (P5.3) switches off the plugin's implicit
         // clientsClaim for autoUpdate — found by P1.QA: offline.spec.ts went red (no SW controlled the page).
         clientsClaim: true,

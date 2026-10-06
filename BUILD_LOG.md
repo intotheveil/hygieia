@@ -3,6 +3,70 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+### RECIPE PHOTOS — 182 ComfyUI renders, vision-QA'd — 2026-10-07 — DONE
+
+- **Scope:** a photo for every served recipe, all **182** (152 base + the 30 of overlay 0003). The brief said 152; the lead
+  widened it after main gained 0003. Lane `wt/b`, which merged local `main` twice (`e15d400`, then `ddf00be` for the per-table
+  overlay layout). The pipeline was paused twice by the operator and resumed from its state file both times. The portable
+  ComfyUI (8188) died twice mid-batch, and an external WAN 2.2 video queue on the desktop ComfyUI (8000) contended for the GPU
+  for the first ~1 h.
+- **Render:** RealVisXL V5, 1024×768, 30 steps, cfg 4.5, dpmpp_2m karras (the proven `queue.py` workflow). One hand-written
+  visual description per recipe, plus a house template: overhead or 45° editorial food photography, Greek ceramic for the Greek
+  dishes, and one of 8 surfaces chosen by an FNV hash of the slug. Seed = FNV(`<slug>#<attempt>`). Negative prompt as briefed.
+- **Vision QA:** `qwen2.5vl:7b` via `/api/generate` (`format: json`, temperature 0, image downscaled to 672 px JPEG). It ran
+  strictly AFTER ComfyUI `POST /free`, with `keep_alive: 0` after. Reject if `!dish_matches || text/logo || people/hands ||
+  deformed || appetizing < 3`, then re-render with a new seed and a sharpened prompt, up to 3 tries.
+  **201 model verdicts: 184 accept, 17 reject.** Every reject was `dish_matches` (a missing key ingredient: tuna, avocado,
+  turkey, fish …), never text, people or deformity. **171 / 182 passed on the first try; 11 needed retries.**
+- **Human review** (all 11 retried, plus 12 random accepted, plus all 30 Greek dishes, by eye): **4 model ACCEPTS rejected**:
+  lamb leg (malformed forked bone), keto avocado-egg-feta bowl (avocado only beside the bowl), egg-white turkey omelette
+  (a fried egg with yolk), fish taco bowl (no fish). Each was hand-re-rendered. Prompt weighting `(x:1.4–1.6)` was needed for
+  the avocado. **2 documented overrides:** the whey coffee shake (whey and almond milk are not visible in any shake photo;
+  a2 accepted) and the egg-white omelette m8102 (turkey is the folded-in filling; six weighted re-renders turned into pink fruit
+  or sandwiches). One extra manual tuna salad render (tuna leading the prompt) after 3 tuna-less tries. Squid stifado and
+  cuttlefish-with-spinach were re-rendered too, but the originals were kept (cooked squid curls; the re-renders looked
+  artificial). Every verdict, model and human, is logged in the scratchpad `qa.jsonl` (207 rows).
+- **Assets:** `npm run recipe-photos` (`scripts/recipe-photos.mjs`, sharp) → `public/recipes/<slug>-480.webp` (q72) and
+  `-960.webp` (q75), 4:3. **364 files, 15.29 MB** (480w 4.08 MB ≈ 22 KB each; 960w 11.94 MB ≈ 66 KB each).
+  `scripts/recipe-photos.test.ts` pins that every overlay photo has both files at 480×360 / 960×720 and that nothing else ships.
+- **image_path = content overlay 0005** (`src/content/seed/overlays/0005-recipe-photos.ts`, 182 patches
+  `{ slug, set: { image_path: 'recipes/<slug>' } }`). It was authored once by `recipe-photos.mjs --overlay`, which refuses to
+  overwrite. It is recipes-only, so it is imported whole in `by-table/recipes.ts` and registered last in `overlays/index.ts`.
+  `seed:gen` → `supabase/migrations/20261007000500_hygieia_overlay_recipe_photos.sql` (only that new file; EOL flips restored).
+  `seed:check` OK (7 base + 5 overlay). `db:gate` 368 green, including `every overlay patch hits exactly one row (549)`.
+  **Live apply is a lead/operator step** (ledger row 0005).
+- **UI:** `src/recipes/photo.ts` (URL helpers against `BASE_URL`). `RecipeCard` opens with the 480w photo: `loading="lazy"`,
+  `decoding="async"`, width/height 480×360, 4:3 box. `RecipePage` has a hero at the top of the body, inside a `<picture>`: phones
+  (< 48 rem) always get the 480w file, wider screens use srcset 480w/960w with `sizes="720px"`, plus `fetchpriority="high"` and
+  960×720. Alt = `recipePhotoAlt` (`'{title} — photo'` / `'{title} — φωτογραφία'`). No photo → no `<img>`.
+- **Service worker:** `globIgnores: ['**/recipes/**']`, plus a `runtimeCaching` rule `CacheFirst` named `recipe-images`
+  (200 entries, 60 days, statuses 0/200). It matches `request.destination === 'image'` and `/hygieia/recipes/*.webp` only, because
+  `/hygieia/recipes/<slug>` is also the SPA route. **Precache: main `ddf00be` 158 entries / 4047.21 KiB → this branch 158 /
+  4065.83 KiB** (same count; +18.6 KiB is overlay 0005's rows plus the photo code; 0 photos). `check:pwa` now FAILS if any
+  `recipes/` URL is precached or the `recipe-images` cache is missing.
+- **Gates:** lint 0 errors (23 warnings, pre-existing) · typecheck ✓ · `npm test` **4447 / 114 files** ✓ · build ✓ ·
+  check:pwa ✓ · check:bundle ✓ · seed:check ✓ · db:check ✓ · db:gate 368 ✓.
+  **e2e (`E2E_PREBUILT=1`): 103 passed, 6 failed.** All 6 also fail on main `ddf00be`, proven by running the same specs against
+  main's own build from a `git archive` export: `onboarding` ×3 (recipe-of-the-day and count expectations from the 152-recipe base
+  vs 182 served), `skincare` ×1 and `tips` ×2 (no "source pending" tip left after overlay 0002). Not touched here; they are for
+  the lanes that own them. **a11y matrix clean.** New e2e test: card and hero load real 4:3 WebP (`naturalWidth`).
+  `offline.spec` drops ONLY `net::ERR_*` console lines for `/recipes/*-(480|960).webp`: a never-viewed photo cannot load offline,
+  by design.
+- **Lighthouse (cold, mobile), recipe rows:** the first run gave `recipe` **82** (FAIL). The hero became LCP: 960w chosen at DPR
+  1.75, load 652 ms, load delay 2.86 s. After the `<picture>` 480w-on-phones fix: **recipes 90, recipe 85 (zero margin)**, all
+  17 routes OK (home 94, fridge 90, diets 89, diet 88 …). The LCP is now the hero: load time 64 ms, **load delay 3.1 s = waiting
+  for the recipe data** (the URL is unknown until the row arrives). Lever not taken: speculatively preloading
+  `recipes/<slug>-480.webp` at frame paint (it would 404 for a slug without a photo). CI may read 84.
+- **Also fixed:** `src/home/HomeExtras.test.tsx` computed the expected recipe-of-the-day from the 152-recipe BASE while the source
+  serves 182 (red on main since 0003). It now picks from `OVERLAID_SEED.recipes`.
+- **Exercises (sample, NOT wired):** 6 illustrations, scratchpad `recipes-img/exercises-sample/` (PNGs, `sheet.jpg`, `VERDICT.md`).
+  **Not good enough.** qwen passed 5 of 6, but by eye only the deadlift is right (wrong poses: push-up, plank, squat ×3 tries,
+  glute bridge; RealVisXL drifts to photos). Needs an illustration checkpoint/LoRA + ControlNet OpenPose. Vision QA cannot judge
+  exercise form.
+- **Contact sheet:** scratchpad `recipes-img/contact-sheet.jpg` (6×31, 182 thumbnails).
+- **Next:** lead applies migration 0005 live, approves nothing new (patches only), decides on the recipe-route margin, and routes
+  the 6 main e2e reds to their lanes.
+
 ### PERF — overlays split per table — 2026-10-06 — DONE
 
 - **Problem:** `src/content/bundled.ts` loaded ONE lazy `overlays/index.ts` chunk for every seed table, so every content route

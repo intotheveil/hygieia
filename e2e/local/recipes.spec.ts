@@ -115,3 +115,29 @@ test('switching to English re-renders the list headings, chips and cards', async
   // The filter survived the language switch: it lives in the URL.
   await expect(page).toHaveURL(/[?&]diet=keto/)
 })
+
+test('recipe photos: the card thumbnail and the detail hero load real 4:3 WebP files (lazy card, eager hero)', async ({
+  page,
+}) => {
+  const alt = (title: string) => el.recipePhotoAlt.replace('{title}', title)
+  await page.goto(`${BASE}/recipes`)
+  const first = cards(page, el.recipesTitle).first()
+  const thumb = first.getByRole('img')
+  await expect(thumb).toHaveAttribute('loading', 'lazy')
+  await expect(thumb).toHaveAttribute('src', /\/hygieia\/recipes\/[a-z0-9-]+-480\.webp$/)
+  await expect.poll(() => thumb.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(480)
+
+  await page.goto(`${BASE}/recipes/${bacon.slug}`)
+  const hero = page.getByRole('img', { name: alt(bacon.title_el) })
+  await expect(hero).toBeVisible()
+  await expect(hero).not.toHaveAttribute('loading', 'lazy')
+  await expect(hero).toHaveAttribute('srcset', /-480\.webp 480w, .*-960\.webp 960w$/)
+  await expect
+    .poll(() =>
+      hero.evaluate(
+        (img: HTMLImageElement) =>
+          img.naturalHeight * 4 === img.naturalWidth * 3 && img.naturalWidth,
+      ),
+    )
+    .toBeGreaterThan(0)
+})
