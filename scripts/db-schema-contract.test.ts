@@ -15,14 +15,23 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { installShim } from './db-gate/shim.mjs'
 import { CATALOGUE, ENUM_COLUMNS, applyArchive, checkValues } from './db-gate/catalogue.mjs'
 import {
+  AUDIENCES,
   BLOCKS,
+  CARE_AREAS,
   CHILD_TABLES,
   CONTENT_STATUSES,
   CONTENT_TABLES,
   INTENSITIES,
   LEVELS,
   MEAL_TYPES,
+  PRICE_BANDS,
   PRICE_PER,
+  REGIONS,
+  ROUTINE_TIMES,
+  SKINCARE_CATEGORIES,
+  SKIN_CONCERNS,
+  SKIN_TYPES,
+  STEP_TIMES,
   TIP_TOPICS,
   UNITS,
   USER_TABLES,
@@ -163,6 +172,59 @@ const EXPECTED: Record<string, string[]> = {
     'needs_source:boolean',
     ...REVIEW,
   ],
+  // P7.1 skincare (20261006001100_hygieia_skincare.sql)
+  skincare_product_types: [
+    'id:uuid',
+    'slug:text',
+    'name_el:text',
+    'name_en:text',
+    'description_el:text',
+    'description_en:text',
+    'category:text',
+    'key_ingredients:text[]',
+    'avoid_with:text[]',
+    'regions:text[]',
+    'audiences:text[]',
+    'skin_types:text[]',
+    'concerns:text[]',
+    'time:text',
+    'price_band_eur:text',
+    'notes_el:text',
+    'notes_en:text',
+    ...REVIEW,
+  ],
+  skincare_routines: [
+    'id:uuid',
+    'slug:text',
+    'area:text',
+    'name_el:text',
+    'name_en:text',
+    'audience:text',
+    'skin_type:text',
+    'region:text',
+    'time:text',
+    'intro_el:text',
+    'intro_en:text',
+    'steps:jsonb',
+    'duration_min:integer',
+    ...REVIEW,
+  ],
+  skincare_tips: [
+    'id:uuid',
+    'slug:text',
+    'area:text',
+    'title_el:text',
+    'title_en:text',
+    'body_el:text',
+    'body_en:text',
+    'audiences:text[]',
+    'skin_types:text[]',
+    'concerns:text[]',
+    'regions:text[]',
+    'sources:text[]',
+    'needs_source:boolean',
+    ...REVIEW,
+  ],
   fridge_lists: ['id:uuid', 'user_id:uuid', 'name:text', 'ingredient_slugs:text[]', ...STAMPS],
   saved_plans: [
     'id:uuid',
@@ -183,6 +245,16 @@ const LOCALE_NOT_NULL: Record<string, string[]> = {
   exercises: ['name_el', 'name_en', 'cue_el', 'cue_en'],
   workout_templates: ['title_el', 'title_en', 'notes_el', 'notes_en'],
   health_tips: ['title_el', 'title_en', 'body_el', 'body_en'],
+  skincare_product_types: [
+    'name_el',
+    'name_en',
+    'description_el',
+    'description_en',
+    'notes_el',
+    'notes_en',
+  ],
+  skincare_routines: ['name_el', 'name_en', 'intro_el', 'intro_en'],
+  skincare_tips: ['title_el', 'title_en', 'body_el', 'body_en'],
 }
 
 let db: PGlite
@@ -286,6 +358,15 @@ describe('CHECK enum literals equal src/content/enums.ts (length and order)', ()
         'BLOCKS',
         'TIP_TOPICS',
         'CONTENT_STATUSES',
+        'AUDIENCES',
+        'SKIN_TYPES',
+        'SKIN_CONCERNS',
+        'REGIONS',
+        'STEP_TIMES',
+        'ROUTINE_TIMES',
+        'CARE_AREAS',
+        'SKINCARE_CATEGORIES',
+        'PRICE_BANDS',
       ].sort(),
     )
     // Every content table has its status enum entry.
@@ -320,6 +401,50 @@ describe('CHECK enum literals equal src/content/enums.ts (length and order)', ()
     expect(MEAL_TYPES).toEqual(['breakfast', 'lunch', 'dinner', 'snack'])
     expect(TIP_TOPICS).toEqual(['sleep', 'hydration', 'nutrition', 'movement', 'habits', 'mental'])
     expect(CONTENT_STATUSES).toEqual(['pending', 'approved', 'rejected'])
+    // P7.1 skincare
+    expect(AUDIENCES).toEqual(['men', 'women', 'all'])
+    expect(SKIN_TYPES).toEqual(['normal', 'dry', 'oily', 'combination', 'sensitive', 'all'])
+    expect(SKIN_CONCERNS).toEqual([
+      'acne',
+      'aging',
+      'hydration',
+      'sun',
+      'pigmentation',
+      'redness',
+      'shaving',
+      'beard',
+      'pores',
+      'texture',
+      'nails',
+      'hands',
+      'general',
+    ])
+    expect(REGIONS).toEqual(['eu', 'us', 'kr', 'jp', 'global'])
+    expect(STEP_TIMES).toEqual(['am', 'pm', 'both'])
+    expect(ROUTINE_TIMES).toEqual(['am', 'pm', 'weekly'])
+    expect(CARE_AREAS).toEqual(['face', 'nails'])
+    expect(SKINCARE_CATEGORIES).toEqual([
+      'cleanser',
+      'toner',
+      'essence',
+      'serum',
+      'moisturizer',
+      'sunscreen',
+      'exfoliant',
+      'mask',
+      'eye',
+      'treatment',
+      'shaving',
+      'beard',
+      'lip',
+      'cuticle_oil',
+      'nail_treatment',
+      'hand_cream',
+      'base_coat',
+      'nail_file',
+      'nail_remover',
+    ])
+    expect(PRICE_BANDS).toEqual(['low', 'mid', 'high'])
   })
 })
 
@@ -405,5 +530,48 @@ describe('§2 structural rules the column list alone does not show', () => {
     )
     expect((await defs('health_tips')).join('\n')).toMatch(/\^https\?:\/\//)
     expect((await defs('diets')).join('\n')).toMatch(/\^https\?:\/\//)
+  })
+
+  it('P7.1 skincare: steps is a 1–10 element jsonb array, a tip is sourced or flagged, area defaults to face', async () => {
+    const defs = async (t: string) =>
+      (
+        await db.query<{ def: string }>(
+          `select pg_get_constraintdef(c.oid) as def from pg_constraint c
+            where c.conrelid = $1::regclass and c.contype = 'c'`,
+          [`hygieia.${t}`],
+        )
+      ).rows.map((x) => x.def)
+    const routines = (await defs('skincare_routines')).join('\n')
+    expect(routines).toMatch(/jsonb_typeof\(steps\) = 'array'/)
+    expect(routines).toMatch(/jsonb_array_length\(steps\) >= 1/)
+    expect(routines).toMatch(/jsonb_array_length\(steps\) <= 10/)
+    expect(routines).toMatch(/duration_min > 0/)
+    expect((await defs('skincare_tips')).join('\n')).toMatch(
+      /cardinality\(sources\) >= 1\) OR needs_source/,
+    )
+    for (const t of ['skincare_routines', 'skincare_tips']) {
+      const d = await db.query<{ def: string }>(
+        `select pg_get_expr(d.adbin, d.adrelid) as def from pg_attrdef d
+           join pg_attribute a on a.attrelid = d.adrelid and a.attnum = d.adnum
+          where d.adrelid = $1::regclass and a.attname = 'area'`,
+        [`hygieia.${t}`],
+      )
+      expect(d.rows[0]?.def, t).toBe(`'face'::text`)
+    }
+    // Array-valued enum columns are non-empty by constraint.
+    for (const [t, col] of [
+      ['skincare_product_types', 'regions'],
+      ['skincare_product_types', 'audiences'],
+      ['skincare_product_types', 'skin_types'],
+      ['skincare_product_types', 'concerns'],
+      ['skincare_tips', 'audiences'],
+      ['skincare_tips', 'skin_types'],
+      ['skincare_tips', 'concerns'],
+      ['skincare_tips', 'regions'],
+    ]) {
+      expect((await defs(t)).join('\n'), `${t}.${col}`).toMatch(
+        new RegExp(`cardinality\\(${col}\\) >= 1`),
+      )
+    }
   })
 })

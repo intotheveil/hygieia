@@ -140,6 +140,50 @@ export const EDITABLE_COLUMNS: { readonly [T in ContentTable]: ReadonlyArray<Con
     'source_url',
     'needs_source',
   ],
+  // P7.1 skincare (20261006001100_hygieia_skincare.sql grant lists, in order)
+  skincare_product_types: [
+    'name_el',
+    'name_en',
+    'description_el',
+    'description_en',
+    'category',
+    'key_ingredients',
+    'avoid_with',
+    'regions',
+    'audiences',
+    'skin_types',
+    'concerns',
+    'time',
+    'price_band_eur',
+    'notes_el',
+    'notes_en',
+  ],
+  skincare_routines: [
+    'area',
+    'name_el',
+    'name_en',
+    'audience',
+    'skin_type',
+    'region',
+    'time',
+    'intro_el',
+    'intro_en',
+    'steps',
+    'duration_min',
+  ],
+  skincare_tips: [
+    'area',
+    'title_el',
+    'title_en',
+    'body_el',
+    'body_en',
+    'audiences',
+    'skin_types',
+    'concerns',
+    'regions',
+    'sources',
+    'needs_source',
+  ],
 }
 
 /** The five columns the price table (P4.11) edits — a subset of `EDITABLE_COLUMNS.ingredients`. */
@@ -185,7 +229,7 @@ export function adminClientFor(client: HygieiaClient): AdminClient {
       return q.order('slug')
     },
     // reason: `values` is the runtime-checked subset of THIS table's content columns
-    // (`pickContentColumns`); the client's parameter is the union of the six `Update` types with
+    // (`pickContentColumns`); the client's parameter is the union of the nine `Update` types with
     // excess-property rejection, which a generic `Record` cannot satisfy without naming the table.
     update: (table, id, values) =>
       client

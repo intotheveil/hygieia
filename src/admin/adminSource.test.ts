@@ -15,6 +15,7 @@ import {
 // The migration is the contract: its UPDATE grant lists are compared literally against
 // EDITABLE_COLUMNS below (Vite's `?raw` keeps the test inside the app tsconfig, no node types).
 import contentMigration from '../../supabase/migrations/20261006000300_hygieia_content.sql?raw'
+import skincareMigration from '../../supabase/migrations/20261006001100_hygieia_skincare.sql?raw'
 
 const ID = '11111111-1111-4111-8111-111111111111'
 
@@ -230,7 +231,8 @@ describe('AdminContentSource over the real adapter (fake Supabase client)', () =
 })
 
 describe('EDITABLE_COLUMNS mirrors the migration’s UPDATE grant', () => {
-  const sql: string = contentMigration
+  // P7.1 added three content tables in their own forward-only file; the contract is the union.
+  const sql: string = `${contentMigration}\n${skincareMigration}`
 
   /** `grant update (a, b, …) on table hygieia.<table> to authenticated` → [a, b, …]. */
   function grantedColumns(table: ContentTable): string[] {

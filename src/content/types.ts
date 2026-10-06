@@ -12,12 +12,21 @@
 // `namespace`): node's type stripping imports `src/content/**` from `scripts/*.mjs`.
 
 import type {
+  Audience,
   Block,
+  CareArea,
   ContentStatus,
   Intensity,
   Level,
   MealType,
+  PriceBand,
   PricePer,
+  Region,
+  RoutineTime,
+  SkinConcern,
+  SkinType,
+  SkincareCategory,
+  StepTime,
   TipTopic,
   Unit,
   WorkoutType,
@@ -167,3 +176,79 @@ export interface HealthTipSeed extends Localized<'title'>, Localized<'body'> {
 }
 
 export interface HealthTipRow extends HealthTipSeed, ReviewColumns {}
+
+// --- skincare (P7) --------------------------------------------------------------------------------
+// Three status-bearing content tables, no children: a routine's steps are an ORDERED jsonb array
+// whose `product_type_slug` references `skincare_product_types.slug` (asserted by the seed test, the
+// generator and the gate — not by an FK). Product TYPES, never brands (DECISIONS P7.1).
+
+/**
+ * A generic product TYPE (e.g. "gel cleanser", "mineral sunscreen"): what it is, what it typically
+ * contains, what not to layer it with, where it is typical and for whom. Never a brand.
+ */
+export interface SkincareProductTypeSeed
+  extends Localized<'name'>, Localized<'description'>, Localized<'notes'> {
+  slug: string
+  category: SkincareCategory
+  /** Typical actives / ingredients (English INCI-style names, lower case). */
+  key_ingredients: string[]
+  /** Ingredient-interaction cautions, e.g. "retinol in the same session" (English, lower case). */
+  avoid_with: string[]
+  /** Where this type is typical (style / regulation), non-empty. */
+  regions: Region[]
+  /** Non-empty. */
+  audiences: Audience[]
+  /** Non-empty. */
+  skin_types: SkinType[]
+  /** Non-empty. */
+  concerns: SkinConcern[]
+  time: StepTime
+  price_band_eur: PriceBand
+}
+
+export interface SkincareProductTypeRow extends SkincareProductTypeSeed, ReviewColumns {}
+
+/** One step of a routine. `order` is 1-based and equals the array index + 1 (the generator sets it). */
+export interface SkincareRoutineStepSeed {
+  order: number
+  /** Must resolve to a `SkincareProductTypeSeed.slug`. */
+  product_type_slug: string
+  note_el: string
+  note_en: string
+  optional: boolean
+}
+
+export interface SkincareRoutineSeed extends Localized<'name'>, Localized<'intro'> {
+  slug: string
+  /** Face / nails (the page's switch). */
+  area: CareArea
+  audience: Audience
+  skin_type: SkinType
+  /** The regional STYLE of the routine (kr layering, eu minimal, us actives, jp lightweight). */
+  region: Region
+  time: RoutineTime
+  /** Ordered; 1–10 steps. */
+  steps: SkincareRoutineStepSeed[]
+  duration_min: number
+}
+
+export interface SkincareRoutineRow extends SkincareRoutineSeed, ReviewColumns {}
+
+export interface SkincareTipSeed extends Localized<'title'>, Localized<'body'> {
+  slug: string
+  area: CareArea
+  /** Non-empty. */
+  audiences: Audience[]
+  /** Non-empty. */
+  skin_types: SkinType[]
+  /** Non-empty. */
+  concerns: SkinConcern[]
+  /** Non-empty. */
+  regions: Region[]
+  /** `http(s)://` URLs or citations actually seen by the drafter; may be empty iff `needs_source`. */
+  sources: string[]
+  /** True when no real source exists yet; `sources` empty implies this (PLAN.md §0). */
+  needs_source: boolean
+}
+
+export interface SkincareTipRow extends SkincareTipSeed, ReviewColumns {}

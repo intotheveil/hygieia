@@ -10,12 +10,21 @@
 // grant's business, not the type's).
 
 import type {
+  Audience,
   Block,
+  CareArea,
   ContentStatus,
   Intensity,
   Level,
   MealType,
+  PriceBand,
   PricePer,
+  Region,
+  RoutineTime,
+  SkinConcern,
+  SkinType,
+  SkincareCategory,
+  StepTime,
   TipTopic,
   Unit,
   WorkoutType,
@@ -140,6 +149,57 @@ type HealthTipColumns = {
   body_el: string
   body_en: string
   source_url: string | null
+  needs_source: boolean
+}
+
+// P7.1 skincare (20261006001100_hygieia_skincare.sql). `steps` is jsonb → `Json` here; the content
+// layer narrows it to `SkincareRoutineStepSeed[]` when it parses a row (src/content/supabase.ts).
+type SkincareProductTypeColumns = {
+  slug: string
+  name_el: string
+  name_en: string
+  description_el: string
+  description_en: string
+  category: SkincareCategory
+  key_ingredients: string[]
+  avoid_with: string[]
+  regions: Region[]
+  audiences: Audience[]
+  skin_types: SkinType[]
+  concerns: SkinConcern[]
+  time: StepTime
+  price_band_eur: PriceBand
+  notes_el: string
+  notes_en: string
+}
+
+type SkincareRoutineColumns = {
+  slug: string
+  area: CareArea
+  name_el: string
+  name_en: string
+  audience: Audience
+  skin_type: SkinType
+  region: Region
+  time: RoutineTime
+  intro_el: string
+  intro_en: string
+  steps: Json
+  duration_min: number
+}
+
+type SkincareTipColumns = {
+  slug: string
+  area: CareArea
+  title_el: string
+  title_en: string
+  body_el: string
+  body_en: string
+  audiences: Audience[]
+  skin_types: SkinType[]
+  concerns: SkinConcern[]
+  regions: Region[]
+  sources: string[]
   needs_source: boolean
 }
 
@@ -308,6 +368,9 @@ export type Database = {
         ]
       >
       health_tips: ContentTable<HealthTipColumns>
+      skincare_product_types: ContentTable<SkincareProductTypeColumns>
+      skincare_routines: ContentTable<SkincareRoutineColumns>
+      skincare_tips: ContentTable<SkincareTipColumns>
       fridge_lists: Table<
         FridgeListRow,
         {

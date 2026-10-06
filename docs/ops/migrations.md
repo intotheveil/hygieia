@@ -12,15 +12,17 @@ version recorded there would break Alyssos's next push. Hygieia's ledger is
 
 ## What is in the archive today
 
-`supabase/migrations/` holds **10 files**: 4 schema + 6 seed.
+`supabase/migrations/` holds **12 files**: 5 schema + 7 seed.
 
-| #    | file                                                   | what                                                                                                                                |
-| ---- | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
-| 1    | `20261006000100_hygieia_schema.sql`                    | `create schema hygieia`, the ledger table `schema_migrations`, `touch_updated_at`, the schema grants                                |
-| 2    | `20261006000200_hygieia_profiles.sql`                  | `profiles` (keyed on `auth.users.id`, no trigger on `auth.users`), `is_admin()`, `stamp_review()`                                   |
-| 3    | `20261006000300_hygieia_content.sql`                   | the content tables (ingredients, diets, recipes + children, exercises, workout templates + children, health tips) with status + RLS |
-| 4    | `20261006000400_hygieia_user_data.sql`                 | the per-user tables (`fridge_lists`, `saved_plans`, `favourites`) with RLS                                                          |
-| 5–10 | `20261006000500` … `20261006001000_hygieia_seed_*.sql` | generated seeds: ingredients, diets, recipes, exercises, workouts, tips                                                             |
+| #    | file                                                   | what                                                                                                                                          |
+| ---- | ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | `20261006000100_hygieia_schema.sql`                    | `create schema hygieia`, the ledger table `schema_migrations`, `touch_updated_at`, the schema grants                                          |
+| 2    | `20261006000200_hygieia_profiles.sql`                  | `profiles` (keyed on `auth.users.id`, no trigger on `auth.users`), `is_admin()`, `stamp_review()`                                             |
+| 3    | `20261006000300_hygieia_content.sql`                   | the content tables (ingredients, diets, recipes + children, exercises, workout templates + children, health tips) with status + RLS           |
+| 4    | `20261006000400_hygieia_user_data.sql`                 | the per-user tables (`fridge_lists`, `saved_plans`, `favourites`) with RLS                                                                    |
+| 5–10 | `20261006000500` … `20261006001000_hygieia_seed_*.sql` | generated seeds: ingredients, diets, recipes, exercises, workouts, tips                                                                       |
+| 11   | `20261006001100_hygieia_skincare.sql`                  | P7.1 skincare: `skincare_product_types`, `skincare_routines` (jsonb steps), `skincare_tips` — same status + RLS discipline, `area` face/nails |
+| 12   | `20261006001200_hygieia_seed_skincare.sql`             | generated seed: skincare product types, routines, tips (one file, three tables)                                                               |
 
 The seed files are **generated** (`npm run seed:gen` from `src/content/seed/`; `npm run seed:check`
 fails CI if one drifted). Every seeded content row lands with `status = pending`: anon sees none of
