@@ -3,6 +3,64 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+### CRÊPES — 12 crêpes, 6 savoury + 6 sweet, 3 ingredients (overlay 0009) + photos (overlay 0010) — 2026-10-11 — DONE
+
+- **Scope:** the operator asked for crêpes («κρέπα», Greek street food), stressing they are SAVOURY too. Overlay **0009** `0009-crepes`
+  adds 12 recipes, 6 savoury and 6 sweet, all slugs `crepe-…`. Branch `content/crepes-0009` (worktree `D:\projects\hygieia-wt\crepes`,
+  from `main` `9f1face`). Served: **314 recipes / 344 ingredients**, every recipe with a photo.
+- **Files:** `src/content/seed/overlays/0009-crepes.ts` + `0009-crepes/{recipes,ingredients}.ts`, one line each in `overlays/index.ts`,
+  `by-table/recipes.ts`, `by-table/ingredients.ts`; focused test `overlays/crepes.test.ts`; migration
+  `20261007000900_hygieia_overlay_crepes.sql` (only new seed file; the EOL flips on the other migrations were restored with `git checkout`).
+  Rule-list additions (data, not loosening): `buckwheat-flour` joins `GLUTEN_EXCEPTIONS` in `seed/recipes.test.ts` next to `buckwheat`;
+  `hazelnut-cocoa-spread` joins `FASTING_FORBIDDEN_SLUGS` in `src/test/fastingRule.ts` (it carries milk powder).
+- **New ingredients (3; USDA FDC reference / branded-food values, price_as_of 2026-10-11, curated EUR estimates):** `buckwheat-flour`
+  (grains-bread, €4.5–8/kg), `emmental` (dairy-eggs, €12–19/kg), `hazelnut-cocoa-spread` (sweeteners, €6–12/kg).
+- **Tag policy:** the ONE overlay rule set (`src/test/dietRules.ts`, sound + complete; bound by `diet-rules-sweep.test.ts` and the focused
+  test with cuisine) + the generic rules. No crêpe is ≤ 30 g carbs per portion, so none is low-carb / keto (complete rule satisfied).
+  Flexitarian + pescatarian ride on every meat-free dish (base convention). Gluten-free only on the galette (100 % buckwheat line note).
+  `fasting` on exactly the vegan crêpe.
+- **The 12 (slug · kind · cuisine · meals · tags):**
+  - crepe-greek-street-ham-gouda-tomato-lettuce · savoury · Greek · lunch/dinner/snack · intermittent-fasting
+  - crepe-chicken-mushroom-kasseri · savoury · Greek · lunch/dinner · high-protein,intermittent-fasting
+  - crepe-spinach-feta-spanakopita-style · savoury · Greek · lunch/dinner · vegetarian,flexitarian,pescatarian,mediterranean,intermittent-fasting
+  - crepe-smoked-salmon-cream-cheese-dill · savoury · French · breakfast/lunch · flexitarian,pescatarian,intermittent-fasting
+  - crepe-galette-complete-buckwheat-ham-emmental-egg · savoury · French · breakfast/lunch/dinner · gluten-free,intermittent-fasting
+  - crepe-vegan-mushroom-pepper-spinach · savoury · Greek · lunch/dinner · vegan,vegetarian,flexitarian,pescatarian,fasting,mediterranean
+  - crepe-lemon-sugar-classic · sweet · French · breakfast/snack · vegetarian,flexitarian,pescatarian
+  - crepe-banana-hazelnut-cocoa-spread · sweet · Greek · breakfast/snack · vegetarian,flexitarian,pescatarian
+  - crepe-strawberry-greek-yoghurt-honey · sweet · Greek · breakfast/snack · vegetarian,flexitarian,pescatarian
+  - crepe-honey-walnut-cinnamon · sweet · Greek · breakfast/snack · vegetarian,flexitarian,pescatarian
+  - crepe-caramelised-apple-cinnamon · sweet · French · breakfast/snack · vegetarian,flexitarian,pescatarian
+  - crepe-protein-oat-skyr-blueberry · sweet · International · breakfast · vegetarian,flexitarian,pescatarian,high-protein,intermittent-fasting,dash
+- **Text review (Codex, via the lead):** galette `prep_min` 25 → 70 (the batter rests ≥ 1 h); banana titles made plural and name the
+  hazelnuts. Applied before `seed:gen`.
+- **Photos (overlay 0010 `0010-recipe-photos-3`, migration `20261007001000_hygieia_overlay_recipe_photos_3.sql`):** the 0008 pipeline,
+  scratch `%TEMP%\hygieia-photos-crepes` (`pipe.mjs`, `redo.mjs` = render-only retries, `prompts.json`, `overrides.json`,
+  `neg-overrides.json`, `qa.jsonl`, `state.json`). Desktop ComfyUI `:8000` (RTX 3090) only, queued behind another job; only our own
+  prompt_ids touched (no `/free`, `/interrupt`, queue deletes). RealVisXL V5, 1024×768, 30 steps, cfg 4.5, dpmpp_2m karras. The QA prompt
+  adds "thin French-style crêpes, not thick pancakes / tortillas / omelettes". qwen2.5vl:7b QA ran only with the queue empty and ≥ 8 GB
+  free on the 3090. **The model was unreliable both ways:** it accepted an empty paper cone of ham, cheese rolls with no chicken, salmon
+  roses with no crêpe and a crêpe with no skyr. When an override weighted the filling, the crêpe disappeared. Weighting the crêpe at 1.5
+  and the filling at 1.3 fixed it. The final retries were chosen by eye (mine and the lead's); the lead's review replaced the model gate,
+  because the queue was busy. Picks (attempt): ham-gouda 4, chicken 2, spinach-feta 2, salmon 5, galette 3, vegan 3, lemon 1, banana 3,
+  strawberry 1, honey-walnut 1, apple 4, protein 4.
+  **Weak (for the lead's eye):** chicken-mushroom-kasseri (mushrooms visible, no chicken), caramelised-apple (apple slices but no visible
+  caramel), banana (plain plate; a3 kept over a4 because a4 showed no chocolate spread), galette (Emmental indistinct), lemon-sugar (a second
+  plate of sugar beside it). `recipe-photos.mjs --overlay … --only-missing` → 24 WebP, `public/recipes/` 628 files, 25.77 MB.
+- **Photo tests generalized (no pin on 0005 + 0008):** `src/recipes/photoSlugs.ts` reads EVERY `NNNN-recipe-photos*.ts` through an eager
+  `import.meta.glob` (patch-only modules, no extra chunk); `photo.test.tsx` proves the glob equals the overlays in `index.ts` that set
+  `image_path`, and the frame-first hero works for one slug of every batch; `scripts/recipe-photos.test.ts` derives the photo overlays
+  from the list: they are named `NNNN-recipe-photos*` and patch only `image_path`; every served recipe has exactly one photo, added
+  after its recipe; re-authoring any later batch with `--only-missing` yields that batch plus every later one.
+- **Gates:** lint 0 errors (23 pre-existing warnings) · typecheck ✓ · `npm test` **6085 / 6087 passed, 118 files**. The 2 failures are
+  load timeouts: `src/home/skeleton.test.tsx` (fails on clean `main` here too) and `src/prefs/pages.test.tsx` (passes alone). Earlier
+  runs also showed `AccountPage` / `PlanView` / `RecipesPage` timeouts, which pass alone. `seed:check` OK (17 = 7 base + 10 overlay) ·
+  `db:check` 24 migrations ✓ · `db:gate` **373** ✓ · `db:gate:prove-red` **34/34** ✓ · build ✓ · `check:bundle` ✓ · `check:pwa` ✓ (159
+  precache entries, 0 recipe photos). e2e and Lighthouse were not run (machine under load; CI runs them).
+- **Contact sheet:** `%TEMP%\hygieia-photos-crepes\contact-sheet.jpg` (12 thumbnails).
+- **Next:** the lead reviews and merges. Live apply is an operator step: 000900, then 001000 (001000 patches the 0009 rows). Then approve
+  the 12 recipes + 3 ingredients. BRAIN.md was not edited.
+
 ### RECIPE PHOTOS 2 — 120 ComfyUI renders for overlays 0006 + 0007, vision-QA'd (overlay 0008) — 2026-10-11 — DONE
 
 - **Scope:** a photo for each of the **120** recipes overlays `0006-thin-diets` and `0007-breakfast-snacks-world` add. The
