@@ -11,8 +11,10 @@
 import { RECIPE_DIETS as RD0003, RECIPES as R0003 } from '../0003-greek-kitchen/recipes.ts'
 import { RECIPES as R0006 } from '../0006-thin-diets/recipes.ts'
 import { RECIPES as R0007 } from '../0007-breakfast-snacks-world/recipes.ts'
+import { RECIPES as R0009 } from '../0009-crepes/recipes.ts'
 import { OVERLAY as O0005 } from '../0005-recipe-photos.ts'
 import { OVERLAY as O0008 } from '../0008-recipe-photos-2.ts'
+import { OVERLAY as O0010 } from '../0010-recipe-photos-3.ts'
 import { sliceOverlays } from '../apply.ts'
 import { SEED_OVERLAY_TABLES, type OverlaySlice } from '../types.ts'
 
@@ -26,4 +28,7 @@ export const OVERLAYS: readonly OverlaySlice[] = [
   { id: '0007-breakfast-snacks-world', additions: { recipes: R0007 } },
   // 0008 is recipes-only (image_path for the 0006/0007 recipes), imported whole like 0005.
   ...sliceOverlays([O0008], SEED_OVERLAY_TABLES.recipes),
+  { id: '0009-crepes', additions: { recipes: R0009 } },
+  // 0010 is recipes-only (image_path for the 0009 crêpes), imported whole like 0005 and 0008.
+  ...sliceOverlays([O0010], SEED_OVERLAY_TABLES.recipes),
 ]

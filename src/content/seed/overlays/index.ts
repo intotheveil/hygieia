@@ -15,8 +15,21 @@ import { OVERLAY as O0005 } from './0005-recipe-photos.ts'
 import { OVERLAY as O0006 } from './0006-thin-diets.ts'
 import { OVERLAY as O0007 } from './0007-breakfast-snacks-world.ts'
 import { OVERLAY as O0008 } from './0008-recipe-photos-2.ts'
+import { OVERLAY as O0009 } from './0009-crepes.ts'
+import { OVERLAY as O0010 } from './0010-recipe-photos-3.ts'
 import type { Overlay } from './types.ts'
 
-export const OVERLAYS: readonly Overlay[] = [O0001, O0002, O0003, O0004, O0005, O0006, O0007, O0008]
+export const OVERLAYS: readonly Overlay[] = [
+  O0001,
+  O0002,
+  O0003,
+  O0004,
+  O0005,
+  O0006,
+  O0007,
+  O0008,
+  O0009,
+  O0010,
+]
 
 export { applyOverlays, overlayTable } from './apply.ts'

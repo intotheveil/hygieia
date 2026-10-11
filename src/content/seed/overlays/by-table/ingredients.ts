@@ -12,6 +12,7 @@ import { INGREDIENTS as I0003 } from '../0003-greek-kitchen/ingredients.ts'
 import { INGREDIENTS as I0007 } from '../0007-breakfast-snacks-world/ingredients.ts'
 import { OVERLAY as O0004 } from '../0004-prices-nutrition.ts'
 import { INGREDIENTS as I0006 } from '../0006-thin-diets/ingredients.ts'
+import { INGREDIENTS as I0009 } from '../0009-crepes/ingredients.ts'
 import { sliceOverlays } from '../apply.ts'
 import { SEED_OVERLAY_TABLES, type OverlaySlice } from '../types.ts'
 
@@ -23,4 +24,5 @@ export const OVERLAYS: readonly OverlaySlice[] = [
   ...sliceOverlays([O0004], SEED_OVERLAY_TABLES.ingredients),
   { id: '0006-thin-diets', additions: { ingredients: I0006 } },
   { id: '0007-breakfast-snacks-world', additions: { ingredients: I0007 } },
+  { id: '0009-crepes', additions: { ingredients: I0009 } },
 ]
