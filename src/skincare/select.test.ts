@@ -326,7 +326,11 @@ describe('with the bundled ContentSource', () => {
       { productTypes: types.data, routines: routines.data, tips: tips.data },
       DEFAULT_SELECTION,
     )
-    expect(view.routines.length).toBe(ROUTINES.filter((r) => r.area === 'face').length)
+    // Served = base + overlays (0011 added routines), so the base count is a floor, the served rows the truth.
+    expect(view.routines.length).toBe(routines.data.filter((r) => r.area === 'face').length)
+    expect(view.routines.length).toBeGreaterThanOrEqual(
+      ROUTINES.filter((r) => r.area === 'face').length,
+    )
     for (const r of view.routines) {
       expect(resolveSteps(r, types.data).every((s) => s.type !== null)).toBe(true)
     }

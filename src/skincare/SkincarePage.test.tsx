@@ -4,8 +4,8 @@ import { bundledSource } from '../content/bundled'
 import { fail, ok, type ContentSource, type SkincareProductType } from '../content/source'
 import { OVERLAYS, overlayTable } from '../content/seed/overlays'
 import {
-  SKINCARE_PRODUCT_TYPES,
-  SKINCARE_ROUTINES,
+  SKINCARE_PRODUCT_TYPES as BASE_TYPES,
+  SKINCARE_ROUTINES as BASE_ROUTINES,
   SKINCARE_TIPS as BASE_TIPS,
 } from '../content/seed/skincare'
 import { LangProvider } from '../i18n/LangProvider'
@@ -36,9 +36,12 @@ function renderAt(path: string, lang: Lang = 'en', source: ContentSource = bundl
 const en = dictionaries.en
 const el = dictionaries.el
 
+// The rows the bundled source serves: base seed + every content overlay (0002 sourced every tip;
+// 0011 added product types, routines and tips).
+const SKINCARE_PRODUCT_TYPES = overlayTable('skincare_product_types', BASE_TYPES, OVERLAYS)
+const SKINCARE_ROUTINES = overlayTable('skincare_routines', BASE_ROUTINES, OVERLAYS)
 const FACE_ROUTINES = SKINCARE_ROUTINES.filter((r) => r.area === 'face')
 const NAIL_ROUTINES = SKINCARE_ROUTINES.filter((r) => r.area === 'nails')
-// The tips the bundled source serves: base seed + every content overlay (overlay 0002 sourced all).
 const SKINCARE_TIPS = overlayTable('skincare_tips', BASE_TIPS, OVERLAYS)
 const FACE_TIPS = SKINCARE_TIPS.filter((t) => t.area === 'face')
 const NAIL_TIPS = SKINCARE_TIPS.filter((t) => t.area === 'nails')

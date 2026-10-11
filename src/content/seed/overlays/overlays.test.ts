@@ -471,7 +471,12 @@ describe('overlay 0002-tip-sources (every unsourced tip gets a checked source)',
     expect(out.health_tips.filter((t) => t.needs_source)).toEqual([])
     expect(out.skincare_tips.filter((t) => t.needs_source)).toEqual([])
     expect(out.health_tips).toHaveLength(HEALTH_TIPS.length)
-    expect(out.skincare_tips).toHaveLength(SKINCARE_TIPS.length)
+    // Tips change only by overlay ADDITIONS (0011 added 46); patches never add or drop a row.
+    const addedSkincareTips = OVERLAYS.reduce(
+      (n, o) => n + (o.additions?.skincare_tips?.length ?? 0),
+      0,
+    )
+    expect(out.skincare_tips).toHaveLength(SKINCARE_TIPS.length + addedSkincareTips)
     const tips = await bundledSource.listTips()
     if (!tips.ok) throw new Error(tips.error)
     expect(tips.data.every((t) => !t.needs_source && t.source_url !== null)).toBe(true)
