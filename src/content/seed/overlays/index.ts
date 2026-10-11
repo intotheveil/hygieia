@@ -12,8 +12,9 @@ import { OVERLAY as O0002 } from './0002-tip-sources.ts'
 import { OVERLAY as O0003 } from './0003-greek-kitchen.ts'
 import { OVERLAY as O0004 } from './0004-prices-nutrition.ts'
 import { OVERLAY as O0005 } from './0005-recipe-photos.ts'
+import { OVERLAY as O0006 } from './0006-thin-diets.ts'
 import type { Overlay } from './types.ts'
 
-export const OVERLAYS: readonly Overlay[] = [O0001, O0002, O0003, O0004, O0005]
+export const OVERLAYS: readonly Overlay[] = [O0001, O0002, O0003, O0004, O0005, O0006]
 
 export { applyOverlays, overlayTable } from './apply.ts'

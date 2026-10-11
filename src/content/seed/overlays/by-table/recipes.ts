@@ -9,6 +9,7 @@
 // by-table.test.ts enforces the import rule. Erasable syntax only, explicit `.ts` imports.
 
 import { RECIPE_DIETS as RD0003, RECIPES as R0003 } from '../0003-greek-kitchen/recipes.ts'
+import { RECIPES as R0006 } from '../0006-thin-diets/recipes.ts'
 import { OVERLAY as O0005 } from '../0005-recipe-photos.ts'
 import { sliceOverlays } from '../apply.ts'
 import { SEED_OVERLAY_TABLES, type OverlaySlice } from '../types.ts'
@@ -19,4 +20,5 @@ export const OVERLAYS: readonly OverlaySlice[] = [
   { id: '0003-greek-kitchen', additions: { recipes: R0003, recipe_diets: RD0003 } },
   // 0005 touches recipes only (image_path), so it is imported whole (by-table.test.ts checks that).
   ...sliceOverlays([O0005], SEED_OVERLAY_TABLES.recipes),
+  { id: '0006-thin-diets', additions: { recipes: R0006 } },
 ]

@@ -1,0 +1,117 @@
+// OVERLAY 0006 — the five new ingredients (see ../0006-thin-diets.ts for the overlay header).
+// One module per table so each bundled table loader downloads only its own rows
+// (../by-table/, perf 2026-10-06). Erasable syntax only, explicit `.ts` imports.
+
+import type { IngredientSeed } from '../../../types.ts'
+
+const SOURCE_NOTE = 'Typical values, USDA FoodData Central reference ranges'
+const PRICE_AS_OF = '2026-10-11'
+const PER_KG = 'Typical Greek supermarket range, Oct 2026, per kg'
+
+export const INGREDIENTS: IngredientSeed[] = [
+  {
+    // USDA FDC "Lamb, ground, raw".
+    slug: 'lamb-mince',
+    name_el: 'Αρνίσιος κιμάς',
+    name_en: 'Lamb mince',
+    category: 'meat',
+    unit: 'g',
+    grams_per_unit: 1,
+    kcal_100g: 282,
+    protein_100g: 16.6,
+    carbs_100g: 0,
+    fat_100g: 23.4,
+    source_note: SOURCE_NOTE,
+    price_eur_min: 11,
+    price_eur_max: 16,
+    price_per: 'kg',
+    price_as_of: PRICE_AS_OF,
+    price_note: PER_KG,
+    substitute_slugs: ['beef-mince', 'pork-mince'],
+    is_pantry_staple: false,
+  },
+  {
+    // USDA FDC "Beef, variety meats and by-products, tongue, raw".
+    slug: 'beef-tongue',
+    name_el: 'Μοσχαρίσια γλώσσα',
+    name_en: 'Beef tongue',
+    category: 'meat',
+    unit: 'g',
+    grams_per_unit: 1,
+    kcal_100g: 224,
+    protein_100g: 16.4,
+    carbs_100g: 3.7,
+    fat_100g: 16.1,
+    source_note: SOURCE_NOTE,
+    price_eur_min: 9,
+    price_eur_max: 14,
+    price_per: 'kg',
+    price_as_of: PRICE_AS_OF,
+    price_note: PER_KG,
+    substitute_slugs: ['beef-heart', 'beef-stew'],
+    is_pantry_staple: false,
+  },
+  {
+    // USDA FDC "Pork, fresh, spareribs, separable lean and fat, raw".
+    slug: 'pork-ribs',
+    name_el: 'Χοιρινά παϊδάκια (πλευρά)',
+    name_en: 'Pork ribs',
+    category: 'meat',
+    unit: 'g',
+    grams_per_unit: 1,
+    kcal_100g: 277,
+    protein_100g: 15.5,
+    carbs_100g: 0,
+    fat_100g: 23.4,
+    source_note: SOURCE_NOTE,
+    price_eur_min: 7,
+    price_eur_max: 11,
+    price_per: 'kg',
+    price_as_of: PRICE_AS_OF,
+    price_note: PER_KG,
+    substitute_slugs: ['pork-belly', 'pork-chop'],
+    is_pantry_staple: false,
+  },
+  {
+    // USDA FDC "Mollusks, scallop, mixed species, raw".
+    slug: 'scallops',
+    name_el: 'Χτένια',
+    name_en: 'Scallops',
+    category: 'fish-seafood',
+    unit: 'g',
+    grams_per_unit: 1,
+    kcal_100g: 69,
+    protein_100g: 12.1,
+    carbs_100g: 3.2,
+    fat_100g: 0.5,
+    source_note: SOURCE_NOTE,
+    price_eur_min: 28,
+    price_eur_max: 45,
+    price_per: 'kg',
+    price_as_of: PRICE_AS_OF,
+    price_note: PER_KG,
+    substitute_slugs: ['shrimp', 'squid'],
+    is_pantry_staple: false,
+  },
+  {
+    // USDA FDC "Cabbage, chinese (pak-choi), raw".
+    slug: 'bok-choy',
+    name_el: 'Μπογκ τσόι (κινέζικο λάχανο)',
+    name_en: 'Bok choy',
+    category: 'vegetables',
+    unit: 'g',
+    grams_per_unit: 1,
+    kcal_100g: 13,
+    protein_100g: 1.5,
+    carbs_100g: 2.2,
+    fat_100g: 0.2,
+    source_note: SOURCE_NOTE,
+    price_eur_min: 4,
+    price_eur_max: 7,
+    price_per: 'kg',
+    price_as_of: PRICE_AS_OF,
+    price_note: PER_KG,
+    substitute_slugs: ['spinach', 'chard', 'cabbage'],
+    is_pantry_staple: false,
+  },
+]
