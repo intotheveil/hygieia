@@ -30,6 +30,7 @@ export const TEMPLATE: WorkoutTemplate = {
   id: 'tpl-gym',
   slug: 'gym-beginner-moderate',
   status: 'approved',
+  track: 'general',
   workout_type: 'gym',
   level: 'beginner',
   intensity: 'moderate',

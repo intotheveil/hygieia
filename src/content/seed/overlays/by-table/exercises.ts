@@ -8,9 +8,12 @@
 // loader's tables may be imported whole (../NNNN-<name>.ts). by-table.test.ts enforces the import
 // rule. Erasable syntax only, explicit `.ts` imports.
 
+import { EXERCISES as A0013 } from '../0013-women-strength/exercises.ts'
 import type { OverlaySlice } from '../types.ts'
 
 export { overlayTable } from '../apply.ts'
 
-/** No overlay touches this table yet. */
-export const OVERLAYS: readonly OverlaySlice[] = []
+/** Overlays touching this table, in NNNN order. */
+export const OVERLAYS: readonly OverlaySlice[] = [
+  { id: '0013-women-strength', additions: { exercises: A0013 } },
+]

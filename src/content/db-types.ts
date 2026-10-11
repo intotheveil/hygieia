@@ -27,6 +27,7 @@ import type {
   StepTime,
   TipTopic,
   Unit,
+  WorkoutTrack,
   WorkoutType,
 } from './enums.ts'
 
@@ -140,6 +141,12 @@ type WorkoutTemplateColumns = {
   notes_el: string
   notes_en: string
 }
+
+/** `track` (20261007001250) is `not null default 'general'`: always read, optional on insert. */
+type WorkoutTemplateTable = Table<
+  WorkoutTemplateColumns & { track: WorkoutTrack } & ReviewRow,
+  WorkoutTemplateColumns & { track?: WorkoutTrack } & ReviewInsert
+>
 
 type HealthTipColumns = {
   slug: string
@@ -390,7 +397,7 @@ export type Database = {
         ]
       >
       exercises: ContentTable<ExerciseColumns>
-      workout_templates: ContentTable<WorkoutTemplateColumns>
+      workout_templates: WorkoutTemplateTable
       workout_template_exercises: Table<
         WorkoutTemplateExerciseRow,
         Omit<

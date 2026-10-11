@@ -165,6 +165,7 @@ export const PATCH_COLUMNS = {
     'duration_min',
     'notes_el',
     'notes_en',
+    'track',
   ],
   workout_template_exercises: ['exercise_slug', 'block', 'sets', 'reps', 'seconds', 'rest_seconds'],
   health_tips: [

@@ -4,8 +4,14 @@
 // sessions already done, or start next Monday).
 
 import type { WorkoutTemplate } from '../../content/source.ts'
-import { INTENSITIES, LEVELS, WORKOUT_TYPES } from '../../content/enums.ts'
-import type { Intensity, Level, WorkoutType } from '../../content/enums.ts'
+import {
+  DEFAULT_WORKOUT_TRACK,
+  INTENSITIES,
+  LEVELS,
+  WORKOUT_TRACKS,
+  WORKOUT_TYPES,
+} from '../../content/enums.ts'
+import type { Intensity, Level, WorkoutTrack, WorkoutType } from '../../content/enums.ts'
 import { dayNumber } from '../../profile/stats'
 import type { WorkoutPlanInput } from '../../user/source'
 
@@ -13,6 +19,8 @@ export interface TemplateCell {
   type: WorkoutType
   level: Level
   intensity: Intensity
+  /** Absent = `general` (the default programme). */
+  track?: WorkoutTrack
 }
 
 const oneOf = <T extends string>(values: readonly T[], raw: string | null): T | null =>
@@ -27,7 +35,10 @@ export function cellFromParams(params: URLSearchParams): TemplateCell | null {
   const type = oneOf(WORKOUT_TYPES, params.get('type'))
   const level = oneOf(LEVELS, params.get('level'))
   if (type === null || level === null) return null
-  return { type, level, intensity: oneOf(INTENSITIES, params.get('intensity')) ?? 'moderate' }
+  const intensity = oneOf(INTENSITIES, params.get('intensity')) ?? 'moderate'
+  // `?track=` (e.g. women-strength) is carried only when it names a known track.
+  const track = oneOf(WORKOUT_TRACKS, params.get('track'))
+  return track === null ? { type, level, intensity } : { type, level, intensity, track }
 }
 
 /** The id of the template in `cell`, or null when no visible template fills it. */
@@ -35,8 +46,10 @@ export function templateIdForCell(
   templates: readonly WorkoutTemplate[],
   cell: TemplateCell,
 ): string | null {
+  const track = cell.track ?? DEFAULT_WORKOUT_TRACK
   const found = templates.find(
     (tpl) =>
+      tpl.track === track &&
       tpl.workout_type === cell.type &&
       tpl.level === cell.level &&
       tpl.intensity === cell.intensity,

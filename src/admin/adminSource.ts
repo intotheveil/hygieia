@@ -130,6 +130,7 @@ export const EDITABLE_COLUMNS: { readonly [T in ContentTable]: ReadonlyArray<Con
     'duration_min',
     'notes_el',
     'notes_en',
+    'track',
   ],
   health_tips: [
     'topic',

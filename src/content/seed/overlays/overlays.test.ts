@@ -387,10 +387,12 @@ describe('the real overlay list (./index.ts)', () => {
     expect(sun?.body_el).toContain('Βάλ’ το ως τελευταίο βήμα')
     expect(sun?.body_el).not.toContain('το το')
     expect(out.health_tips).toHaveLength(HEALTH_TIPS.length)
-    // a table no overlay touches comes back as the SAME array (0003 and later overlays add
-    // ingredients, diets, recipes; 0004 patches every ingredient in place: base rows keep their
-    // order, new values)
-    expect(out.exercises).toBe(EXERCISES)
+    // additions are APPENDED: base rows keep their order and values (0013 adds the first exercises;
+    // 0003 and later overlays add ingredients, diets, recipes; 0004 patches every ingredient in
+    // place: base rows keep their order, new values)
+    const addedExercises = OVERLAYS.reduce((n, o) => n + (o.additions?.exercises ?? []).length, 0)
+    expect(out.exercises).toHaveLength(EXERCISES.length + addedExercises)
+    expect(out.exercises.slice(0, EXERCISES.length)).toEqual(EXERCISES)
     // every overlay's ingredient additions (0003: 2, 0006: 5, …) — derived, not pinned, so the next
     // content overlay does not have to edit this line
     const addedIngredients = OVERLAYS.reduce(
@@ -410,7 +412,10 @@ describe('the real overlay list (./index.ts)', () => {
   it('overlayTable applies the list to one table (what the bundled loaders call)', () => {
     const tips = overlayTable('health_tips', HEALTH_TIPS, OVERLAYS)
     expect(tips.find((t) => t.slug === 'nutrition-fish-twice-a-week')?.body_en).toMatch(/they make/)
-    expect(overlayTable('exercises', EXERCISES, OVERLAYS)).toBe(EXERCISES)
+    // a table only ADDED to keeps every base row first, in order
+    const exercises = overlayTable('exercises', EXERCISES, OVERLAYS)
+    expect(exercises.slice(0, EXERCISES.length)).toEqual(EXERCISES)
+    expect(exercises.map((e) => e.slug)).toContain('hip-thrust')
     expect(overlayTable('diets', DIETS, OVERLAYS).map((d) => d.slug)).toContain('fasting')
   })
 

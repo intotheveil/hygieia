@@ -464,6 +464,8 @@ describe('supabaseSource', () => {
         columns: WORKOUT_SELECT,
         filters: [
           ['status', 'approved'],
+          // no track argument = the general programme (20261007001250)
+          ['track', 'general'],
           ['workout_type', 'gym'],
           ['level', 'advanced'],
           ['intensity', 'high'],

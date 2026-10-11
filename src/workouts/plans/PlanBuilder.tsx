@@ -6,8 +6,8 @@
 
 import { useId, useState, type FormEvent } from 'react'
 import type { WorkoutTemplate } from '../../content'
-import { INTENSITIES, LEVELS, WORKOUT_TYPES } from '../../content/enums.ts'
-import type { Intensity, Level, WorkoutType } from '../../content/enums.ts'
+import { DEFAULT_WORKOUT_TRACK, INTENSITIES, LEVELS, WORKOUT_TYPES } from '../../content/enums.ts'
+import type { Intensity, Level, WorkoutTrack, WorkoutType } from '../../content/enums.ts'
 import { useLang } from '../../i18n/LangProvider'
 import { workoutPlansCopy } from '../../i18n/features/workoutPlans.ts'
 import { fill } from '../../i18n/fill'
@@ -28,9 +28,16 @@ interface Cell {
   type: WorkoutType
   level: Level
   intensity: Intensity
+  /** No picker: the track comes from the pre-selected template (`?template=`), else `general`. */
+  track: WorkoutTrack
 }
 
-const DEFAULT_CELL: Cell = { type: 'home', level: 'beginner', intensity: 'moderate' }
+const DEFAULT_CELL: Cell = {
+  type: 'home',
+  level: 'beginner',
+  intensity: 'moderate',
+  track: DEFAULT_WORKOUT_TRACK,
+}
 
 export function PlanBuilder({
   templates,
@@ -47,7 +54,12 @@ export function PlanBuilder({
   const [cell, setCell] = useState<Cell>(() =>
     initial === null
       ? DEFAULT_CELL
-      : { type: initial.workout_type, level: initial.level, intensity: initial.intensity },
+      : {
+          type: initial.workout_type,
+          level: initial.level,
+          intensity: initial.intensity,
+          track: initial.track,
+        },
   )
   const [name, setName] = useState(() => (initial === null ? '' : titleOf(initial)))
   const [nameTouched, setNameTouched] = useState(initial !== null)
@@ -61,6 +73,7 @@ export function PlanBuilder({
   const template =
     templates.find(
       (tpl) =>
+        tpl.track === cell.track &&
         tpl.workout_type === cell.type &&
         tpl.level === cell.level &&
         tpl.intensity === cell.intensity,

@@ -12,7 +12,7 @@
 // `slug` throughout (PLAN.md §1.6); `id` is carried for favourites / saved plans, which reference
 // rows by id.
 
-import type { ContentStatus, Intensity, Level, WorkoutType } from './enums.ts'
+import type { ContentStatus, Intensity, Level, WorkoutTrack, WorkoutType } from './enums.ts'
 import type {
   DietSeed,
   ExerciseSeed,
@@ -72,7 +72,9 @@ export interface WorkoutSlot {
   exercise: Exercise | null
 }
 
-export type WorkoutTemplate = WorkoutTemplateSeed & ContentMeta & { slots: WorkoutSlot[] }
+/** As served: `track` is always resolved (bundled rows default it; the DB column is not null). */
+export type WorkoutTemplate = Omit<WorkoutTemplateSeed, 'track'> &
+  ContentMeta & { track: WorkoutTrack; slots: WorkoutSlot[] }
 
 export interface RecipeFilter {
   /**
@@ -91,11 +93,15 @@ export interface ContentSource {
   getRecipe(slug: string): Promise<Result<Recipe | null>>
   listExercises(): Promise<Result<Exercise[]>>
   listWorkoutTemplates(): Promise<Result<WorkoutTemplate[]>>
-  /** The one template of a (type, level, intensity) cell, or `null` when it is not visible. */
+  /**
+   * The one template of a (type, level, intensity) cell on `track` (default `general`), or `null`
+   * when it is not visible.
+   */
   getWorkoutTemplate(
     type: WorkoutType,
     level: Level,
     intensity: Intensity,
+    track?: WorkoutTrack,
   ): Promise<Result<WorkoutTemplate | null>>
   listTips(): Promise<Result<HealthTip[]>>
   /** P7.1 skincare — approved-only in supabase mode, like every other read. */

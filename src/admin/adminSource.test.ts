@@ -16,6 +16,7 @@ import {
 // EDITABLE_COLUMNS below (Vite's `?raw` keeps the test inside the app tsconfig, no node types).
 import contentMigration from '../../supabase/migrations/20261006000300_hygieia_content.sql?raw'
 import skincareMigration from '../../supabase/migrations/20261006001100_hygieia_skincare.sql?raw'
+import workoutTrackMigration from '../../supabase/migrations/20261007001250_hygieia_workout_track.sql?raw'
 
 const ID = '11111111-1111-4111-8111-111111111111'
 
@@ -232,15 +233,17 @@ describe('AdminContentSource over the real adapter (fake Supabase client)', () =
 
 describe('EDITABLE_COLUMNS mirrors the migration’s UPDATE grant', () => {
   // P7.1 added three content tables in their own forward-only file; the contract is the union.
-  const sql: string = `${contentMigration}\n${skincareMigration}`
+  // 20261007001250 re-states the workout_templates grant with `track`: the NEWEST grant per table
+  // (archive order) is the contract — column grants are additive and each restatement a superset.
+  const sql: string = `${contentMigration}\n${skincareMigration}\n${workoutTrackMigration}`
 
-  /** `grant update (a, b, …) on table hygieia.<table> to authenticated` → [a, b, …]. */
+  /** The newest `grant update (a, b, …) on table hygieia.<table> to authenticated` → [a, b, …]. */
   function grantedColumns(table: ContentTable): string[] {
     const re = new RegExp(
       String.raw`grant update \(([^)]*)\) on table hygieia\.${table} to authenticated`,
-      'm',
+      'gm',
     )
-    const match = re.exec(sql)
+    const match = [...sql.matchAll(re)].at(-1)
     if (!match) throw new Error(`no UPDATE grant found for ${table}`)
     return (match[1] ?? '')
       .split(',')

@@ -599,11 +599,16 @@ export function renderKind(kind, data) {
   } else if (kind === 'workouts') {
     const rows = sortedBySlug('workout_templates', need(data.workouts, 'workouts'))
     const exerciseSlugs = new Set(need(data.exercises, 'exercises').map((x) => x.slug))
+    // `track` (20261007001250) is named only when a row sets it: the P4.8 base seed never does, so
+    // its migration stays byte-identical, and an overlay adding rows on another track writes it
+    // for every row of its batch (`general` when a row leaves it out — the column default).
+    const withTrack = rows.some((r) => r.track !== undefined)
     sql += insertStatements(
       'workout_templates',
       [
         'id',
         'slug',
+        ...(withTrack ? ['track'] : []),
         'workout_type',
         'level',
         'intensity',
@@ -617,6 +622,7 @@ export function renderKind(kind, data) {
       rows.map((r) => [
         sqlUuid(seedId('workout_templates', r.slug)),
         sqlText(r.slug),
+        ...(withTrack ? [sqlText(r.track ?? 'general')] : []),
         sqlText(r.workout_type),
         sqlText(r.level),
         sqlText(r.intensity),
@@ -1025,6 +1031,7 @@ export const PATCH_FORMAT = Object.freeze({
     duration_min: sqlInt,
     notes_el: sqlText,
     notes_en: sqlText,
+    track: sqlText,
   },
   workout_template_exercises: {
     exercise_slug: sqlText,

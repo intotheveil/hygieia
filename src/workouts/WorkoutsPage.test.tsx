@@ -10,9 +10,11 @@ import { memorySource } from '../user/memory'
 import type { UserDataSource } from '../user/source'
 import {
   DEFAULT_SELECTION,
+  TRACK_OPTIONS,
   WorkoutsPage,
   blocksOf,
   parseWorkoutSelection,
+  parseWorkoutTrack,
   serializeWorkoutSelection,
   workFigure,
 } from './WorkoutsPage'
@@ -318,5 +320,83 @@ describe('<WorkoutsPage> — workout plans links (P8.3)', () => {
       el.wpStartPlan,
     )
     expect(screen.getByRole('link', { name: `${el.wpLink} →` })).toBeInTheDocument()
+  })
+})
+
+describe('<WorkoutsPage> — the women’s strength track (?track=women-strength)', () => {
+  it('parses the track, narrows the options and keeps track in the URL it writes', () => {
+    expect(parseWorkoutTrack(new URLSearchParams())).toBe('general')
+    expect(parseWorkoutTrack(new URLSearchParams('track=nope'))).toBe('general')
+    expect(parseWorkoutTrack(new URLSearchParams('track=women-strength'))).toBe('women-strength')
+    // a type or level the track does not offer falls back to the track's own options
+    expect(
+      parseWorkoutSelection(new URLSearchParams('type=swimming&level=advanced'), 'women-strength'),
+    ).toEqual({ type: 'home', level: 'beginner', intensity: 'moderate' })
+    const params = serializeWorkoutSelection(
+      { type: 'gym', level: 'intermediate', intensity: 'high' },
+      'women-strength',
+    )
+    expect(params.toString()).toBe(
+      'track=women-strength&type=gym&level=intermediate&intensity=high',
+    )
+    expect(TRACK_OPTIONS['women-strength']).toEqual({
+      types: ['gym', 'home'],
+      levels: ['beginner', 'intermediate'],
+    })
+  })
+
+  it('the contract link opens the track session for that type and level, in English', async () => {
+    renderAt('/workouts?track=women-strength&type=gym&level=beginner')
+    expect(
+      screen.getByRole('heading', { level: 1, name: en.workoutsTrackWomenTitle }),
+    ).toBeInTheDocument()
+    const card = await findSession()
+    expect(within(card).getByRole('heading', { level: 2 })).toHaveTextContent(
+      'Strength for women · Gym full body A',
+    )
+    // only the track's types and levels are offered
+    const typeGroup = screen.getByRole('radiogroup', { name: en.pickType })
+    expect(
+      within(typeGroup)
+        .getAllByRole('radio')
+        .map((b) => b.textContent),
+    ).toEqual([en.types.gym, en.types.home])
+    expect(screen.getByRole('link', { name: `← ${en.workoutsTrackAll}` })).toHaveAttribute(
+      'href',
+      '/workouts',
+    )
+  })
+
+  it('stays on the track when a chip changes, and renders in Greek', async () => {
+    renderAt('/workouts?track=women-strength&type=gym&level=beginner', 'el')
+    expect(
+      screen.getByRole('heading', { level: 1, name: el.workoutsTrackWomenTitle }),
+    ).toBeInTheDocument()
+    await findSession()
+    fireEvent.click(screen.getByRole('radio', { name: el.types.home }))
+    await waitFor(() =>
+      expect(screen.getByTestId('location')).toHaveTextContent(
+        '/workouts?track=women-strength&type=home&level=beginner&intensity=moderate',
+      ),
+    )
+    const card = await findSession()
+    await waitFor(() =>
+      expect(within(card).getByRole('heading', { level: 2 })).toHaveTextContent(
+        'Δύναμη για γυναίκες · Στο σπίτι με αλτήρες',
+      ),
+    )
+  })
+
+  it('the general page is unchanged but links into the track', async () => {
+    renderAt('/workouts')
+    expect(screen.getByRole('heading', { level: 1, name: en.workoutsTitle })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: `${en.workoutsTrackWomenLink} →` })).toHaveAttribute(
+      'href',
+      '/workouts?track=women-strength',
+    )
+    const card = await findSession()
+    expect(within(card).getByRole('heading', { level: 2 })).not.toHaveTextContent(
+      en.workoutsTrackWomenTitle,
+    )
   })
 })

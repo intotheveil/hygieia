@@ -26,6 +26,14 @@ export const WORKOUT_TYPES = [
 ] as const
 export type WorkoutType = (typeof WORKOUT_TYPES)[number]
 
+/**
+ * The programme a workout template belongs to (20261007001250_hygieia_workout_track.sql): every P4.8
+ * template is `general`; overlay 0013 adds the women's strength track. One template per cell PER track.
+ */
+export const WORKOUT_TRACKS = ['general', 'women-strength'] as const
+export type WorkoutTrack = (typeof WORKOUT_TRACKS)[number]
+export const DEFAULT_WORKOUT_TRACK: WorkoutTrack = 'general'
+
 export const LEVELS = ['beginner', 'intermediate', 'advanced'] as const
 export type Level = (typeof LEVELS)[number]
 

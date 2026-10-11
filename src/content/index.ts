@@ -49,8 +49,8 @@ export function deferredSource(
     getRecipe: via((s, slug) => s.getRecipe(slug)),
     listExercises: via((s) => s.listExercises()),
     listWorkoutTemplates: via((s) => s.listWorkoutTemplates()),
-    getWorkoutTemplate: via((s, type, level, intensity) =>
-      s.getWorkoutTemplate(type, level, intensity),
+    getWorkoutTemplate: via((s, type, level, intensity, track) =>
+      s.getWorkoutTemplate(type, level, intensity, track),
     ),
     listTips: via((s) => s.listTips()),
     listSkincareProductTypes: via((s) => s.listSkincareProductTypes()),

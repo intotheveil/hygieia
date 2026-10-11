@@ -16,9 +16,11 @@
 import type { HygieiaClient } from '../lib/supabase'
 import {
   CONTENT_STATUSES,
+  DEFAULT_WORKOUT_TRACK,
   type ContentTable,
   type Intensity,
   type Level,
+  type WorkoutTrack,
   type WorkoutType,
 } from './enums.ts'
 import {
@@ -397,6 +399,7 @@ const TEMPLATE_SPEC: Spec<TemplateBase> = {
   duration_min: 'number',
   notes_el: 'string',
   notes_en: 'string',
+  track: 'string',
 }
 
 /** Embedded children, sorted by `position` so the order is the recipe's, not PostgREST's. */
@@ -531,7 +534,8 @@ function toWorkoutSlot(data: unknown): WorkoutSlot | null {
 export function toWorkoutTemplate(data: unknown): WorkoutTemplate | null {
   const raw = asRaw(data)
   if (!raw) return null
-  const base = parseRow(raw, TEMPLATE_SPEC)
+  // `track` arrives with 20261007001250; a row from a database without the column is `general`.
+  const base = parseRow({ track: DEFAULT_WORKOUT_TRACK, ...raw }, TEMPLATE_SPEC)
   if (!base) return null
   const slotRows = childrenOf(raw, 'workout_template_exercises')
   if (!slotRows) return null
@@ -581,11 +585,17 @@ export function supabaseSourceFor(client: ContentClient): ContentSource {
         () => client.list('workout_templates', WORKOUT_SELECT, approved),
         listOf(toWorkoutTemplate),
       ),
-    getWorkoutTemplate: (type: WorkoutType, level: Level, intensity: Intensity) =>
+    getWorkoutTemplate: (
+      type: WorkoutType,
+      level: Level,
+      intensity: Intensity,
+      track: WorkoutTrack = DEFAULT_WORKOUT_TRACK,
+    ) =>
       runOne(
         () =>
           client.one('workout_templates', WORKOUT_SELECT, [
             ...approved,
+            ['track', track],
             ['workout_type', type],
             ['level', level],
             ['intensity', intensity],

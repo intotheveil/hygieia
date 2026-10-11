@@ -37,7 +37,9 @@ import {
   CONTENT_STATUSES,
   type ContentTable,
   type Intensity,
+  DEFAULT_WORKOUT_TRACK,
   type Level,
+  type WorkoutTrack,
   type WorkoutType,
 } from './enums.ts'
 import { afterNextPaint } from '../lib/afterPaint.ts'
@@ -281,6 +283,8 @@ export function createBundledSource(seeds: BundledSeeds): ContentSource {
     const bySlug = new Map(exerciseRows.map((row) => [row.slug, row]))
     return rows.map((row) => ({
       ...row,
+      // The base seed never names a track (its migration is frozen); the DB default is `general`.
+      track: row.track ?? DEFAULT_WORKOUT_TRACK,
       ...meta('workout_templates', row.slug),
       slots: row.blocks.map((block) => ({
         block,
@@ -299,12 +303,20 @@ export function createBundledSource(seeds: BundledSeeds): ContentSource {
       attempt(async () => (await recipes()).find((row) => row.slug === slug) ?? null),
     listExercises: () => attempt(async () => [...(await exercises())]),
     listWorkoutTemplates: () => attempt(async () => [...(await templates())]),
-    getWorkoutTemplate: (type: WorkoutType, level: Level, intensity: Intensity) =>
+    getWorkoutTemplate: (
+      type: WorkoutType,
+      level: Level,
+      intensity: Intensity,
+      track: WorkoutTrack = DEFAULT_WORKOUT_TRACK,
+    ) =>
       attempt(
         async () =>
           (await templates()).find(
             (row) =>
-              row.workout_type === type && row.level === level && row.intensity === intensity,
+              row.track === track &&
+              row.workout_type === type &&
+              row.level === level &&
+              row.intensity === intensity,
           ) ?? null,
       ),
     listTips: () => attempt(async () => [...(await tips())]),
