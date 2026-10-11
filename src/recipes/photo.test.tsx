@@ -1,5 +1,5 @@
 // RECIPE PHOTOS (2026-10-06): URL helpers, the card thumbnail, the detail hero, and the bundled
-// source serving `image_path` from content overlay 0005 (the files themselves:
+// source serving `image_path` from content overlays 0005 and 0008 (the files themselves:
 // scripts/recipe-photos.test.ts).
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
@@ -13,6 +13,7 @@ import { RECIPES } from '../content/seed/recipes'
 import { RecipeCard } from './RecipeCard'
 import { RecipePage } from './RecipePage'
 import { photoHeight, recipePhotoSrc, recipePhotoSrcSet } from './photo'
+import { framePhotoPath } from './photoSlugs'
 
 const BASE = import.meta.env.BASE_URL
 const SLUG = 'fasolada-white-bean-soup'
@@ -67,19 +68,21 @@ describe('recipe photo URLs', () => {
   })
 })
 
-describe('bundled source image_path (overlay 0005)', () => {
-  const photos = OVERLAYS.find((overlay) => overlay.id === '0005-recipe-photos')
+describe('bundled source image_path (overlays 0005 + 0008)', () => {
+  const photoPatches = OVERLAYS.filter((overlay) =>
+    ['0005-recipe-photos', '0008-recipe-photos-2'].includes(overlay.id),
+  ).flatMap((overlay) => overlay.patches?.recipes ?? [])
 
   it('sets image_path = recipes/<slug> on real recipes only', () => {
-    const patches = photos?.patches?.recipes ?? []
-    expect(patches.length).toBeGreaterThan(0)
-    for (const patch of patches) expect(patch.set).toEqual({ image_path: `recipes/${patch.slug}` })
+    expect(photoPatches.length).toBeGreaterThan(0)
+    for (const patch of photoPatches)
+      expect(patch.set).toEqual({ image_path: `recipes/${patch.slug}` })
   })
 
-  it("serves exactly the overlay's photos and leaves the frozen base seed untouched", async () => {
+  it("serves exactly the overlays' photos and leaves the frozen base seed untouched", async () => {
     const result = await contentSource.listRecipes()
     if (!result.ok) throw new Error(result.error)
-    const withPhoto = new Set((photos?.patches?.recipes ?? []).map((patch) => patch.slug))
+    const withPhoto = new Set(photoPatches.map((patch) => patch.slug))
     for (const recipe of result.data) {
       expect(recipe.image_path).toBe(withPhoto.has(recipe.slug) ? `recipes/${recipe.slug}` : null)
     }
@@ -156,7 +159,32 @@ describe('<RecipePage> frame-first hero', () => {
     expect(img).toHaveAttribute('fetchpriority', 'high')
   })
 
-  it('starts no hero for a slug overlay 0005 gives no photo', () => {
+  it('knows the second batch too: a slug only overlay 0008 gives a photo starts its hero', () => {
+    const photos2 = OVERLAYS.find((overlay) => overlay.id === '0008-recipe-photos-2')
+    const slug = photos2?.patches?.recipes?.[0]?.slug ?? 'missing-0008'
+    expect(framePhotoPath(slug)).toBe(`recipes/${slug}`)
+    const pending: ContentSource = { ...contentSource, getRecipe: () => new Promise(() => {}) }
+    render(
+      <LangProvider initial="en">
+        <MemoryRouter initialEntries={[`/recipes/${slug}`]}>
+          <Routes>
+            <Route path="/recipes/:slug" element={<RecipePage source={pending} />} />
+          </Routes>
+        </MemoryRouter>
+      </LangProvider>,
+    )
+    expect(document.querySelector('img')).toHaveAttribute('src', `${BASE}recipes/${slug}-960.webp`)
+  })
+
+  it('framePhotoPath answers every photo overlay slug, and null for anything else', () => {
+    const photoPatches = OVERLAYS.flatMap((overlay) => overlay.patches?.recipes ?? []).filter(
+      (patch) => 'image_path' in patch.set,
+    )
+    for (const patch of photoPatches) expect(framePhotoPath(patch.slug)).toBe(patch.set.image_path)
+    expect(framePhotoPath('no-such-recipe')).toBeNull()
+  })
+
+  it('starts no hero for a slug no photo overlay gives a photo', () => {
     const pending: ContentSource = { ...contentSource, getRecipe: () => new Promise(() => {}) }
     render(
       <LangProvider initial="en">

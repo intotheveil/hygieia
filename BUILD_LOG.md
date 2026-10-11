@@ -3,6 +3,67 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+### RECIPE PHOTOS 2 — 120 ComfyUI renders for overlays 0006 + 0007, vision-QA'd (overlay 0008) — 2026-10-11 — DONE
+
+- **Scope:** a photo for each of the **120** recipes overlays `0006-thin-diets` and `0007-breakfast-snacks-world` add. The
+  pipeline is the 2026-10-07 one (below). Branch based on `e28f1c0`, then fast-forwarded to `bd771d3` and `1073d4d` (the QA
+  retags of 0006/0007; no slug changed). Served recipes: **302 / 302 have a photo**.
+- **Render:** desktop ComfyUI `:8000` (RTX 3090) only, queued behind the operator's WAN 2.2 jobs. Only our own `prompt_id`s
+  were touched: no `/free`, `/interrupt` or queue deletes. RealVisXL V5, 1024×768, 30 steps, cfg 4.5, dpmpp_2m karras,
+  CheckpointLoaderSimple → CLIPTextEncode ×2 → EmptyLatentImage → KSampler → VAEDecode → SaveImage `hygieia_<slug>_<attempt>`.
+  Seed = FNV-1a 32 of `<slug>#<attempt>`. Each recipe has one hand-written visual description, plus the house template:
+  overhead or 45°, natural light, one of 8 surfaces by FNV(slug). Greek ceramic is used only for the 2 Greek dishes.
+  World dishes get culturally right vessels: a Japanese bowl for miso and okayu, a ttukbaegi for gyeran-jjim, a terracotta
+  tagine, a molcajete for guacamole, and a plain clay bowl for misir wat (no injera in that recipe). Negative prompt as
+  briefed; per-slug extra negatives were used only for human-reviewed re-renders (e.g. "salmon, sushi" for gimbap).
+- **Vision QA:** `qwen2.5vl:7b` (`format: json`, temperature 0, 672 px JPEG, `keep_alive: 0`). It ran in batches only while
+  the ComfyUI queue was empty and the 3090 had ≥ 8 GB free, never alongside a render. The 4070 was untouched: its memory
+  stayed flat, so Ollama loaded on the 3090. Reject rule as briefed.
+  **158 model verdicts: 142 accept, 16 reject.** Every reject was `dish_matches` (a missing potato, rice, kiwi, lime, or a
+  wrong-looking dish such as pâté seen as chocolate mousse); one also had `appetizing=2`. None was for text, people or
+  deformity. **Model first-try pass: 111 / 120.**
+- **Human review** of all 120 by eye, on contact sheets. **12 model ACCEPTS were rejected:** lamb burgers in buns,
+  bone-marrow bones that looked like horns, thick American pancakes for besan chilla, salmon sushi for gimbap, a yolky soup
+  for gyeran-jjim, unmarbled tea eggs, tuna that looked like ham, a turkey burger in a bun (the recipe has no bread), no
+  turkey in the roll-ups, beetroot-only vinegret, a green-filled tamagoyaki with no rice, and fattoush with no pita. Later
+  retries were rejected too, for the same kind of reason. **Final: 99 / 120 accepted on the first render; 21 retried.**
+  Retries per slug (attempt used): lamb-burgers-feta 3, beef-tongue 2, steak-bone-marrow **6**, chicken-liver-pate 3,
+  turkey-egg-cucumber-roll-ups 3, tuna-cucumber-olive-bites 2, strawberry-kiwi-pumpkin-seed-cups **5**, oven-trout 2,
+  turkey-burgers 2, pork-meatballs-potatoes 2, tamagoyaki 3, tea-eggs 2, tomato-egg-stir-fry 2, gyeran-jjim 2, besan-chilla 2,
+  edamame 3, gimbap **6**, vinegret 2, misir-wat 3, mercimek 2, fattoush 2.
+  **Documented overrides (weakest three, for the lead's eye):** `carnivore-steak-roasted-bone-marrow` a6 (steak + cross-cut
+  marrow bones, heavy char; the recipe splits them lengthways, which RealVisXL never drew), `gimbap-korean-rice-rolls` a6
+  (sliced seaweed rice rolls with egg + cucumber; carrot/spinach not distinct), `strawberry-kiwi-pumpkin-seed-cups` a5 (after
+  the model flagged it at a3; strawberries and kiwi clear, pumpkin seeds not distinguishable). One process note: the automatic
+  "sharpen" step prepends the model's `missing` text, and once it prepended "bun" for a no-bun recipe. After that, a
+  hand-written override replaced the automatic sharpening. Every verdict, model and human, is in scratch `qa.jsonl`
+  (194 rows); `state.json` holds every prompt per attempt.
+- **Assets:** `node scripts/recipe-photos.mjs <masters> --overlay …/0008-recipe-photos-2.ts --only-missing` produced
+  **240 new files, 9.83 MB** (480w 2.52 MB ≈ 22 KB each; 960w 7.31 MB ≈ 62 KB each). `public/recipes/` is now 604 files,
+  25.11 MB.
+- **`--only-missing` (new, tested):** the overlay patches only complete sets that no lower-numbered overlay already gives an
+  `image_path`. It reads the literal `image_path: 'recipes/<slug>'` lines this script writes. Without the flag, the
+  behaviour is unchanged (0005). The header date is now the authoring date.
+- **Overlay 0008 `0008-recipe-photos-2`:** 120 patches `{ slug, set: { image_path: 'recipes/<slug>' } }`, none of the 182 from
+  0005. It is registered last in `overlays/index.ts` and imported whole in `by-table/recipes.ts`, like 0005.
+  `src/recipes/photoSlugs.ts` now builds its map from 0005 + 0008. Both are small patch-only modules the recipes loader
+  already pulls, so the frame-first hero costs no extra chunk. `seed:gen` → only
+  `20261007000800_hygieia_overlay_recipe_photos_2.sql` is new (the EOL flips on the other 14 were restored).
+  **Live apply is a lead/operator step.**
+- **Tests:** `scripts/recipe-photos.test.ts` now derives everything from the overlays. It checks: the photo overlays are
+  exactly 0005 + 0008, with no slug patched twice; 0008 = the recipe additions of 0006 + 0007; every photo has a 480×360 and a
+  960×720 WebP and nothing else ships; re-authoring with `--only-missing` reproduces 0008's slugs; without the flag every
+  complete set is patched. `src/recipes/photo.test.tsx` checks: the served `image_path` = the 0005 ∪ 0008 slugs; a 0008-only
+  slug starts the frame-first hero; `framePhotoPath` answers every photo-overlay slug and returns null otherwise.
+- **Gates:** lint 0 errors (23 pre-existing warnings) · typecheck ✓ · `npm test` **5918 / 116 files** ✓ · `seed:check` OK
+  (15: 7 base + 8 overlay) · `db:check` ✓ (22 migrations) · `db:gate` **371** ✓ (`every overlay patch hits exactly one row
+  (669)`) · `db:gate:prove-red` **34/34** ✓ · build ✓ (after `npm test`) · `check:pwa` ✓ (**159 precache entries, 4320.78
+  KiB, 0 recipe photos**) · `check:bundle` ✓. e2e and Lighthouse were not run: the machine was under the operator's load, and
+  CI runs them.
+- **Contact sheet:** scratch `%TEMP%\hygieia-photos-0006-0007\contact-sheet.jpg` (8×15, 120 thumbnails).
+- **Next:** the lead eyeballs the three overrides, merges, and applies migration 0008 live after 0006/0007 (patches only;
+  each needs its recipe rows present). BRAIN.md was not edited.
+
 ### THIN DIETS — 60 recipes for carnivore, Whole30, low-FODMAP, IF, paleo (overlay 0006) — 2026-10-11 — DONE
 
 - **Scope:** operator "add many more recipes" (120 in total, split over two lanes; this lane = 0006, the other = 0007). 60 new
