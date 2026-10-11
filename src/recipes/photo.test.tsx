@@ -1,6 +1,6 @@
 // RECIPE PHOTOS (2026-10-06): URL helpers, the card thumbnail, the detail hero, and the bundled
-// source serving `image_path` from content overlays 0005 and 0008 (the files themselves:
-// scripts/recipe-photos.test.ts).
+// source serving `image_path` from EVERY recipe-photo content overlay (0005, 0008, 0010, … — derived
+// from the overlay list, never pinned; the files themselves: scripts/recipe-photos.test.ts).
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { contentSource } from '../content/index'
@@ -13,10 +13,15 @@ import { RECIPES } from '../content/seed/recipes'
 import { RecipeCard } from './RecipeCard'
 import { RecipePage } from './RecipePage'
 import { photoHeight, recipePhotoSrc, recipePhotoSrcSet } from './photo'
-import { framePhotoPath } from './photoSlugs'
+import { framePhotoPath, PHOTO_OVERLAY_IDS } from './photoSlugs'
 
 const BASE = import.meta.env.BASE_URL
 const SLUG = 'fasolada-white-bean-soup'
+
+/** Every overlay that sets a recipe's image_path, in list order — however many batches there are. */
+const PHOTO_OVERLAYS = OVERLAYS.filter((overlay) =>
+  (overlay.patches?.recipes ?? []).some((patch) => 'image_path' in patch.set),
+)
 
 async function seeded(slug: string): Promise<Recipe> {
   const result = await contentSource.getRecipe(slug)
@@ -68,10 +73,18 @@ describe('recipe photo URLs', () => {
   })
 })
 
-describe('bundled source image_path (overlays 0005 + 0008)', () => {
-  const photoPatches = OVERLAYS.filter((overlay) =>
-    ['0005-recipe-photos', '0008-recipe-photos-2'].includes(overlay.id),
-  ).flatMap((overlay) => overlay.patches?.recipes ?? [])
+describe('bundled source image_path (every photo overlay)', () => {
+  const photoPatches = PHOTO_OVERLAYS.flatMap((overlay) => overlay.patches?.recipes ?? [])
+
+  it('finds every photo batch: at least 0005, 0008 and 0010', () => {
+    expect(PHOTO_OVERLAYS.map((overlay) => overlay.id)).toEqual(
+      expect.arrayContaining([
+        '0005-recipe-photos',
+        '0008-recipe-photos-2',
+        '0010-recipe-photos-3',
+      ]),
+    )
+  })
 
   it('sets image_path = recipes/<slug> on real recipes only', () => {
     expect(photoPatches.length).toBeGreaterThan(0)
@@ -159,22 +172,31 @@ describe('<RecipePage> frame-first hero', () => {
     expect(img).toHaveAttribute('fetchpriority', 'high')
   })
 
-  it('knows the second batch too: a slug only overlay 0008 gives a photo starts its hero', () => {
-    const photos2 = OVERLAYS.find((overlay) => overlay.id === '0008-recipe-photos-2')
-    const slug = photos2?.patches?.recipes?.[0]?.slug ?? 'missing-0008'
-    expect(framePhotoPath(slug)).toBe(`recipes/${slug}`)
-    const pending: ContentSource = { ...contentSource, getRecipe: () => new Promise(() => {}) }
-    render(
-      <LangProvider initial="en">
-        <MemoryRouter initialEntries={[`/recipes/${slug}`]}>
-          <Routes>
-            <Route path="/recipes/:slug" element={<RecipePage source={pending} />} />
-          </Routes>
-        </MemoryRouter>
-      </LangProvider>,
-    )
-    expect(document.querySelector('img')).toHaveAttribute('src', `${BASE}recipes/${slug}-960.webp`)
+  it('reads exactly the photo overlays the overlay list has (the file-name glob misses none)', () => {
+    expect(PHOTO_OVERLAY_IDS).toEqual(PHOTO_OVERLAYS.map((overlay) => overlay.id))
   })
+
+  it.each(PHOTO_OVERLAYS.map((overlay) => [overlay.id, overlay] as const))(
+    'knows every batch: a slug overlay %s gives a photo starts its hero',
+    (id, overlay) => {
+      const slug = overlay.patches?.recipes?.[0]?.slug ?? `missing-${id}`
+      expect(framePhotoPath(slug)).toBe(`recipes/${slug}`)
+      const pending: ContentSource = { ...contentSource, getRecipe: () => new Promise(() => {}) }
+      render(
+        <LangProvider initial="en">
+          <MemoryRouter initialEntries={[`/recipes/${slug}`]}>
+            <Routes>
+              <Route path="/recipes/:slug" element={<RecipePage source={pending} />} />
+            </Routes>
+          </MemoryRouter>
+        </LangProvider>,
+      )
+      expect(document.querySelector('img')).toHaveAttribute(
+        'src',
+        `${BASE}recipes/${slug}-960.webp`,
+      )
+    },
+  )
 
   it('framePhotoPath answers every photo overlay slug, and null for anything else', () => {
     const photoPatches = OVERLAYS.flatMap((overlay) => overlay.patches?.recipes ?? []).filter(
