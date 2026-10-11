@@ -10,8 +10,8 @@
 //   - Every one of the three blocks is present in the result (possibly with zero items), in
 //     `BLOCKS` order; within a block the items keep the template's array order (= `position`).
 
-import { BLOCKS } from '../content/enums.ts'
-import type { Block, Intensity, Level, WorkoutType } from '../content/enums.ts'
+import { BLOCKS, DEFAULT_WORKOUT_TRACK } from '../content/enums.ts'
+import type { Block, Intensity, Level, WorkoutTrack, WorkoutType } from '../content/enums.ts'
 import type { ExerciseSeed, WorkoutTemplateSeed } from '../content/types.ts'
 
 /** One exercise slot with its exercise resolved; the numbers are the template's verbatim. */
@@ -34,16 +34,24 @@ export interface Session {
   blocks: SessionBlock[]
 }
 
-/** The template for a selection, or null when the catalogue has none (first match wins). */
+/**
+ * The template for a selection on `track` (default `general`; a seed row without a track is
+ * `general`), or null when the catalogue has none (first match wins).
+ */
 export function templateFor(
   templates: readonly WorkoutTemplateSeed[],
   type: WorkoutType,
   level: Level,
   intensity: Intensity,
+  track: WorkoutTrack = DEFAULT_WORKOUT_TRACK,
 ): WorkoutTemplateSeed | null {
   return (
     templates.find(
-      (t) => t.workout_type === type && t.level === level && t.intensity === intensity,
+      (t) =>
+        (t.track ?? DEFAULT_WORKOUT_TRACK) === track &&
+        t.workout_type === type &&
+        t.level === level &&
+        t.intensity === intensity,
     ) ?? null
   )
 }
@@ -58,8 +66,9 @@ export function resolveSession(
   type: WorkoutType,
   level: Level,
   intensity: Intensity,
+  track: WorkoutTrack = DEFAULT_WORKOUT_TRACK,
 ): Session | null {
-  const template = templateFor(templates, type, level, intensity)
+  const template = templateFor(templates, type, level, intensity, track)
   if (template === null) return null
 
   const bySlug = new Map(exercises.map((exercise) => [exercise.slug, exercise]))

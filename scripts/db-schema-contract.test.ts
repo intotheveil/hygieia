@@ -35,6 +35,7 @@ import {
   TIP_TOPICS,
   UNITS,
   USER_TABLES,
+  WORKOUT_TRACKS,
   WORKOUT_TYPES,
 } from '../src/content/enums.ts'
 import {
@@ -156,6 +157,8 @@ const EXPECTED: Record<string, string[]> = {
     'notes_el:text',
     'notes_en:text',
     ...REVIEW,
+    // 20261007001250 (add column → appended after the review columns)
+    'track:text',
   ],
   workout_template_exercises: [
     'template_id:uuid',
@@ -399,6 +402,7 @@ describe('CHECK enum literals equal src/content/enums.ts (length and order)', ()
         'WORKOUT_TYPES',
         'LEVELS',
         'INTENSITIES',
+        'WORKOUT_TRACKS',
         'BLOCKS',
         'TIP_TOPICS',
         'CONTENT_STATUSES',
@@ -448,6 +452,7 @@ describe('CHECK enum literals equal src/content/enums.ts (length and order)', ()
     ])
     expect(LEVELS).toEqual(['beginner', 'intermediate', 'advanced'])
     expect(INTENSITIES).toEqual(['low', 'moderate', 'high'])
+    expect(WORKOUT_TRACKS).toEqual(['general', 'women-strength'])
     expect(BLOCKS).toEqual(['warmup', 'main', 'cooldown'])
     expect(MEAL_TYPES).toEqual(['breakfast', 'lunch', 'dinner', 'snack'])
     expect(TIP_TOPICS).toEqual(['sleep', 'hydration', 'nutrition', 'movement', 'habits', 'mental'])
@@ -597,12 +602,27 @@ describe('P8.1 profile tables: keys, defaults, FK actions and row CHECKs', () =>
 })
 
 describe('§2 structural rules the column list alone does not show', () => {
-  it('workout_templates is unique on (workout_type, level, intensity)', async () => {
-    const r = await db.query<{ def: string }>(
-      `select pg_get_constraintdef(c.oid) as def from pg_constraint c
+  it('workout_templates is unique on (track, workout_type, level, intensity) — one cell per track', async () => {
+    const r = await db.query<{ name: string; def: string }>(
+      `select c.conname as name, pg_get_constraintdef(c.oid) as def from pg_constraint c
         where c.conrelid = 'hygieia.workout_templates'::regclass and c.contype = 'u'`,
     )
-    expect(r.rows.map((x) => x.def)).toContain('UNIQUE (workout_type, level, intensity)')
+    expect(r.rows).toContainEqual({
+      name: 'workout_templates_cell_key',
+      def: 'UNIQUE (track, workout_type, level, intensity)',
+    })
+    // The pre-track cell key is gone: a second track may reuse a cell.
+    expect(r.rows.map((x) => x.def)).not.toContain('UNIQUE (workout_type, level, intensity)')
+  })
+
+  it("workout_templates.track is not null with default 'general'", async () => {
+    const r = await db.query<{ notnull: boolean; def: string | null }>(
+      `select a.attnotnull as notnull, pg_get_expr(d.adbin, d.adrelid) as def
+         from pg_attribute a
+         left join pg_attrdef d on d.adrelid = a.attrelid and d.adnum = a.attnum
+        where a.attrelid = 'hygieia.workout_templates'::regclass and a.attname = 'track'`,
+    )
+    expect(r.rows).toEqual([{ notnull: true, def: "'general'::text" }])
   })
 
   it('every content table has a unique slug and a pending default', async () => {

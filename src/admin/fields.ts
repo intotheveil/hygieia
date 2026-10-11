@@ -20,6 +20,7 @@ import {
   STEP_TIMES,
   TIP_TOPICS,
   UNITS,
+  WORKOUT_TRACKS,
   WORKOUT_TYPES,
   type ContentTable,
 } from '../content/enums.ts'
@@ -69,6 +70,7 @@ const SELECT_OPTIONS: Readonly<Record<string, readonly string[]>> = {
   workout_type: WORKOUT_TYPES,
   level: LEVELS,
   intensity: INTENSITIES,
+  track: WORKOUT_TRACKS,
   topic: TIP_TOPICS,
   // P7.1 skincare (scalar enum columns; the array-valued ones — regions, audiences … — are `lines`;
   // `category` is per-table below: free text on ingredients, an enum on skincare_product_types)

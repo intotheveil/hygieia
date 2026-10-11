@@ -34,6 +34,13 @@ export interface WorkoutsDictionary {
   showCue: string
   noSession: string
   workoutsLoadFailed: string
+  /** The women's strength track (`?track=women-strength`): its heading, intro and the two links. */
+  workoutsTrackWomenTitle: string
+  workoutsTrackWomenIntro: string
+  /** Link from the general page into the track. */
+  workoutsTrackWomenLink: string
+  /** Link from the track back to every workout. */
+  workoutsTrackAll: string
 }
 
 export const workoutsEn: WorkoutsDictionary = {
@@ -78,6 +85,11 @@ export const workoutsEn: WorkoutsDictionary = {
   showCue: 'Coaching cue',
   noSession: 'There is no session for this selection yet.',
   workoutsLoadFailed: 'The workouts could not be loaded. Check your connection and try again.',
+  workoutsTrackWomenTitle: 'Strength for women',
+  workoutsTrackWomenIntro:
+    'A progressive strength programme built on the big lifts — squats, hinges, hip thrusts, rows, presses and carries. Lifting regularly builds strength and supports bone health at every age. Start light, keep good form, and add a little weight or a few reps when the last set feels easy.',
+  workoutsTrackWomenLink: 'Strength for women',
+  workoutsTrackAll: 'All workouts',
 }
 
 export const workoutsEl: WorkoutsDictionary = {
@@ -122,4 +134,9 @@ export const workoutsEl: WorkoutsDictionary = {
   showCue: 'Οδηγία εκτέλεσης',
   noSession: 'Δεν υπάρχει ακόμη προπόνηση για αυτή την επιλογή.',
   workoutsLoadFailed: 'Οι προπονήσεις δεν φορτώθηκαν. Έλεγξε τη σύνδεσή σου και δοκίμασε ξανά.',
+  workoutsTrackWomenTitle: 'Δύναμη για γυναίκες',
+  workoutsTrackWomenIntro:
+    'Ένα προοδευτικό πρόγραμμα δύναμης πάνω στις βασικές ασκήσεις — καθίσματα, κάμψεις ισχίου, hip thrust, κωπηλατικές, πιέσεις και μεταφορές βάρους. Η τακτική προπόνηση με βάρη χτίζει δύναμη και στηρίζει την υγεία των οστών σε κάθε ηλικία. Ξεκίνα ελαφριά, κράτα σωστή τεχνική και πρόσθεσε λίγο βάρος ή μερικές επαναλήψεις όταν το τελευταίο σετ σού φαίνεται εύκολο.',
+  workoutsTrackWomenLink: 'Δύναμη για γυναίκες',
+  workoutsTrackAll: 'Όλες οι προπονήσεις',
 }

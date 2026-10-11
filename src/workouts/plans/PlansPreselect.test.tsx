@@ -84,3 +84,17 @@ describe('<PlansPage> pre-selects a cell from the URL', () => {
     await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('type=moon'))
   })
 })
+
+describe('<PlansPage> — workout tracks (20261007001250)', () => {
+  it('?track=women-strength pre-selects that track’s template of the cell, not the general one', async () => {
+    const all = await bundledSource.listWorkoutTemplates()
+    if (!all.ok) throw new Error('templates')
+    const women = all.data.find((t) => t.slug === 'women-strength-gym-beginner-full-body-a')!
+    renderAt('/workouts/plans?track=women-strength&type=gym&level=beginner')
+    const builder = await screen.findByRole('region', { name: en.wpBuilderHeading })
+    await waitFor(() =>
+      expect(within(builder).getByTestId('builder-template')).toHaveTextContent(women.title_en),
+    )
+    expect(within(builder).getByLabelText(en.wpName)).toHaveValue(women.title_en)
+  })
+})

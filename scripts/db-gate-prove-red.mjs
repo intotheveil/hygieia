@@ -366,6 +366,18 @@ alter table hygieia.skincare_tips add constraint skincare_tips_area_check
     ],
   },
 
+  // --- workout tracks (20261007001250): the track enum is mirrored in enums.ts ---------------------
+  {
+    id: 'workout-track-enum-mismatch',
+    what: "workout_templates.track CHECK admits 'men-strength', which enums.ts WORKOUT_TRACKS does not know",
+    sql: `alter table hygieia.workout_templates drop constraint if exists workout_templates_track_check;
+alter table hygieia.workout_templates add constraint workout_templates_track_check
+  check (track in ('general', 'women-strength', 'men-strength'));`,
+    expect: [
+      /^FAIL {2}workout_templates\.track CHECK admits exactly enums\.ts WORKOUT_TRACKS — db general\|women-strength\|men-strength vs ts general\|women-strength$/,
+    ],
+  },
+
   // --- the apply contract: fresh-DB apply and idempotency ---------------------------------------
   {
     id: 'not-idempotent',

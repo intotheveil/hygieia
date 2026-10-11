@@ -20,13 +20,15 @@
 //   Per content table >= 1 approved and >= 1 pending row (slugs prefixed `fx-`, ids by the seed-id
 //   formula), children under both an approved and a pending parent, per user table rows of A and B.
 //   Seeds (P1.12) land `pending`; the fixture rows are the gate's own and never ship.
-//   EXCEPTION — workout_templates: `unique (workout_type, level, intensity)` and the P4.8 seed fills
-//   all 63 cells, so there is NO free cell for an `fx-` row (a fixture must not fight a unique
+//   EXCEPTION — workout_templates: `unique (track, workout_type, level, intensity)` (the track since
+//   20261007001250) and the P4.8 seed fills all 63 `general` cells, so there is NO free cell for an
+//   `fx-` row (a fixture must not fight a unique
 //   constraint that real data saturates). The fixture instead ADOPTS two seeded rows — the two
 //   lowest slugs of src/content/seed/workouts.ts — and flips the first to `approved` with the fixture
 //   review stamp (triggers bypassed via session_replication_role, so reviewed_by/updated_at are the
 //   fixture's, not now()/null); the second stays `pending` and is the row ADMIN's review flips. Both
-//   keep their seeded slugs, so they still count as seeded rows (= 63) in the P1.12 count check.
+//   keep their seeded slugs, so they still count as seeded rows (= 69: the 63 P4.8 cells + the 6
+//   women's-strength templates of overlay 0013) in the P1.12 count check.
 //
 // Harness: `createHarness(db).actAs(who, s => …)` runs `fn` in a transaction that is always rolled
 // back, as a signed-in user (uuid, `request.jwt.claim.sub`), ANON, SERVICE (BYPASSRLS) or SUPERUSER.
@@ -57,6 +59,7 @@ import {
   TIP_TOPICS,
   UNITS,
   USER_TABLES,
+  WORKOUT_TRACKS,
   WORKOUT_TYPES,
 } from '../../src/content/enums.ts'
 import { WORKOUT_TEMPLATES } from '../../src/content/seed/workouts.ts'
@@ -106,7 +109,8 @@ export const SEED_COUNTS = Object.freeze({
   exercises: { min: 60 },
   health_tips: { min: 30 },
   // P4.8 landed: the module exists, so the count BINDS (no pendingTask — zero rows is red).
-  workout_templates: { exact: 63 },
+  // 63 `general` cells (P4.8, 7 types × 3 levels × 3 intensities) + 6 `women-strength` (overlay 0013).
+  workout_templates: { exact: 69 },
   // P7.1 skincare (+ nails): floors are the brief's minimums plus the nail items.
   skincare_product_types: { min: 36 },
   skincare_routines: { min: 28 },
@@ -399,6 +403,7 @@ export const ENUM_COLUMNS = Object.freeze([
   },
   { table: 'workout_templates', column: 'level', name: 'LEVELS', values: LEVELS },
   { table: 'workout_templates', column: 'intensity', name: 'INTENSITIES', values: INTENSITIES },
+  { table: 'workout_templates', column: 'track', name: 'WORKOUT_TRACKS', values: WORKOUT_TRACKS },
   { table: 'workout_template_exercises', column: 'block', name: 'BLOCKS', values: BLOCKS },
   { table: 'health_tips', column: 'topic', name: 'TIP_TOPICS', values: TIP_TOPICS },
   // P7.1 skincare — scalar and array-valued (`x <@ array[…]`) enum columns alike.

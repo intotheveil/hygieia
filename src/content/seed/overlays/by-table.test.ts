@@ -119,7 +119,12 @@ describe('per-table overlay indexes (./by-table/)', () => {
     expect((INDEXES.health_tips as IndexModule).OVERLAYS.map((o) => o.id)).toEqual(
       OVERLAYS.filter((o) => tablesOf(o).includes('health_tips')).map((o) => o.id),
     )
-    expect((INDEXES.exercises as IndexModule).OVERLAYS).toEqual([])
+    expect((INDEXES.exercises as IndexModule).OVERLAYS.map((o) => o.id)).toEqual(
+      OVERLAYS.filter((o) => tablesOf(o).includes('exercises')).map((o) => o.id),
+    )
+    expect((INDEXES.workout_templates as IndexModule).OVERLAYS.map((o) => o.id)).toContain(
+      '0013-women-strength',
+    )
   })
 
   it.each(KEYS)('%s imports only its own overlay rows (the bundle-split rule)', (key) => {

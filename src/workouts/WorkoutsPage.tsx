@@ -11,6 +11,12 @@
 // whole-or-nothing rule as `resolveSession`: a slot whose exercise is not visible (pending under
 // RLS) makes the whole session unavailable rather than rendering a block with a hole.
 //
+// TRACKS (2026-10-11): `?track=women-strength` switches the page to that programme — a heading and
+// intro, the chips narrowed to the cells the track fills (gym/home × beginner/intermediate), and the
+// template read on that track. No `?track=` (or an unknown one) is the `general` page, unchanged
+// but for one link into the track. Contract: other pages link `/workouts?track=women-strength&
+// type=<type>&level=<level>` (intensity defaults to moderate, which every track cell row has).
+//
 // PREFERENCES (2026-10-06): with no `?level=` in the URL, the level defaults to the one the
 // visitor's activity answer maps to (src/prefs/apply.ts: low → beginner, moderate → intermediate,
 // high → advanced) instead of beginner. An explicit `?level=` always wins.
@@ -22,8 +28,15 @@ import { DraftRibbon } from '../components/DraftRibbon'
 import { SaveButton, SavedItemsScope } from '../components/SaveButton'
 import { contentSource } from '../content'
 import type { ContentSource, Exercise, WorkoutTemplate } from '../content'
-import { BLOCKS, INTENSITIES, LEVELS, WORKOUT_TYPES } from '../content/enums.ts'
-import type { Block, Intensity, Level, WorkoutType } from '../content/enums.ts'
+import {
+  BLOCKS,
+  DEFAULT_WORKOUT_TRACK,
+  INTENSITIES,
+  LEVELS,
+  WORKOUT_TRACKS,
+  WORKOUT_TYPES,
+} from '../content/enums.ts'
+import type { Block, Intensity, Level, WorkoutTrack, WorkoutType } from '../content/enums.ts'
 import type { WorkoutBlockSeed } from '../content/types.ts'
 import { useLang } from '../i18n/LangProvider'
 import { fill } from '../i18n/fill'
@@ -53,22 +66,53 @@ function pickMember<T extends string>(options: readonly T[], value: string | nul
   return value !== null && (options as readonly string[]).includes(value) ? (value as T) : fallback
 }
 
-/** `?type=&level=&intensity=` → a selection; unknown or missing values fall back to the defaults. */
-export function parseWorkoutSelection(params: URLSearchParams): WorkoutSelection {
+/** The chips a track offers: the general programme fills every cell; a track only some. */
+export const TRACK_OPTIONS: Readonly<
+  Record<WorkoutTrack, { types: readonly WorkoutType[]; levels: readonly Level[] }>
+> = {
+  general: { types: WORKOUT_TYPES, levels: LEVELS },
+  'women-strength': { types: ['gym', 'home'], levels: ['beginner', 'intermediate'] },
+}
+
+/** `?track=` → a known track, else `general`. */
+export function parseWorkoutTrack(params: URLSearchParams): WorkoutTrack {
+  return pickMember(WORKOUT_TRACKS, params.get('track'), DEFAULT_WORKOUT_TRACK)
+}
+
+/**
+ * `?type=&level=&intensity=` → a selection; unknown or missing values fall back to the defaults.
+ * On a track, a type or level the track does not offer falls back to the track's first option.
+ */
+export function parseWorkoutSelection(
+  params: URLSearchParams,
+  track: WorkoutTrack = DEFAULT_WORKOUT_TRACK,
+): WorkoutSelection {
+  const { types, levels } = TRACK_OPTIONS[track]
+  const typeFallback = types.includes(DEFAULT_SELECTION.type) ? DEFAULT_SELECTION.type : types[0]
+  const levelFallback = levels.includes(DEFAULT_SELECTION.level)
+    ? DEFAULT_SELECTION.level
+    : levels[0]
   return {
-    type: pickMember(WORKOUT_TYPES, params.get('type'), DEFAULT_SELECTION.type),
-    level: pickMember(LEVELS, params.get('level'), DEFAULT_SELECTION.level),
+    type: pickMember(types, params.get('type'), typeFallback ?? DEFAULT_SELECTION.type),
+    level: pickMember(levels, params.get('level'), levelFallback ?? DEFAULT_SELECTION.level),
     intensity: pickMember(INTENSITIES, params.get('intensity'), DEFAULT_SELECTION.intensity),
   }
 }
 
-/** Always writes all three keys, so a copied URL is self-describing. */
-export function serializeWorkoutSelection(selection: WorkoutSelection): URLSearchParams {
-  return new URLSearchParams({
-    type: selection.type,
-    level: selection.level,
-    intensity: selection.intensity,
-  })
+/**
+ * Always writes all three keys, so a copied URL is self-describing; `track` is written only when it
+ * is not `general` (the general page's URLs are unchanged).
+ */
+export function serializeWorkoutSelection(
+  selection: WorkoutSelection,
+  track: WorkoutTrack = DEFAULT_WORKOUT_TRACK,
+): URLSearchParams {
+  const params = new URLSearchParams()
+  if (track !== DEFAULT_WORKOUT_TRACK) params.set('track', track)
+  params.set('type', selection.type)
+  params.set('level', selection.level)
+  params.set('intensity', selection.intensity)
+  return params
 }
 
 // --- session shape -------------------------------------------------------------------------------
@@ -240,37 +284,64 @@ export function WorkoutsPage({ source = contentSource, userData }: WorkoutsPageP
   const canPlan = (userData ?? fromHook).kind !== 'disabled'
   const [params, setParams] = useSearchParams()
   const [prefs] = useState(readPrefs)
-  const selection = parseWorkoutSelection(applyPrefsToWorkoutParams(params, prefs))
+  const track = parseWorkoutTrack(params)
+  const onTrack = track !== DEFAULT_WORKOUT_TRACK
+  const options = TRACK_OPTIONS[track]
+  const selection = parseWorkoutSelection(applyPrefsToWorkoutParams(params, prefs), track)
   const { type, level, intensity } = selection
 
   const load = useCallback(
-    () => source.getWorkoutTemplate(type, level, intensity),
-    [source, type, level, intensity],
+    () =>
+      onTrack
+        ? source.getWorkoutTemplate(type, level, intensity, track)
+        : source.getWorkoutTemplate(type, level, intensity),
+    [source, type, level, intensity, track, onTrack],
   )
   const state = useAsyncResult(load)
 
   const select = (patch: Partial<WorkoutSelection>) =>
-    setParams(serializeWorkoutSelection({ ...selection, ...patch }))
+    setParams(serializeWorkoutSelection({ ...selection, ...patch }, track))
 
   return (
     <SavedItemsScope>
       <main className="mx-auto flex min-h-dvh max-w-3xl flex-col gap-8 px-4 py-10 sm:px-6">
         <header className="flex flex-col gap-3">
-          <h1 className="font-display text-3xl font-semibold text-olive-950">{t.workoutsTitle}</h1>
-          <p className="max-w-2xl leading-relaxed text-olive-700">{t.workoutsIntro}</p>
-          <Link
-            to="/workouts/plans"
-            className="self-start text-sm font-medium text-olive-900 underline"
-          >
-            {t.wpLink} →
-          </Link>
+          <h1 className="font-display text-3xl font-semibold text-olive-950">
+            {onTrack ? t.workoutsTrackWomenTitle : t.workoutsTitle}
+          </h1>
+          <p className="max-w-2xl leading-relaxed text-olive-700">
+            {onTrack ? t.workoutsTrackWomenIntro : t.workoutsIntro}
+          </p>
+          <div className="flex flex-wrap gap-x-5 gap-y-2">
+            <Link
+              to="/workouts/plans"
+              className="self-start text-sm font-medium text-olive-900 underline"
+            >
+              {t.wpLink} →
+            </Link>
+            {onTrack ? (
+              <Link
+                to="/workouts"
+                className="self-start text-sm font-medium text-olive-900 underline"
+              >
+                ← {t.workoutsTrackAll}
+              </Link>
+            ) : (
+              <Link
+                to="/workouts?track=women-strength"
+                className="self-start text-sm font-medium text-olive-900 underline"
+              >
+                {t.workoutsTrackWomenLink} →
+              </Link>
+            )}
+          </div>
         </header>
 
         <div className="flex flex-col gap-5">
           <ChipGroup
             id="type"
             label={t.pickType}
-            options={WORKOUT_TYPES}
+            options={options.types}
             value={type}
             labels={t.types}
             onChange={(next) => select({ type: next })}
@@ -278,7 +349,7 @@ export function WorkoutsPage({ source = contentSource, userData }: WorkoutsPageP
           <ChipGroup
             id="level"
             label={t.pickLevel}
-            options={LEVELS}
+            options={options.levels}
             value={level}
             labels={t.levels}
             onChange={(next) => select({ level: next })}

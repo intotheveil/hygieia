@@ -29,6 +29,7 @@ import type {
   StepTime,
   TipTopic,
   Unit,
+  WorkoutTrack,
   WorkoutType,
 } from './enums.ts'
 
@@ -159,6 +160,11 @@ export interface WorkoutTemplateSeed extends Localized<'title'>, Localized<'note
   level: Level
   intensity: Intensity
   duration_min: number
+  /**
+   * The programme (20261007001250): absent = `general`. The frozen P4.8 base seed never sets it
+   * (its migration is pinned byte-for-byte); overlay additions on another track set it explicitly.
+   */
+  track?: WorkoutTrack
   /** In session order; the generator assigns `position` from the index. */
   blocks: WorkoutBlockSeed[]
 }

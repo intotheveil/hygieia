@@ -18,6 +18,8 @@ import { OVERLAY as O0008 } from './0008-recipe-photos-2.ts'
 import { OVERLAY as O0009 } from './0009-crepes.ts'
 import { OVERLAY as O0010 } from './0010-recipe-photos-3.ts'
 import { OVERLAY as O0011 } from './0011-skincare-more.ts'
+import { OVERLAY as O0012 } from './0012-fix-aad-links.ts'
+import { OVERLAY as O0013 } from './0013-women-strength.ts'
 import type { Overlay } from './types.ts'
 
 export const OVERLAYS: readonly Overlay[] = [
@@ -32,6 +34,8 @@ export const OVERLAYS: readonly Overlay[] = [
   O0009,
   O0010,
   O0011,
+  O0012,
+  O0013,
 ]
 
 export { applyOverlays, overlayTable } from './apply.ts'
