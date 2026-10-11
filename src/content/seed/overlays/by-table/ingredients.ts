@@ -9,6 +9,7 @@
 // rule. Erasable syntax only, explicit `.ts` imports.
 
 import { INGREDIENTS as I0003 } from '../0003-greek-kitchen/ingredients.ts'
+import { INGREDIENTS as I0007 } from '../0007-breakfast-snacks-world/ingredients.ts'
 import { OVERLAY as O0004 } from '../0004-prices-nutrition.ts'
 import { sliceOverlays } from '../apply.ts'
 import { SEED_OVERLAY_TABLES, type OverlaySlice } from '../types.ts'
@@ -19,4 +20,6 @@ export const OVERLAYS: readonly OverlaySlice[] = [
   { id: '0003-greek-kitchen', additions: { ingredients: I0003 } },
   // 0004 touches ingredients only, so it is imported whole (by-table.test.ts checks that).
   ...sliceOverlays([O0004], SEED_OVERLAY_TABLES.ingredients),
+  // 0006 lands from the parallel lane; the lead orders it at merge
+  { id: '0007-breakfast-snacks-world', additions: { ingredients: I0007 } },
 ]

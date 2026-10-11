@@ -387,10 +387,15 @@ describe('the real overlay list (./index.ts)', () => {
     expect(sun?.body_el).toContain('Βάλ’ το ως τελευταίο βήμα')
     expect(sun?.body_el).not.toContain('το το')
     expect(out.health_tips).toHaveLength(HEALTH_TIPS.length)
-    // a table no overlay touches comes back as the SAME array (0003 adds ingredients, diets, recipes;
-    // 0004 patches every ingredient in place: base rows keep their order, new values)
+    // a table no overlay touches comes back as the SAME array (0003 and later overlays add
+    // ingredients, diets, recipes; 0004 patches every ingredient in place: base rows keep their
+    // order, new values)
     expect(out.exercises).toBe(EXERCISES)
-    expect(out.ingredients).toHaveLength(INGREDIENTS.length + 2)
+    const addedIngredients = OVERLAYS.reduce(
+      (n, o) => n + (o.additions?.ingredients?.length ?? 0),
+      0,
+    )
+    expect(out.ingredients).toHaveLength(INGREDIENTS.length + addedIngredients)
     expect(out.ingredients.slice(0, INGREDIENTS.length).map((r) => r.slug)).toEqual(
       INGREDIENTS.map((r) => r.slug),
     )

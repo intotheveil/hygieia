@@ -4910,3 +4910,101 @@ byte-equal) · SubagentStop gate `ran[secret-scan typecheck lint test] skipped[n
 CI green · live URL verified by HTTP (200, title, favicon, deep-link fallback, bundle).
 
 **Next:** operator approves `zeus/specs/HYGIEIA_SPEC.md` (open questions) → planner → P1/P3.
+
+
+## BREAKFAST, SNACKS & WORLD KITCHEN — 60 recipes, 12 ingredients (overlay 0007) — 2026-10-11
+
+Scope: operator request "add many more recipes" (120 total, two parallel lanes). This lane = overlay **0007**
+`0007-breakfast-snacks-world`; the other lane builds 0006 (not created here; the lead orders it at merge — index
+lines carry the comment `// 0006 lands from the parallel lane; the lead orders it at merge`). The generator
+accepted the gap in numbering without complaint (no contiguity rule).
+
+Files: `src/content/seed/overlays/0007-breakfast-snacks-world.ts` + `0007-breakfast-snacks-world/{recipes,ingredients}.ts`,
+one line each in `overlays/index.ts`, `by-table/recipes.ts`, `by-table/ingredients.ts`, new migration
+`supabase/migrations/20261007000700_hygieia_overlay_breakfast_snacks_world.sql` (only new file; CRLF flips on the other
+migrations restored with `git checkout`), test `overlays/breakfast-snacks-world.test.ts`.
+Tests touched (count pins made derivation-based, nothing weakened): `overlays/overlays.test.ts` (ingredients length =
+base + sum of all overlays' additions instead of +2), `overlays/greek-kitchen.test.ts` (recipes/diets/ingredients
+lengths and the served fasting count now include later overlays' additions).
+
+New ingredients (12; USDA FoodData Central reference or branded-food entries, price_as_of 2026-10-11, EUR ranges are
+curated estimates): miso, gochujang, fish-sauce (category fish-seafood on purpose: keeps it out of vegan / vegetarian /
+fasting by the tests' category rules), rice-vinegar, rice-paper, kimchi, lemongrass, paneer, teff, rye-bread, plantain,
+corn-tortilla. No fibre-heavy spices added (they would need SPECIAL entries in ingredients-sanity).
+
+Tag policy: mechanical tags auto-derived and test-proven; low-fodmap / whole30 / paleo / dash / mediterranean / IF
+only where requested AND passing the rule (IF = meal slot, >= 400 kcal, >= 25 g protein; keto/Atkins <= 15 g carbs;
+low-carb <= 30 g; high-protein >= 30 g; Mediterranean only basin cuisines in olive oil/tahini; kimchi dishes never
+vegetarian/vegan/fasting; miso/gochujang dishes never gluten-free).
+
+The 60 (slug · cuisine · meals · tags):
+  - tamagoyaki-japanese-rolled-omelette · Japanese · breakfast · vegetarian,flexitarian,pescatarian
+  - miso-soup-tofu-spinach · Japanese · breakfast/lunch · vegan,vegetarian,flexitarian,pescatarian,fasting,low-carb,low-fodmap
+  - okayu-japanese-rice-porridge-egg · Japanese · breakfast · vegetarian,flexitarian,pescatarian,gluten-free,low-fodmap
+  - congee-chicken-ginger-spring-onion · Chinese · breakfast/lunch · high-protein
+  - tea-eggs-chinese-marbled · Chinese · snack/breakfast · vegetarian,flexitarian,pescatarian,keto,atkins,low-carb
+  - tomato-egg-stir-fry-chinese · Chinese · breakfast/lunch/dinner · vegetarian,flexitarian,pescatarian,gluten-free
+  - scallion-pancakes-cong-you-bing · Chinese · breakfast/snack · vegan,vegetarian,flexitarian,pescatarian,fasting
+  - kimchi-fried-rice-fried-egg · Korean · breakfast/lunch · flexitarian,pescatarian
+  - gyeran-jjim-korean-steamed-egg · Korean · breakfast/snack · vegetarian,flexitarian,pescatarian,keto,low-carb,gluten-free,low-fodmap,whole30
+  - chakchouka-tunisian-eggs-peppers · North African · breakfast/lunch/dinner · vegetarian,flexitarian,pescatarian,mediterranean,dash,low-carb,paleo,gluten-free,whole30
+  - cilbir-turkish-poached-eggs-garlic-yoghurt · Turkish · breakfast · vegetarian,flexitarian,pescatarian,low-carb
+  - foul-medames-egyptian-fava-beans · Egyptian · breakfast/lunch · vegetarian,flexitarian,pescatarian,mediterranean,dash,low-carb,gluten-free
+  - labneh-zaatar-olive-oil-plate · Levantine · breakfast/snack · vegetarian,flexitarian,pescatarian,mediterranean,low-carb
+  - masala-omelette-indian-spiced · Indian · breakfast · vegetarian,flexitarian,pescatarian,keto,atkins,low-carb,paleo,gluten-free,whole30
+  - besan-chilla-chickpea-flour-pancakes · Indian · breakfast/snack · vegan,vegetarian,flexitarian,pescatarian,fasting,gluten-free
+  - masala-oats-savoury-indian-porridge · Indian · breakfast · vegan,vegetarian,flexitarian,pescatarian,dash,fasting
+  - mango-lassi-yoghurt-drink · Indian · breakfast/snack · vegetarian,flexitarian,pescatarian,dash,low-carb,gluten-free
+  - teff-porridge-ethiopian-banana-cinnamon · Ethiopian · breakfast · vegan,vegetarian,flexitarian,pescatarian,dash,fasting,gluten-free,low-fodmap
+  - huevos-rancheros-mexican-eggs-black-beans · Mexican · breakfast · vegetarian,flexitarian,pescatarian,gluten-free,intermittent-fasting
+  - arepas-venezuelan-cornmeal-cheese · Latin American · breakfast/lunch · vegetarian,flexitarian,pescatarian,gluten-free,low-fodmap
+  - patacones-green-plantain-lime · Latin American · snack/breakfast · vegan,vegetarian,flexitarian,pescatarian,fasting,paleo,gluten-free,low-fodmap,whole30
+  - gallo-pinto-costa-rican-rice-beans-egg · Latin American · breakfast/lunch · vegetarian,flexitarian,pescatarian,dash,gluten-free
+  - smorrebrod-rye-egg-radish-dill · Nordic · breakfast/lunch · vegetarian,flexitarian,pescatarian,dash
+  - syrniki-russian-cottage-cheese-pancakes · Eastern European · breakfast · vegetarian,flexitarian,pescatarian,low-carb
+  - draniki-belarusian-potato-pancakes · Eastern European · breakfast/dinner · vegetarian,flexitarian,pescatarian
+  - khai-jiao-thai-omelette-rice · Thai · breakfast/lunch · flexitarian,pescatarian,gluten-free,low-fodmap
+  - banh-mi-op-la-vietnamese-eggs-pickled-carrot · Vietnamese · breakfast/lunch · vegetarian,flexitarian,pescatarian
+  - edamame-lime-chilli-flakes · Japanese · snack · vegan,vegetarian,flexitarian,pescatarian,fasting,low-carb,gluten-free,low-fodmap
+  - onigiri-salmon-nori · Japanese · snack/lunch · flexitarian,pescatarian,gluten-free,low-fodmap
+  - hiyayakko-chilled-tofu-ginger · Japanese · snack/lunch · vegan,vegetarian,flexitarian,pescatarian,fasting,low-carb,high-protein
+  - gimbap-korean-rice-rolls · Korean · snack/lunch · vegetarian,flexitarian,pescatarian,gluten-free,low-fodmap
+  - goi-cuon-vietnamese-shrimp-rice-paper-rolls · Vietnamese · snack/lunch · flexitarian,pescatarian,gluten-free,low-fodmap
+  - chana-chaat-indian-chickpea-salad · Indian · snack/lunch · vegan,vegetarian,flexitarian,pescatarian,dash,fasting,gluten-free
+  - paneer-tikka-skewers-yoghurt-marinade · Indian · snack/dinner · vegetarian,flexitarian,pescatarian,low-carb,gluten-free
+  - muhammara-roasted-pepper-walnut-dip · Levantine · snack · vegan,vegetarian,flexitarian,pescatarian,mediterranean,dash,fasting,keto,low-carb,paleo,gluten-free,whole30
+  - ezme-turkish-spicy-tomato-pepper-salad · Turkish · snack/lunch · vegan,vegetarian,flexitarian,pescatarian,mediterranean,dash,fasting,low-carb,paleo,gluten-free,whole30
+  - moroccan-carrot-salad-cumin-orange · North African · snack/lunch · vegan,vegetarian,flexitarian,pescatarian,mediterranean,dash,fasting,low-carb,paleo,gluten-free,low-fodmap,whole30
+  - zaalouk-moroccan-aubergine-tomato-salad · North African · snack/lunch · vegan,vegetarian,flexitarian,pescatarian,mediterranean,dash,fasting,low-carb,paleo,gluten-free,whole30
+  - guacamole-classic-mexican · Mexican · snack · vegan,vegetarian,flexitarian,pescatarian,fasting,low-carb,paleo,gluten-free,whole30
+  - ceviche-peruvian-sea-bass-lime · Peruvian · snack/lunch · flexitarian,pescatarian,low-carb,paleo,gluten-free,whole30
+  - esquites-mexican-street-corn-cup · Mexican · snack · vegetarian,flexitarian,pescatarian,low-carb,gluten-free
+  - mizeria-polish-cucumber-salad · Eastern European · snack/lunch · vegetarian,flexitarian,pescatarian,dash,keto,low-carb,gluten-free
+  - falafel-baked-herb-chickpea-patties · Levantine · snack/lunch/dinner · vegan,vegetarian,flexitarian,pescatarian,mediterranean,fasting,gluten-free
+  - vinegret-russian-beetroot-potato-salad · Eastern European · snack/lunch · vegan,vegetarian,flexitarian,pescatarian,fasting,gluten-free
+  - misir-wat-ethiopian-red-lentil-stew · Ethiopian · lunch/dinner · vegan,vegetarian,flexitarian,pescatarian,fasting,gluten-free
+  - harira-moroccan-lentil-chickpea-soup · North African · lunch/dinner · vegan,vegetarian,flexitarian,pescatarian,mediterranean,fasting,gluten-free
+  - chicken-tagine-apricots-almonds · North African · dinner/lunch · mediterranean,high-protein,intermittent-fasting
+  - mercimek-corbasi-turkish-red-lentil-soup · Turkish · lunch/dinner/breakfast · vegan,vegetarian,flexitarian,pescatarian,mediterranean,fasting,gluten-free
+  - fattoush-levantine-bread-salad · Levantine · lunch/dinner · vegan,vegetarian,flexitarian,pescatarian,mediterranean,dash
+  - shish-taouk-lemon-garlic-chicken-skewers · Levantine · dinner/lunch · mediterranean,dash,high-protein,gluten-free,intermittent-fasting
+  - mapo-tofu-sichuan-style · Chinese · dinner/lunch · high-protein,intermittent-fasting
+  - pho-ga-vietnamese-chicken-noodle-soup · Vietnamese · lunch/dinner/breakfast · high-protein,gluten-free,intermittent-fasting
+  - tom-kha-gai-thai-coconut-chicken-soup · Thai · lunch/dinner · low-carb,paleo,high-protein,gluten-free,whole30,intermittent-fasting
+  - larb-gai-thai-chicken-lettuce-cups · Thai · lunch/dinner · keto,atkins,low-carb,paleo,high-protein,gluten-free,low-fodmap,whole30
+  - bibimbap-korean-rice-bowl-vegetables-egg · Korean · lunch/dinner · intermittent-fasting
+  - bulgogi-beef-lettuce-wraps · Korean · dinner/lunch · low-carb,high-protein,intermittent-fasting
+  - nasu-dengaku-miso-glazed-aubergine · Japanese · lunch/dinner · vegan,vegetarian,flexitarian,pescatarian,fasting
+  - lohikeitto-finnish-salmon-soup · Nordic · lunch/dinner · flexitarian,pescatarian,high-protein,gluten-free,intermittent-fasting
+  - borscht-ukrainian-beetroot-soup · Eastern European · lunch/dinner · vegetarian,flexitarian,pescatarian,gluten-free
+  - chicken-paprikash-hungarian · Eastern European · dinner/lunch · high-protein,intermittent-fasting
+
+Counts before -> after: recipes 182 -> 242; breakfast 48 -> 77, snack 48 -> 72, lunch 128 -> 167, dinner 115 -> 136.
+vegan 60->81, vegetarian 84->128, flexitarian 121->171, pescatarian 106->156, mediterranean 90->103, dash 48->63,
+fasting 69->89, carnivore 10->10, keto 48->54, atkins 44->47, low-carb 63->87, paleo 37->48, high-protein 54->65,
+gluten-free 55->94, low-fodmap 19->32, whole30 11->23, intermittent-fasting 16->26.
+
+Gates: lint 0 errors (23 pre-existing warnings); typecheck clean; seed:check OK (13 migrations); db:check PASS (20 files);
+db:gate PASSED 369 checks; db:gate:prove-red 34/34; build OK. npm test: 5184/5185 on the full run, the one failure was
+`src/prefs/pages.test.tsx` findByRole timeout under load (another lane running), green alone (14/14) and re-run below.
+Not run (by instruction): Lighthouse, e2e. Nothing applied live; additions land pending until the lead approves them.
