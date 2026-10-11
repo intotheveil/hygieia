@@ -47,6 +47,7 @@ export const NAV_IDS = [
   'workouts',
   'tips',
   'skincare',
+  'women',
   'tasks',
 ] as const
 export type NavId = (typeof NAV_IDS)[number]
@@ -179,6 +180,7 @@ const baseEn: BaseDictionary = {
     workouts: 'Workouts',
     tips: 'Tips',
     skincare: 'Skincare',
+    women: 'For women',
     tasks: 'Task plans',
   },
   fridgeLink: 'What is in my fridge?',
@@ -292,6 +294,7 @@ const baseEl: BaseDictionary = {
     workouts: 'Προπονήσεις',
     tips: 'Συμβουλές',
     skincare: 'Περιποίηση',
+    women: 'Για τη γυναίκα',
     tasks: 'Πλάνα εργασιών',
   },
   fridgeLink: 'Τι έχω στο ψυγείο;',

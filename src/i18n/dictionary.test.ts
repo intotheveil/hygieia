@@ -24,6 +24,7 @@ import { skincareCopy, skincareEl, skincareEn } from './features/skincare.ts'
 import { tasksCopy, tasksEl, tasksEn } from './features/tasks.ts'
 import { themeEn } from './features/theme.ts'
 import { tipsEn } from './features/tips.ts'
+import { womenCopy, womenEl, womenEn } from './features/women.ts'
 import { workoutPlansCopy, workoutPlansEl, workoutPlansEn } from './features/workoutPlans.ts'
 import { workoutsEn } from './features/workouts.ts'
 
@@ -49,6 +50,7 @@ const ROUTE_FEATURE_MODULES: Readonly<Record<string, object>> = {
   season: seasonEn,
   skincare: skincareEn,
   tasks: tasksEn,
+  women: womenEn,
   workoutPlans: workoutPlansEn,
 }
 const FEATURE_MODULES: Readonly<Record<string, object>> = {
@@ -281,6 +283,7 @@ describe('bilingual dictionary — app / route split (perf, 2026-10-06; features
       [seasonCopy, seasonEl, seasonEn],
       [skincareCopy, skincareEl, skincareEn],
       [tasksCopy, tasksEl, tasksEn],
+      [womenCopy, womenEl, womenEn],
       [workoutPlansCopy, workoutPlansEl, workoutPlansEn],
     ] as const
     for (const [copy, elLiteral, enLiteral] of copies) {

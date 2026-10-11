@@ -1,5 +1,5 @@
 // ROUTE FEATURES (perf, 2026-10-06 — CI Lighthouse diet 84): the feature dictionaries read only by
-// their own lazily-loaded route(s) — /admin, /profile, /skincare, /tasks, /workouts/plans, the season strip
+// their own lazily-loaded route(s) — /admin, /profile, /skincare, /tasks, /women, /workouts/plans, the season strip
 // of /recipes + /fridge (./season.ts) — and prefs (the home page's lazy onboarding + of-the-day cards and
 // the preference highlights on lazy pages). They are
 // NOT in `useLang().t` (./index.ts composes the app features); each route's components call
@@ -17,6 +17,7 @@ import { profileEl, profileEn, type ProfileDictionary } from './profile.ts'
 import { seasonEl, seasonEn, type SeasonDictionary } from './season.ts'
 import { skincareEl, skincareEn, type SkincareDictionary } from './skincare.ts'
 import { tasksEl, tasksEn, type TasksDictionary } from './tasks.ts'
+import { womenEl, womenEn, type WomenDictionary } from './women.ts'
 import { workoutPlansEl, workoutPlansEn, type WorkoutPlansDictionary } from './workoutPlans.ts'
 
 // prettier-ignore
@@ -29,6 +30,7 @@ export interface RouteFeatureDictionary
     SeasonDictionary,
     SkincareDictionary,
     TasksDictionary,
+    WomenDictionary,
     WorkoutPlansDictionary {}
 
 export const routeFeaturesEn: RouteFeatureDictionary = {
@@ -39,6 +41,7 @@ export const routeFeaturesEn: RouteFeatureDictionary = {
   ...seasonEn,
   ...skincareEn,
   ...tasksEn,
+  ...womenEn,
   ...workoutPlansEn,
 }
 
@@ -50,5 +53,6 @@ export const routeFeaturesEl: RouteFeatureDictionary = {
   ...seasonEl,
   ...skincareEl,
   ...tasksEl,
+  ...womenEl,
   ...workoutPlansEl,
 }
