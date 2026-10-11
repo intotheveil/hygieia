@@ -5,8 +5,8 @@
 > intent; rewritten 2026-10-06 to the P1–P6 state (P1/P2 review item 1). Genuine unknowns are
 > marked **❓ needs human input**.
 
-**Last updated:** 2026-10-11 by the lead (Claude Code, Opus 5.5) — +120 recipes (overlays 0006 thin diets + 0007 breakfast/snacks/world) merged on `main`,
-QA VALIDATED + review PASS; photos for all 120 merged (overlay 0008, `0276d92`); LIVE: 302 recipes / 341 ingredients approved in the DB, ledger 22/22.
+**Last updated:** 2026-10-11 (late) by the lead (Claude Code, Opus 5.5) — crêpes (overlays 0009/0010) + reviewer follow-ups LIVE: 314 recipes,
+344 ingredients, ledger 24/24, every recipe has a photo; smoke:live 16/16.
 **Status:** LIVE in configured mode at https://intotheveil.github.io/hygieia/ — `main` `bf3660f` (CI run 37488871183 green + deployed; Tasks Advisor live). P1–P6 claimed;
 P7 skincare + nails QA VALIDATED + REVIEW PASS, content live and ALL approved; P8 profile (entries, goals, achievements, saved items) +
 workout plans (builder, session logger, PRs) deployed, P8 QA/REVIEW NOT YET RUN; P9 Tasks Advisor being built in `wt/d` (see §3).
@@ -144,6 +144,13 @@ pending|approved|rejected` stamped by `stamp_review()` BEFORE UPDATE · per-user
 
 ## 3. CURRENT STATE (what's true RIGHT NOW — the thing a resuming session reads)
 
+- **STATE 2026-10-11 (late) — CRÊPES + FIXES, ALL LIVE:** `main` `a713917`+. DB: 314 recipes / 344 ingredients approved, ledger 24/24, every recipe
+  has a photo. Overlay 0009 `crepes` (12: 6 savoury, 6 sweet; +buckwheat-flour, emmental, hazelnut-cocoa-spread) + 0010 `recipe-photos-3`.
+  Photo overlays are discovered by filename (`NNNN-recipe-photos*.ts`) in photoSlugs.ts + tests — add a batch = add a file. Diet rules now bind
+  EVERY overlay >= 0006 (`diet-rules-sweep.test.ts`); paleo bans jam/halva/dark-chocolate/erythritol; low-FODMAP banana <= 35 g/portion.
+  smoke:live profiles probe accepts 401 42501 (anon has no grant). Re-rendered gimbap + fruit cups; bone-marrow kept (6 tries failed — needs
+  img2img/ControlNet from a reference). Weak crêpe photos: chicken (no chicken visible), apple (no caramel), banana, galette (Emmental).
+
 - **STATE 2026-10-11 — 120 NEW RECIPES (overlays 0006 + 0007), code on `main` `1073d4d`+, LIVE (DB applied 2026-10-11):**
   - Served seed 182 → **302 recipes**, 324 → **341 ingredients**. 0006 `thin-diets` (60: carnivore, whole30, low-FODMAP, IF, paleo; +5 ingredients),
     0007 `breakfast-snacks-world` (60: ≥ 25 breakfast, ≥ 20 snack, ≥ 30 international; +12 ingredients). Combined per diet: carnivore 29,
@@ -249,6 +256,11 @@ explicit `clientsClaim`, green since).
 
 ## 5. GOTCHAS (hard-won "don't do X, it breaks Y" — the knowledge that dies in old chats)
 
+- **Machine load turns local `npm test` red (2026-10-11).** With the operator's game + GPU jobs running, 15–25 RTL tests time out (1 s findBy);
+  they fail on clean `main` too. Prove by running the file alone or on clean HEAD; CI on an idle runner is the arbiter. Vision QA that waits
+  for an EMPTY ComfyUI queue stalls indefinitely while the operator renders — the lead's by-eye review replaces it (qwen2.5vl accepts wrong
+  dishes anyway). Agent `isolation: worktree` was refused 3x ("git metadata could not be resolved") after the lead's PowerShell cwd pointed
+  at a deleted dir — create the worktree by hand (`git worktree add -b <branch> D:/projects/hygieia-wt/<name> main`) and brief the agent to it.
 - **Local e2e is meaningless while the operator games/renders (2026-10-11):** with AION2 + Blender running, 95/109 specs failed on `page.goto`
   "load" timeouts while `pages-server` answered in ~10 ms. Don't debug the app — dispatch CI on a branch instead
   (`git push origin HEAD:refs/heads/<branch>` + `gh workflow run deploy.yml --ref <branch>`; the deploy job only runs on `main`).
@@ -403,6 +415,13 @@ table (14)` is right; P1.QA.2's `(13)` is the typo.
 - **`page.route('**/sw.js', r => r.abort())` does NOT block a service worker in Playwright/Chromium (2026-10-06, review fix 2).** The SW script is fetched outside page interception, so that sabotage stays GREEN and proves nothing. The only valid "no SW" sabotage is `test.use({ serviceWorkers: 'block' })` — then the offline spec fails at step 1 (no controller), as it should. Treat any earlier "blocked sw.js → test went red" claim with suspicion unless it says how.
 
 ## 6. CHANGELOG (append-only — what happened, newest first)
+
+### 2026-10-11 — crêpes (0009/0010), reviewer follow-ups, photo re-renders (lead, Opus 5.5)
+
+- Did: smoke profiles probe fix (`010d8f1`), diet-rule sweep + paleo/banana rules (`9f1face`), gimbap/cups photos (`5db14e5`), crêpes merged
+  (`a713917`; Codex read-only review of the recipe text found 2 fixes, applied). Operator hand-applied 000900 (001000 had not landed: lead applied
+  its 12 idempotent image_path updates), lead added ledger rows + approved 12 recipes / 3 ingredients. Verified anon REST 314, smoke 16/16.
+  Left off: nothing blocking; optional re-renders of the weak photos.
 
 ### 2026-10-11 — overlays 0006–0008 LIVE in the DB (lead, Opus 5.5)
 
