@@ -6,7 +6,7 @@
 > marked **❓ needs human input**.
 
 **Last updated:** 2026-10-11 by the lead (Claude Code, Opus 5.5) — +120 recipes (overlays 0006 thin diets + 0007 breakfast/snacks/world) merged on `main`,
-QA VALIDATED + review PASS; LIVE APPLY PENDING (operator permission); photos for the 120 rendering (overlay 0008, photo lane).
+QA VALIDATED + review PASS; photos for all 120 merged (overlay 0008, `0276d92`); LIVE APPLY of 000600/000700/000800 PENDING (operator permission).
 **Status:** LIVE in configured mode at https://intotheveil.github.io/hygieia/ — `main` `bf3660f` (CI run 37488871183 green + deployed; Tasks Advisor live). P1–P6 claimed;
 P7 skincare + nails QA VALIDATED + REVIEW PASS, content live and ALL approved; P8 profile (entries, goals, achievements, saved items) +
 workout plans (builder, session logger, PRs) deployed, P8 QA/REVIEW NOT YET RUN; P9 Tasks Advisor being built in `wt/d` (see §3).
@@ -156,8 +156,12 @@ pending|approved|rejected` stamped by `stamp_review()` BEFORE UPDATE · per-user
     rows land `pending` → approve the 120 recipes + 17 ingredients after apply). The auto-mode classifier BLOCKED the lead's MCP apply
     ("Production Deploy"); needs the operator: a persistent allow rule for `mcp__plugin_supabase_supabase__execute_sql`, or `npm run db:apply -- --apply`.
     Until applied, the live site (configured mode, reads the DB) shows 182 recipes.
-  - **Photos (overlay 0008 `0008-recipe-photos-2`)**: photo lane rendering the 120 through the operator's desktop ComfyUI (port 8000, RTX 3090
-    ONLY — the 4070 is the operator's gaming GPU), queued behind the operator's own jobs; RealVisXL copied to `F:ComfyModelscheckpoints`.
+  - **Photos DONE (overlay 0008 `0008-recipe-photos-2`, merged `0276d92`):** all 302 served recipes have a photo. Rendered on the operator's
+    desktop ComfyUI (port 8000, RTX 3090 ONLY; the 4070 is the operator's gaming GPU) behind their own jobs. 99/120 first render, 21 retried;
+    qwen2.5vl accepted 12 that the by-eye pass rejected (by-eye review is mandatory). Weak overrides: steak-roasted-bone-marrow (bones cross-cut,
+    not split), gimbap (fillings indistinct), strawberry-kiwi cups (seeds not visible): re-render candidates. `recipe-photos.mjs --only-missing` added.
+    Migration `20261007000800_hygieia_overlay_recipe_photos_2.sql` patches image_path: apply AFTER 000600/000700 (it needs the rows). Contact sheet:
+    `%TEMP%/hygieia-photos-0006-0007/contact-sheet.jpg`. Gates on main: tests 5918, db:gate 371, seed:check 15, build/bundle/pwa green.
   - Reviewer non-blocking follow-ups: a sweep binding `dietTagProblems` to EVERY overlay ≥ 0006 (today only the two focused tests call it);
     `PALEO_FORBIDDEN_SLUGS` should add jam, halva, dark-chocolate, erythritol; banana quantity is not encoded in the low-FODMAP rule.
 
@@ -398,6 +402,13 @@ table (14)` is right; P1.QA.2's `(13)` is the typo.
 - **`page.route('**/sw.js', r => r.abort())` does NOT block a service worker in Playwright/Chromium (2026-10-06, review fix 2).** The SW script is fetched outside page interception, so that sabotage stays GREEN and proves nothing. The only valid "no SW" sabotage is `test.use({ serviceWorkers: 'block' })` — then the offline spec fails at step 1 (no controller), as it should. Treat any earlier "blocked sw.js → test went red" claim with suspicion unless it says how.
 
 ## 6. CHANGELOG (append-only — what happened, newest first)
+
+### 2026-10-11 — photos for the 120 (overlay 0008) merged (lead, Opus 5.5)
+
+- Did: the photo lane (worktree agent) rendered 120 photos via desktop ComfyUI on the 3090, with vision QA and a by-eye review; the lead reviewed the
+  contact sheet, merged `8168aa9` as `0276d92`, local gates green, pushed. Left off: the live apply of 000600, then 000700, then 000800 still waits on
+  the operator's permission choice (an allow rule for MCP execute_sql, or `npm run db:apply -- --apply`). After it: approve the 120 recipes and
+  17 ingredients, then run `db:live-check` and `smoke:live`. Optional: re-render the three weak overrides.
 
 ### 2026-10-11 — +120 recipes: overlays 0006 thin diets + 0007 breakfast/snacks/world (lead, Opus 5.5)
 
