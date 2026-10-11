@@ -3,6 +3,104 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+### THIN DIETS — 60 recipes for carnivore, Whole30, low-FODMAP, IF, paleo (overlay 0006) — 2026-10-11 — DONE
+
+- **Scope:** operator "add many more recipes" (120 in total, split over two lanes; this lane = 0006, the other = 0007). 60 new
+  recipes + 5 new ingredients (`lamb-mince`, `beef-tongue`, `pork-ribs`, `scallops`, `bok-choy`; USDA FoodData Central values,
+  EUR range per kg, `price_as_of` 2026-10-11, both languages). Served catalogue 182 → 242 recipes, 324 → 329 ingredients.
+  Overlay `src/content/seed/overlays/0006-thin-diets.ts` + parts `0006-thin-diets/{recipes,ingredients}.ts`, one line in
+  `overlays/index.ts`, the slices in `by-table/{recipes,ingredients}.ts`, migration
+  `20261007000600_hygieia_overlay_thin_diets.sql` (ingredients 5, recipes 60, recipe_ingredients 370, recipe_diets 448).
+  Nothing applied live. Only that one migration is new; the CRLF flips `seed:gen` makes on the other twelve were restored.
+- **How tags were set:** computed, not guessed. The recipes were authored as plain data, a throw-away script computed every
+  mechanical tag from the ingredient rows and the per-portion nutrition and wrote the final static module. Rules (also stated
+  in the overlay header and re-checked by `overlays/thin-diets.test.ts`): carnivore = animal products + lard/tallow/butter/
+  ghee + salt/pepper/water only (stricter than the seed test, which lets plant oils and herbs through); whole30/paleo = no
+  grains, pasta/rice, legumes, sweeteners, dairy except eggs/ghee, cured or processed meat, soy, peanuts; low-fodmap = the
+  seed test's list plus Monash additions (sweet potato, pumpkin, avocado, cashew, pistachio, coconut flour …), spring onion
+  green part only, shop ham and turkey slices left untagged; keto ≤ 12 g carbs and ≥ 50 % energy from fat per portion, atkins
+  ≤ 20 g, low-carb ≤ 30 g; high-protein ≥ 20 g and ≥ 25 % of energy from protein; **intermittent-fasting** (the base seed
+  only documented "protein-rich, generous meals for a two-meal window", no test) made explicit as: not snack-only, ≥ 400 kcal
+  and ≥ 25 g protein per portion; `fasting` (Orthodox) whenever `src/test/fastingRule.ts` admits every ingredient (6 recipes).
+  `mediterranean` set by hand on 12 fish/olive-oil/tomato dishes.
+- **Per-diet tag counts, served seed, before → after:** carnivore 10 → 29 · whole30 11 → 43 · intermittent-fasting 16 → 39 ·
+  low-fodmap 19 → 76 · paleo 37 → 69 · atkins 44 → 81 · keto 48 → 78 · low-carb 63 → 103 · high-protein 54 → 79 ·
+  gluten-free 55 → 114 · fasting 69 → 75 · pescatarian 106 → 133 · vegetarian 84 → 100 · vegan 60 → 66 · mediterranean
+  90 → 102 · flexitarian 121 → 148 · dash 48 → 48. Meal types of the 60: breakfast 14, lunch 42, dinner 37, snack 10.
+- **Tests touched (derive instead of pin, each because 0006 adds rows):** `overlays/greek-kitchen.test.ts` (served totals =
+  base + EVERY overlay's additions; the `fasting` count in the bundled source = admitted base slugs + fasting-tagged additions
+  of all overlays) and `overlays/overlays.test.ts` (served ingredients = base + all overlay ingredient additions). No
+  assertion weakened. New: `overlays/thin-diets.test.ts` (60 additions, unique slugs, per-diet and meal-type minimums, protein
+  variety, carnivore/whole30/paleo/low-FODMAP/keto/high-protein/IF/fasting rules re-checked, bundled source serves them).
+- **Gates:** lint 0 errors (23 pre-existing warnings) · typecheck ✓ · `npm test` **5184 / 115 files** ✓ (one earlier full run
+  showed timeouts under load while another lane was working; the rerun was green, and each flagged file passes alone) ·
+  `seed:check` OK (13 migrations: 7 base + 6 overlay) · `db:check` ✓ (20 migrations) · `db:gate` **369 checks** ✓ ·
+  `db:gate:prove-red` **34/34** ✓ · `build` ✓ (precache 159 entries). Lighthouse and e2e not run (the lead runs them after merge).
+- **Lead's follow-ups:** merge with 0007 (the overlay list, the two by-table indexes and the migration number must not collide —
+  0006 uses `20261007000600`); after the live apply the 60 recipes land `pending` and need approving; recipe photos are a later
+  stage (`image_path` null); BRAIN.md not edited (lead reconciles).
+- **The 60 slugs (meal types · tags):**
+  - `carnivore-reverse-seared-ribeye` · lunch/dinner · carnivore, low-fodmap, gluten-free, keto, atkins, low-carb, high-protein, IF
+  - `carnivore-lamb-chops-tallow-sear` · lunch/dinner · carnivore, paleo, whole30, low-fodmap, gluten-free, keto, atkins, low-carb, IF
+  - `carnivore-lamb-burgers-feta` · lunch/dinner · carnivore, low-fodmap, gluten-free, keto, atkins, low-carb, IF
+  - `carnivore-beef-kidney-butter` · lunch/dinner · carnivore, low-fodmap, gluten-free, keto, atkins, low-carb, high-protein
+  - `carnivore-beef-heart-skewers` · lunch/dinner · carnivore, paleo, whole30, low-fodmap, gluten-free, atkins, low-carb, high-protein
+  - `carnivore-seared-scallops-butter` · lunch/dinner · pescatarian, flexitarian, carnivore, low-fodmap, gluten-free, atkins, low-carb, high-protein
+  - `carnivore-roast-duck-legs-crispy-skin` · dinner · carnivore, paleo, whole30, low-fodmap, gluten-free, keto, atkins, low-carb
+  - `carnivore-pulled-pork-shoulder` · lunch/dinner · carnivore, paleo, whole30, low-fodmap, gluten-free, keto, atkins, low-carb, high-protein, IF
+  - `carnivore-shrimp-butter-skillet` · lunch/dinner · pescatarian, flexitarian, carnivore, low-fodmap, gluten-free, atkins, low-carb, high-protein
+  - `carnivore-boiled-beef-tongue` · lunch/dinner · carnivore, low-fodmap, gluten-free, keto, atkins, low-carb, high-protein, IF
+  - `carnivore-crispy-chicken-thighs-ghee` · lunch/dinner · carnivore, paleo, whole30, low-fodmap, gluten-free, keto, atkins, low-carb, high-protein, IF
+  - `carnivore-oven-pork-ribs` · dinner · carnivore, paleo, whole30, low-fodmap, gluten-free, keto, atkins, low-carb, IF
+  - `carnivore-steak-roasted-bone-marrow` · dinner · carnivore, paleo, whole30, low-fodmap, gluten-free, keto, atkins, low-carb, IF
+  - `carnivore-egg-bacon-muffin-cups` · breakfast/lunch · carnivore, low-fodmap, gluten-free, keto, atkins, low-carb
+  - `carnivore-cheddar-ham-omelette` · breakfast · carnivore, gluten-free, keto, atkins, low-carb, high-protein
+  - `carnivore-beef-patties-fried-egg` · breakfast/lunch · carnivore, low-fodmap, gluten-free, keto, atkins, low-carb, high-protein, IF
+  - `carnivore-oven-beef-jerky` · snack · carnivore, paleo, whole30, low-fodmap, gluten-free, keto, atkins, low-carb, high-protein
+  - `carnivore-pan-fried-halloumi-bites` · snack/lunch · vegetarian, pescatarian, flexitarian, carnivore, low-fodmap, gluten-free, keto, atkins, low-carb, high-protein
+  - `carnivore-chicken-liver-pate` · snack · carnivore, low-fodmap, gluten-free, keto, atkins, low-carb
+  - `smoked-salmon-egg-scramble-chives` · breakfast · pescatarian, flexitarian, paleo, whole30, low-fodmap, gluten-free, keto, atkins, low-carb, high-protein
+  - `herb-omelette-cheddar-tomato` · breakfast/lunch · vegetarian, pescatarian, flexitarian, low-fodmap, gluten-free, keto, atkins, low-carb
+  - `blueberry-maple-oat-porridge-pumpkin-seeds` · breakfast · vegan, vegetarian, pescatarian, flexitarian, low-fodmap, fasting
+  - `buckwheat-porridge-strawberries-flax` · breakfast · vegan, vegetarian, pescatarian, flexitarian, low-fodmap, gluten-free, fasting
+  - `pork-sage-breakfast-patties` · breakfast/lunch · paleo, whole30, low-fodmap, gluten-free, keto, atkins, low-carb
+  - `tomato-spinach-baked-frittata` · breakfast/lunch · vegetarian, pescatarian, flexitarian, paleo, whole30, low-fodmap, gluten-free, keto, atkins, low-carb
+  - `polenta-parmesan-soft-egg-bowl` · breakfast/lunch · vegetarian, pescatarian, flexitarian, low-fodmap, gluten-free, low-carb
+  - `coconut-flour-pancakes-butter` · breakfast · vegetarian, pescatarian, flexitarian, gluten-free, atkins, low-carb
+  - `chicken-potato-spinach-skillet-hash` · breakfast/lunch · paleo, whole30, low-fodmap, gluten-free, IF
+  - `ginger-egg-rice-congee` · breakfast/lunch · vegetarian, pescatarian, flexitarian, low-fodmap, gluten-free
+  - `rosemary-pumpkin-seed-walnut-mix` · snack · vegan, vegetarian, pescatarian, flexitarian, paleo, whole30, low-fodmap, gluten-free, keto, atkins, low-carb, fasting
+  - `turkey-egg-cucumber-roll-ups` · snack/lunch · gluten-free, atkins, low-carb
+  - `tuna-cucumber-olive-bites` · snack/lunch · pescatarian, flexitarian, mediterranean, paleo, whole30, low-fodmap, gluten-free, atkins, low-carb
+  - `egg-salad-cucumber-boats` · snack/lunch · vegetarian, pescatarian, flexitarian, paleo, whole30, low-fodmap, gluten-free, keto, atkins, low-carb
+  - `baked-kale-chips-sea-salt` · snack · vegan, vegetarian, pescatarian, flexitarian, paleo, whole30, low-fodmap, gluten-free, keto, atkins, low-carb, fasting
+  - `sardine-cucumber-lemon-bites` · snack/lunch · pescatarian, flexitarian, mediterranean, paleo, whole30, low-fodmap, gluten-free, keto, atkins, low-carb
+  - `strawberry-kiwi-pumpkin-seed-cups` · snack/breakfast · vegan, vegetarian, pescatarian, flexitarian, paleo, whole30, low-fodmap, gluten-free, low-carb, fasting
+  - `lamb-kofta-cucumber-tomato-salad` · lunch/dinner · mediterranean, paleo, whole30, low-fodmap, gluten-free, keto, atkins, low-carb, IF
+  - `beef-burger-lettuce-wraps-tomato` · lunch/dinner · paleo, whole30, low-fodmap, gluten-free, keto, atkins, low-carb, high-protein
+  - `baked-salmon-dill-rice-spinach` · lunch/dinner · pescatarian, flexitarian, mediterranean, low-fodmap, gluten-free, IF
+  - `shrimp-ginger-egg-fried-rice` · lunch/dinner · pescatarian, flexitarian, low-fodmap, gluten-free, high-protein
+  - `rosemary-pork-chops-roast-potatoes-green-beans` · dinner · paleo, whole30, low-fodmap, gluten-free, IF
+  - `lemon-oregano-roast-lamb-potatoes` · lunch/dinner · mediterranean, paleo, whole30, low-fodmap, gluten-free, IF
+  - `beef-broccoli-ginger-stir-fry` · lunch/dinner · paleo, whole30, low-fodmap, gluten-free, keto, atkins, low-carb, high-protein
+  - `sesame-crusted-tuna-steak-cucumber-salad` · lunch/dinner · pescatarian, flexitarian, mediterranean, paleo, whole30, low-fodmap, gluten-free, atkins, low-carb, high-protein
+  - `oven-trout-green-beans-new-potatoes` · lunch/dinner · pescatarian, flexitarian, mediterranean, paleo, whole30, low-fodmap, gluten-free, high-protein, IF
+  - `pork-ginger-lettuce-wraps` · lunch/dinner · paleo, whole30, low-fodmap, gluten-free, keto, atkins, low-carb
+  - `beef-ginger-carrot-bone-broth-soup` · lunch/dinner · paleo, whole30, low-fodmap, gluten-free, low-carb, high-protein
+  - `tofu-peanut-ginger-rice-bowl` · lunch/dinner · vegan, vegetarian, pescatarian, flexitarian, low-fodmap, gluten-free, IF, fasting
+  - `quinoa-cucumber-tomato-feta-olive-bowl` · lunch/dinner · vegetarian, pescatarian, flexitarian, mediterranean, low-fodmap, gluten-free
+  - `potato-spinach-cheddar-egg-bake` · lunch/dinner · vegetarian, pescatarian, flexitarian, low-fodmap, gluten-free
+  - `turkey-meatballs-tomato-basil-polenta` · dinner · mediterranean, low-fodmap, gluten-free, high-protein, IF
+  - `lemon-oregano-chicken-skewers-greek-salad` · lunch/dinner · mediterranean, paleo, whole30, low-fodmap, gluten-free, keto, atkins, low-carb, IF
+  - `beef-bok-choy-ginger-stir-fry` · lunch/dinner · paleo, whole30, low-fodmap, gluten-free, keto, atkins, low-carb, high-protein
+  - `turkey-burgers-potato-wedges` · lunch/dinner · paleo, whole30, low-fodmap, gluten-free, high-protein, IF
+  - `rosemary-lamb-stew-carrots-potatoes` · dinner · paleo, whole30, low-fodmap, gluten-free, IF
+  - `herb-cod-mash-green-beans` · dinner · pescatarian, flexitarian, mediterranean, low-fodmap, gluten-free, high-protein, IF
+  - `egg-fried-rice-carrots-green-beans` · lunch/dinner · vegetarian, pescatarian, flexitarian, low-fodmap, gluten-free
+  - `rice-noodle-chicken-bok-choy-stir-fry` · lunch/dinner · low-fodmap, gluten-free, high-protein, IF
+  - `pork-meatballs-tomato-basil-potatoes` · dinner · mediterranean, paleo, whole30, low-fodmap, gluten-free, IF
+  - `tuna-cheddar-stuffed-baked-potatoes` · lunch/dinner · pescatarian, flexitarian, low-fodmap, gluten-free, high-protein
+
 ### RECIPE PHOTOS — follow-up: merged main 6fa292a, frame-first hero (recipe ≥ 87) — 2026-10-07 — DONE
 
 - **Merge:** local `main` `6fa292a` (per-table overlays, frame-first RecipePage, the 6 stale e2e and HomeExtras fixes) → `3cf9778`.

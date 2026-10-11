@@ -390,7 +390,13 @@ describe('the real overlay list (./index.ts)', () => {
     // a table no overlay touches comes back as the SAME array (0003 adds ingredients, diets, recipes;
     // 0004 patches every ingredient in place: base rows keep their order, new values)
     expect(out.exercises).toBe(EXERCISES)
-    expect(out.ingredients).toHaveLength(INGREDIENTS.length + 2)
+    // every overlay's ingredient additions (0003: 2, 0006: 5, …) — derived, not pinned, so the next
+    // content overlay does not have to edit this line
+    const addedIngredients = OVERLAYS.reduce(
+      (n, o) => n + (o.additions?.ingredients ?? []).length,
+      0,
+    )
+    expect(out.ingredients).toHaveLength(INGREDIENTS.length + addedIngredients)
     expect(out.ingredients.slice(0, INGREDIENTS.length).map((r) => r.slug)).toEqual(
       INGREDIENTS.map((r) => r.slug),
     )

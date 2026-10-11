@@ -79,9 +79,14 @@ describe('overlay 0003-greek-kitchen', () => {
     expect((additions.ingredients ?? []).map((i) => i.slug)).toEqual(['tarama', 'pearl-onions'])
     expect(newRecipes.length).toBeGreaterThanOrEqual(24)
     expect([...newRecipes.map((r) => r.slug)].sort()).toEqual([...NEW_RECIPE_SLUGS].sort())
-    expect(OVERLAID_SEED.recipes).toHaveLength(RECIPES.length + newRecipes.length)
-    expect(OVERLAID_SEED.diets).toHaveLength(DIETS.length + 1)
-    expect(OVERLAID_SEED.ingredients).toHaveLength(INGREDIENTS.length + 2)
+    // the served totals are base + EVERY overlay's additions (0006 adds 60 recipes and 5
+    // ingredients later), derived from the overlay list so the next content overlay does not
+    // have to edit this test
+    const added = (key: 'recipes' | 'diets' | 'ingredients') =>
+      OVERLAYS.reduce((n, o) => n + (o.additions?.[key] ?? []).length, 0)
+    expect(OVERLAID_SEED.recipes).toHaveLength(RECIPES.length + added('recipes'))
+    expect(OVERLAID_SEED.diets).toHaveLength(DIETS.length + added('diets'))
+    expect(OVERLAID_SEED.ingredients).toHaveLength(INGREDIENTS.length + added('ingredients'))
   })
 
   it('duplicates no base dish (slug, Greek title or English title)', () => {
@@ -149,9 +154,10 @@ describe('overlay 0003-greek-kitchen', () => {
     expect(recipe.data?.lines.map((l) => l.ingredient?.slug ?? null)).toContain('pearl-onions')
     const tagged = await bundledSource.listRecipes({ dietSlugs: ['fasting'] })
     if (!tagged.ok) throw new Error(tagged.error)
-    expect(tagged.data.length).toBe(
-      FASTING_EXISTING_SLUGS.length +
-        newRecipes.filter((r) => r.diet_slugs.includes('fasting')).length,
-    )
+    // base recipes the rule admits + every overlay's fasting-tagged additions (0003, later 0006 …)
+    const fastingAdded = OVERLAYS.flatMap((o) => o.additions?.recipes ?? []).filter((r) =>
+      r.diet_slugs.includes('fasting'),
+    ).length
+    expect(tagged.data.length).toBe(FASTING_EXISTING_SLUGS.length + fastingAdded)
   })
 })
