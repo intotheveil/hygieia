@@ -5,8 +5,8 @@
 > intent; rewritten 2026-10-06 to the P1–P6 state (P1/P2 review item 1). Genuine unknowns are
 > marked **❓ needs human input**.
 
-**Last updated:** 2026-10-11 (late) by the lead (Claude Code, Opus 5.5) — crêpes (overlays 0009/0010) + reviewer follow-ups LIVE: 314 recipes,
-344 ingredients, ledger 24/24, every recipe has a photo; smoke:live 16/16.
+**Last updated:** 2026-10-11 (night) by the lead (Claude Code, Opus 5.5) — skincare overlay 0011 LIVE (79 product types, 48 routines,
+111 tips approved), 314 recipes, 344 ingredients, ledger 25/25; smoke:live 16/16; women-audience research report written.
 **Status:** LIVE in configured mode at https://intotheveil.github.io/hygieia/ — `main` `bf3660f` (CI run 37488871183 green + deployed; Tasks Advisor live). P1–P6 claimed;
 P7 skincare + nails QA VALIDATED + REVIEW PASS, content live and ALL approved; P8 profile (entries, goals, achievements, saved items) +
 workout plans (builder, session logger, PRs) deployed, P8 QA/REVIEW NOT YET RUN; P9 Tasks Advisor being built in `wt/d` (see §3).
@@ -144,6 +144,11 @@ pending|approved|rejected` stamped by `stamp_review()` BEFORE UPDATE · per-user
 
 ## 3. CURRENT STATE (what's true RIGHT NOW — the thing a resuming session reads)
 
+- **STATE 2026-10-11 (night) — SKINCARE 0011 LIVE:** `main` `df7a1eb`+. Overlay 0011 `skincare-more` (+27 product types, +20 routines,
+  +46 sourced tips; no schema change) applied by the operator, lead added ledger row 20261007001100 (checksum 5f76cc64…beae) and approved all 93.
+  Anon REST: 79 / 48 / 111. Crêpe chicken + apple photos re-rendered via Codex (`33563a4`). Research report `docs/research/women-audience-content.md`
+  (12 ranked proposals) — awaiting the operator's pick; recommended first three: strength training for women, perimenopause/menopause hub,
+  women's nutrition tags (iron/calcium/vit D/folate). Known broken aad.org links in overlay 0002 (2× 404, 1 redirect) — optional patch overlay.
 - **STATE 2026-10-11 (late) — CRÊPES + FIXES, ALL LIVE:** `main` `a713917`+. DB: 314 recipes / 344 ingredients approved, ledger 24/24, every recipe
   has a photo. Overlay 0009 `crepes` (12: 6 savoury, 6 sweet; +buckwheat-flour, emmental, hazelnut-cocoa-spread) + 0010 `recipe-photos-3`.
   Photo overlays are discovered by filename (`NNNN-recipe-photos*.ts`) in photoSlugs.ts + tests — add a batch = add a file. Diet rules now bind
@@ -255,6 +260,10 @@ F2 fleet telemetry client (P6.1; the live half is OP6) · the `offline.spec.ts` 
 explicit `clientsClaim`, green since).
 
 ## 5. GOTCHAS (hard-won "don't do X, it breaks Y" — the knowledge that dies in old chats)
+
+- **Codex with write/network access cannot be launched by the lead (2026-10-11).** The auto-mode classifier blocks `codex exec` with
+  `workspace-write` + network ("Create Unsafe Agents"). Do not work around it: hand the operator the exact command to run with `!`, always with
+  `-c forced_login_method='"chatgpt"'` (subscription only). Read-only reviews (`--sandbox read-only`) the lead may run itself.
 
 - **Machine load turns local `npm test` red (2026-10-11).** With the operator's game + GPU jobs running, 15–25 RTL tests time out (1 s findBy);
   they fail on clean `main` too. Prove by running the file alone or on clean HEAD; CI on an idle runner is the arbiter. Vision QA that waits
@@ -415,6 +424,15 @@ table (14)` is right; P1.QA.2's `(13)` is the typo.
 - **`page.route('**/sw.js', r => r.abort())` does NOT block a service worker in Playwright/Chromium (2026-10-06, review fix 2).** The SW script is fetched outside page interception, so that sabotage stays GREEN and proves nothing. The only valid "no SW" sabotage is `test.use({ serviceWorkers: 'block' })` — then the offline spec fails at step 1 (no controller), as it should. Treat any earlier "blocked sw.js → test went red" claim with suspicion unless it says how.
 
 ## 6. CHANGELOG (append-only — what happened, newest first)
+
+### 2026-10-11 (night) — skincare 0011, women-audience research, Codex photo redo (lead, Opus 5.5)
+
+- Did: overlay 0011 skincare-more (`fea958d`, review fixes `73a275c` from a Codex read-only review: EU retinol cap, water-resistant wording,
+  unsupported LED claim removed, acetone soak-off), merged `df7a1eb`, CI 38166283622 green + deployed. Operator applied 001100; lead added the
+  ledger row + approved 27/20/46. Research report `64ee783`. Codex (ChatGPT subscription, run by the operator with `!`) re-rendered the chicken +
+  apple crêpe photos (`33563a4`).
+  Decided: schema-change ideas (hair/body areas, makeup category, melasma/rosacea concerns, pregnancy_safe, spf columns) NOT built — proposals only.
+  Left off: operator to choose the women features (strength / menopause / nutrition tags); optional aad.org link patch; bone-marrow photo needs img2img.
 
 ### 2026-10-11 — crêpes (0009/0010), reviewer follow-ups, photo re-renders (lead, Opus 5.5)
 
