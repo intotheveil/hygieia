@@ -606,9 +606,9 @@ export const SKINCARE_ROUTINES: readonly SkincareRoutineSeed[] = [
     region: 'eu',
     time: 'am',
     intro_el:
-      'Από τον Μάιο ως τον Σεπτέμβριο ο δείκτης UV στην Ελλάδα φτάνει συχνά το 8–10. Ελαφριές υφές, αντηλιακό με υψηλή UVA, στικ στην τσάντα για ανανέωση κάθε δύο ώρες και μετά από κάθε βουτιά, και σκιά από τις 11 ως τις 4.',
+      'Από τον Μάιο ως τον Σεπτέμβριο ο δείκτης UV στην Ελλάδα φτάνει συχνά το 8–10. Ελαφριές υφές, αντηλιακό με υψηλή UVA, στικ στην τσάντα για ανανέωση κάθε δύο ώρες και μετά από κάθε βουτιά, και σκιά γύρω στο μεσημέρι, όταν ο δείκτης UV είναι υψηλός.',
     intro_en:
-      'From May to September the UV index in Greece often reaches 8–10. Light textures, a high-UVA sunscreen, a stick in the bag to reapply every two hours and after every swim, and shade from 11 to 4.',
+      'From May to September the UV index in Greece often reaches 8–10. Light textures, a high-UVA sunscreen, a stick in the bag to reapply every two hours and after every swim, and shade around midday, when the UV index is high.',
     duration_min: 5,
     steps: [
       {
@@ -637,7 +637,7 @@ export const SKINCARE_ROUTINES: readonly SkincareRoutineSeed[] = [
       {
         order: 4,
         product_type_slug: 'sunscreen-eu-modern-filters',
-        note_el: 'SPF 50, αδιάβροχο, 15 λεπτά πριν βγεις· και στα αυτιά και τον σβέρκο.',
+        note_el: 'SPF 50, ανθεκτικό στο νερό, 15 λεπτά πριν βγεις· και στα αυτιά και τον σβέρκο.',
         note_en:
           'SPF 50, water-resistant, 15 minutes before going out; ears and back of the neck too.',
         optional: false,
@@ -723,7 +723,7 @@ export const SKINCARE_ROUTINES: readonly SkincareRoutineSeed[] = [
       {
         order: 1,
         product_type_slug: 'cleanser-micellar-water',
-        note_el: 'Μόνο για μακιγιάζ ή αδιάβροχο αντηλιακό.',
+        note_el: 'Μόνο για μακιγιάζ ή αντηλιακό ανθεκτικό στο νερό.',
         note_en: 'Only for make-up or water-resistant sunscreen.',
         optional: true,
       },

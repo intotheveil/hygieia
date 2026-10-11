@@ -347,7 +347,7 @@ export const SKINCARE_TIPS: readonly SkincareTipSeed[] = [
     title_el: 'Αντηλιακό και στα αυτιά, τον σβέρκο και το κεφάλι',
     title_en: 'Sunscreen on the ears, the back of the neck and the scalp',
     body_el:
-      'Τα αυτιά, ο σβέρκος και, σε όσους αραιώνουν τα μαλλιά, το κεφάλι είναι σημεία που καίγονται εύκολα και ξεχνιούνται. Βάλε εκεί αντηλιακό SPF 30+ αδιάβροχο και ανανέωνε κάθε δύο ώρες έξω. Ένα καπέλο με φαρδύ γείσο καλύπτει ό,τι δεν φτάνει το χέρι.',
+      'Τα αυτιά, ο σβέρκος και, σε όσους αραιώνουν τα μαλλιά, το κεφάλι είναι σημεία που καίγονται εύκολα και ξεχνιούνται. Βάλε εκεί αντηλιακό SPF 30+ ανθεκτικό στο νερό και ανανέωνε κάθε δύο ώρες έξω. Ένα καπέλο με φαρδύ γείσο καλύπτει ό,τι δεν φτάνει το χέρι.',
     body_en:
       'The ears, the back of the neck and, for men with thinning hair, the scalp burn easily and are often forgotten. Put water-resistant SPF 30+ there and reapply every two hours outdoors. A wide-brimmed hat covers what your hand cannot reach.',
     audiences: ['men', 'all'],
@@ -445,7 +445,7 @@ export const SKINCARE_TIPS: readonly SkincareTipSeed[] = [
     title_el: 'Μαλακτική κρέμα: απλώνεται απαλά, με τη φορά της τρίχας',
     title_en: 'Emollients: smooth them on, in the direction of hair growth',
     body_el:
-      'Μια πλούσια μαλακτική κρέμα δουλεύει καλύτερα αμέσως μετά το πλύσιμο, όταν έχεις ταμπονάρει το δέρμα. Άπλωσέ τη απαλά προς την κατεύθυνση που φυτρώνουν οι τρίχες, χωρίς τρίψιμο, για να μη φράξουν οι θύλακοι. Μακριά από φλόγες και τσιγάρα: τα υφάσματα που έχουν απορροφήσει κρέμα πιάνουν φωτιά πιο εύκολα.',
+      'Μια πλούσια μαλακτική κρέμα δουλεύει καλύτερα αμέσως μετά το πλύσιμο, όταν έχεις ταμπονάρει το δέρμα. Άπλωσέ την απαλά προς την κατεύθυνση που φυτρώνουν οι τρίχες, χωρίς τρίψιμο, για να μη φράξουν οι θύλακοι. Μακριά από φλόγες και τσιγάρα: τα υφάσματα που έχουν απορροφήσει κρέμα πιάνουν φωτιά πιο εύκολα.',
     body_en:
       'A rich emollient works best straight after washing, once you have patted the skin dry. Smooth it on gently in the direction the hair grows, without rubbing, so follicles do not get blocked. Keep away from flames and cigarettes: fabrics that have soaked up cream catch fire more easily.',
     audiences: ['all'],
@@ -540,10 +540,10 @@ export const SKINCARE_TIPS: readonly SkincareTipSeed[] = [
   {
     slug: 'face-all-water-resistant-is-not-waterproof',
     area: 'face',
-    title_el: '«Αδιάβροχο» αντηλιακό δεν σημαίνει ότι δεν φεύγει',
+    title_el: 'Αντηλιακό «ανθεκτικό στο νερό» δεν σημαίνει ότι δεν φεύγει',
     title_en: '“Water-resistant” sunscreen still comes off',
     body_el:
-      'Στην ΕΕ η σύσταση για τις ετικέτες λέει ότι κανένα αντηλιακό δεν δίνει «πλήρη» προστασία, οπότε όροι όπως «sunblock» ή «100 % προστασία» δεν πρέπει να εμφανίζονται. Στις ΗΠΑ το «water resistant» σημαίνει ότι κρατάει 40 ή 80 λεπτά στο νερό. Μετά το κολύμπι, τον ιδρώτα ή το σκούπισμα με πετσέτα, ξαναβάζεις.',
+      'Στην ΕΕ η σύσταση για τις ετικέτες λέει ότι κανένα αντηλιακό δεν δίνει «πλήρη» προστασία, οπότε όροι όπως «sunblock» ή «100 % προστασία» δεν πρέπει να εμφανίζονται. Στις ΗΠΑ το «ανθεκτικό στο νερό» (water resistant) σημαίνει ότι κρατάει 40 ή 80 λεπτά στο νερό. Μετά το κολύμπι, τον ιδρώτα ή το σκούπισμα με πετσέτα, ξαναβάζεις.',
     body_en:
       'In the EU, the labelling recommendation says no sunscreen gives “total” protection, so terms like “sunblock” or “100 % protection” should not appear. In the US, “water resistant” means it lasts 40 or 80 minutes in water. After swimming, sweating or towelling off, put it on again.',
     audiences: ['all'],
@@ -559,9 +559,9 @@ export const SKINCARE_TIPS: readonly SkincareTipSeed[] = [
     title_el: 'Ελληνικό καλοκαίρι: το αντηλιακό μένει στην τσάντα, όχι στο σπίτι',
     title_en: 'Greek summer: the sunscreen lives in your bag, not at home',
     body_el:
-      'Ένα πρωινό στρώμα δεν φτάνει για μια μέρα στην παραλία, στο νησί ή στη βόλτα στο κέντρο. Κράτα ένα μικρό αντηλιακό ή ένα στικ στην τσάντα και ανανέωνε κάθε δύο ώρες έξω, και πάντα μετά τη θάλασσα. Τις πιο καυτές ώρες, από τις 11 ως τις 4, η σκιά κάνει περισσότερα από κάθε κρέμα.',
+      'Ένα πρωινό στρώμα δεν φτάνει για μια μέρα στην παραλία, στο νησί ή στη βόλτα στο κέντρο. Κράτα ένα μικρό αντηλιακό ή ένα στικ στην τσάντα και ανανέωνε κάθε δύο ώρες έξω, και πάντα μετά τη θάλασσα. Όταν ο δείκτης UV είναι υψηλός (3+), προτίμησε τη σκιά, ειδικά γύρω στο μεσημέρι.',
     body_en:
-      'One morning layer is not enough for a day at the beach, on an island or walking around town. Keep a small sunscreen or a stick in your bag and reapply every two hours outdoors, and always after the sea. In the hottest hours, from 11 to 4, shade does more than any cream.',
+      'One morning layer is not enough for a day at the beach, on an island or walking around town. Keep a small sunscreen or a stick in your bag and reapply every two hours outdoors, and always after the sea. When the UV index is high (3+), seek shade, especially around midday.',
     audiences: ['all'],
     skin_types: ['all'],
     concerns: ['sun'],
@@ -574,12 +574,12 @@ export const SKINCARE_TIPS: readonly SkincareTipSeed[] = [
   {
     slug: 'face-all-eu-retinol-cap-0-3-percent',
     area: 'face',
-    title_el: 'Ρετινόλη στην ΕΕ: έως 0,3 % στο πρόσωπο, 0,05 % στο σώμα',
-    title_en: 'Retinol in the EU: up to 0.3 % on the face, 0.05 % on the body',
+    title_el: 'Ρετινόλη στην ΕΕ: έως 0,3 % RE στα καλλυντικά, 0,05 % στις λοσιόν σώματος',
+    title_en: 'Retinol in the EU: up to 0.3 % RE in cosmetics, 0.05 % in body lotions',
     body_el:
-      'Ο Κανονισμός (ΕΕ) 2024/996 βάζει όριο 0,3 % ρετινόλης (ή ισοδύναμων εστέρων) στα καλλυντικά προσώπου και χεριών και 0,05 % στις λοσιόν σώματος. Προϊόντα εκτός ορίων δεν μπαίνουν στην αγορά από τον Νοέμβριο του 2025 και πρέπει να έχουν αποσυρθεί ως τον Μάιο του 2027. Περισσότερη ρετινόλη δεν σημαίνει καλύτερο αποτέλεσμα, μόνο περισσότερο ερεθισμό· ισχυρότερα ρετινοειδή δίνει ο δερματολόγος με συνταγή.',
+      'Ο Κανονισμός (ΕΕ) 2024/996 βάζει όριο 0,05 % σε ισοδύναμα ρετινόλης (RE) για τη ρετινόλη και τους εστέρες της στις λοσιόν σώματος, και 0,3 % RE σε όλα τα άλλα καλλυντικά που παραμένουν ή ξεβγάζονται. Προϊόντα εκτός ορίων δεν μπαίνουν στην αγορά από τον Νοέμβριο του 2025 και πρέπει να έχουν αποσυρθεί ως τον Μάιο του 2027. Περισσότερη ρετινόλη δεν σημαίνει καλύτερο αποτέλεσμα, μόνο περισσότερο ερεθισμό· ισχυρότερα ρετινοειδή δίνει ο δερματολόγος με συνταγή.',
     body_en:
-      'Regulation (EU) 2024/996 caps retinol (or equivalent esters) at 0.3 % in face and hand cosmetics and 0.05 % in body lotions. Non-compliant products cannot be placed on the market from November 2025 and must be off the shelves by May 2027. More retinol does not mean better results, only more irritation. Stronger retinoids come from a dermatologist on prescription.',
+      'Regulation (EU) 2024/996 caps retinol and its esters at 0.05 % retinol equivalent (RE) in body lotions and 0.3 % RE in other leave-on and rinse-off cosmetics. Non-compliant products cannot be placed on the market from November 2025 and must be off the shelves by May 2027. More retinol does not mean better results, only more irritation. Stronger retinoids come from a dermatologist on prescription.',
     audiences: ['all'],
     skin_types: ['all'],
     concerns: ['aging'],
@@ -686,14 +686,14 @@ export const SKINCARE_TIPS: readonly SkincareTipSeed[] = [
 
   // --- nails ----------------------------------------------------------------------------------------
   {
-    slug: 'nails-gel-manicure-led-lamp-and-hand-sunscreen',
+    slug: 'nails-gel-manicure-hand-sunscreen-or-gloves',
     area: 'nails',
-    title_el: 'Ημιμόνιμο: λάμπα LED και αντηλιακό στα χέρια',
-    title_en: 'Gel manicure: an LED lamp and sunscreen on your hands',
+    title_el: 'Ημιμόνιμο: αντηλιακό ή γάντια για τα χέρια κάτω από τη λάμπα',
+    title_en: 'Gel manicure: sunscreen or gloves for your hands under the lamp',
     body_el:
-      'Οι λάμπες που «ψήνουν» το ημιμόνιμο εκπέμπουν υπεριώδη ακτινοβολία, και τα επαναλαμβανόμενα μανικιούρ αυξάνουν τη γήρανση και τον κίνδυνο καρκίνου του δέρματος στα χέρια. Προτίμησε σαλόνι με λάμπα LED, που στεγνώνει πιο γρήγορα με λιγότερη UV. Βάλε αντηλιακό SPF 30+ αδιάβροχο στα χέρια πριν, ή φόρα σκούρα γάντια με κομμένες άκρες.',
+      'Οι λάμπες που «ψήνουν» το ημιμόνιμο εκπέμπουν υπεριώδη ακτινοβολία, και τα επαναλαμβανόμενα μανικιούρ αυξάνουν τη γήρανση και τον κίνδυνο καρκίνου του δέρματος στα χέρια. Βάλε αντηλιακό SPF 30+ ανθεκτικό στο νερό στα χέρια πριν, ή φόρα σκούρα γάντια με κομμένες άκρες.',
     body_en:
-      'The lamps that cure gel polish give off UV light, and repeated manicures increase skin ageing and skin cancer risk on the hands. Choose a salon with an LED lamp, which cures faster with less UV. Put water-resistant SPF 30+ on your hands beforehand, or wear dark gloves with the fingertips cut off.',
+      'The lamps that cure gel polish give off UV light, and repeated manicures increase skin ageing and skin cancer risk on the hands. Put water-resistant SPF 30+ on your hands beforehand, or wear dark gloves with the fingertips cut off.',
     audiences: ['women', 'all'],
     skin_types: ['all'],
     concerns: ['nails', 'hands'],
@@ -707,9 +707,9 @@ export const SKINCARE_TIPS: readonly SkincareTipSeed[] = [
     title_el: 'Το ημιμόνιμο μουλιάζει και φεύγει — δεν ξεκολλιέται',
     title_en: 'Gel polish is soaked off — never peeled off',
     body_el:
-      'Όταν τραβάς ή ξύνεις το ημιμόνιμο που σηκώνεται, παίρνεις μαζί στρώσεις από την πλάκα του νυχιού. Ζήτα στο σαλόνι αφαίρεση με μούλιασμα, όχι με τρόχισμα, και μην «πειράζεις» το βερνίκι που ξεφλουδίζει. Αν είσαι αλλεργική στην ασετόνη ή έχεις συχνά προβλήματα στα νύχια, προτίμησε κλασικό βερνίκι.',
+      'Όταν τραβάς ή ξύνεις το ημιμόνιμο που σηκώνεται, παίρνεις μαζί στρώσεις από την πλάκα του νυχιού. Ζήτα στο σαλόνι αφαίρεση με μούλιασμα σε ασετόνη και μην «πειράζεις» το βερνίκι που ξεφλουδίζει. Αν είσαι αλλεργική στην ασετόνη ή έχεις συχνά προβλήματα στα νύχια, προτίμησε κλασικό βερνίκι.',
     body_en:
-      'When you pull or pick at lifting gel polish, layers of the nail plate come off with it. Ask the salon for soak-off removal rather than drilling, and do not pick at chipping polish. If you are allergic to acetone or often have nail problems, choose regular polish instead.',
+      'When you pull or pick at lifting gel polish, layers of the nail plate come off with it. Ask the salon for acetone soak-off removal and do not pick at chipping polish. If you are allergic to acetone or often have nail problems, choose regular polish instead.',
     audiences: ['women'],
     skin_types: ['all'],
     concerns: ['nails'],
@@ -752,7 +752,7 @@ export const SKINCARE_TIPS: readonly SkincareTipSeed[] = [
   {
     slug: 'nails-cotton-under-vinyl-gloves-for-wet-work',
     area: 'nails',
-    title_el: 'Για τις δουλειές με νερό: βαμβακερά γάντια μέσα σε βινυλίου',
+    title_el: 'Για τις δουλειές με νερό: βαμβακερά γάντια μέσα σε γάντια βινυλίου',
     title_en: 'For wet work: cotton gloves under vinyl ones',
     body_el:
       'Η ανασκόπηση για τα εύθραυστα νύχια προτείνει βαμβακερά γάντια κάτω από γάντια βινυλίου για πιάτα και καθαριότητα, και χοντρά βαμβακερά για τις ξερές δουλειές. Τα κλειστά γάντια πάνω σε βρεγμένα χέρια μπορεί να κάνουν τα νύχια να σχίζονται, γι’ αυτό στέγνωνε καλά τα χέρια πριν. Μετά, κρέμα χεριών μέχρι τα επωνύχια.',

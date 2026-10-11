@@ -42,6 +42,11 @@ The human reads this first on return (CLAUDE.md §5).
 - **Schema proposals (NOT done):** `area` hair/scalp + body; a `makeup` category (foundation, concealer, colour corrector); `concerns`
   melasma / rosacea / sensitivity / scalp as their own literals (today folded into pigmentation / redness); `audience` pregnancy flag or a
   `pregnancy_safe` boolean on product types; a `spf` / `filter_type` column on sunscreens.
+- **Codex review REVISE → fixed (7):** EU retinol cap restated as 0.05 % RE body lotion / 0.3 % RE other leave-on + rinse-off (checked against
+  2024/996 Annex III); «ανθεκτικό στο νερό» replaces «αδιάβροχο» for sunscreen (el); LED-lamp claim dropped (tip slug now
+  `nails-gel-manicure-hand-sunscreen-or-gloves`); «Άπλωσέ την»; «μέσα σε γάντια βινυλίου»; shade «when UV index 3+, around midday» instead of
+  11–4 (tip + beach routine); «αφαίρεση με μούλιασμα σε ασετόνη» without the drilling claim. Broken 0002 AAD links: skipped (needs its own
+  patch overlay 0012 + migration; left for the lead). Re-gated: focused + skincare tests 4204 green, seed:check OK, db:gate 374.
 - **Next:** lead review → merge → push (CI e2e + Lighthouse) → operator applies `20261007001100` → approve 93 rows live.
 
 ### CRÊPES — 12 crêpes, 6 savoury + 6 sweet, 3 ingredients (overlay 0009) + photos (overlay 0010) — 2026-10-11 — DONE
