@@ -8,13 +8,14 @@
 //     explicit slug -> cuisine map so a rename or a stray addition is a visible change;
 //   * every slug and title is new against everything served before this overlay;
 //   * the diet tags the generic tests cannot see (low-carb, keto, Atkins, high-protein, intermittent
-//     fasting, DASH, Mediterranean, paleo, hidden animal products) hold, and `fasting` is tagged on
-//     exactly the dishes the fasting rule admits;
+//     fasting, DASH, Mediterranean, paleo, low-FODMAP greens) follow the ONE rule set shared with
+//     overlay 0006 (src/test/dietRules.ts), hidden animal products stay out of vegan / vegetarian,
+//     and `fasting` is tagged on exactly the dishes the fasting rule admits;
 //   * the thin diets (low-FODMAP, Whole30, IF, paleo, DASH) really gained recipes;
 //   * the new ingredients are used, priced and sourced, and the bundled source serves the rows.
 
 import { describe, expect, it } from 'vitest'
-import { computeNutrition } from '../../../nutrition/compute'
+import { dietTagProblems } from '../../../test/dietRules'
 import { isFastingForbidden } from '../../../test/fastingRule'
 import { OVERLAID_SEED } from '../../../test/overlaidSeed'
 import { bundledSource, seedId } from '../../bundled'
@@ -92,107 +93,7 @@ const CUISINE: Readonly<Record<string, string>> = {
   'chicken-paprikash-hungarian': 'Eastern European',
 }
 
-/** Cuisines of the Mediterranean basin: the only ones allowed to carry the `mediterranean` tag. */
-const MEDITERRANEAN_BASIN = ['Levantine', 'Turkish', 'North African', 'Egyptian']
-
-/** Ingredients a DASH-tagged dish must not contain (salt, cured / tinned fish, salty cheese, …). */
-const DASH_FORBIDDEN = [
-  'salt',
-  'feta',
-  'green-olives',
-  'kalamata-olives',
-  'olive-paste',
-  'capers',
-  'canned-sardines',
-  'anchovies',
-  'anchovy-fillets',
-  'smoked-salmon',
-  'smoked-herring',
-  'salted-cod',
-  'canned-tuna',
-  'tarama',
-  'soy-sauce',
-  'fish-sauce',
-  'miso',
-  'gochujang',
-  'kimchi',
-  'sauerkraut',
-  'pickles',
-  'stock-cube',
-  'ketchup',
-  'mayonnaise',
-  'bacon',
-  'sausage',
-  'ham',
-  'pastourma',
-  'prosciutto',
-  'salami',
-  'turkey-slices',
-  'halloumi',
-  'parmesan',
-  'graviera',
-  'kefalotyri',
-  'kasseri',
-  'mizithra',
-  'anthotyro',
-  'blue-cheese',
-  'cheddar',
-  'gouda',
-  'mozzarella',
-  'paneer',
-  'cottage-cheese',
-  'butter',
-  'ghee',
-  'heavy-cream',
-  'sour-cream',
-  'coconut-milk',
-  'coconut-oil',
-  'lard',
-  'tallow',
-  'margarine',
-  'beef-mince',
-  'beef-steak',
-  'beef-stew',
-  'pork-mince',
-  'pork-chop',
-  'pork-shoulder',
-  'pork-tenderloin',
-  'pork-belly',
-  'lamb-chops',
-  'lamb-leg',
-]
-
-/** What a paleo-tagged dish must not contain: grains, legumes, dairy, soy, seed oils, refined sugar. */
-const PALEO_FORBIDDEN_CATEGORIES = ['grains-bread', 'pasta-rice', 'legumes']
-const PALEO_FORBIDDEN_SLUGS = [
-  'soy-sauce',
-  'miso',
-  'gochujang',
-  'rice-vinegar',
-  'kimchi',
-  'sunflower-oil',
-  'sesame-oil',
-  'margarine',
-  'peanuts',
-  'peanut-butter',
-  'cornstarch',
-  'corn',
-  'cornmeal',
-  'flour',
-  'chickpea-flour',
-  'sugar',
-  'brown-sugar',
-  'baking-powder',
-  'mayonnaise',
-  'stock-cube',
-]
-
 const norm = (s: string) => s.toLocaleLowerCase('el').normalize('NFD').replace(/\p{M}/gu, '')
-const perPortion = (slug: string) => {
-  const recipe = newRecipes.find((r) => r.slug === slug)
-  if (!recipe) throw new Error(`unknown recipe ${slug}`)
-  return computeNutrition(recipe, ingredientsBySlug).perPortion
-}
 const rows = (slug: string) =>
   (newRecipes.find((r) => r.slug === slug)?.ingredients ?? []).map((l) => {
     const row = ingredientsBySlug.get(l.ingredient_slug)
@@ -316,58 +217,13 @@ describe('overlay 0007-breakfast-snacks-world', () => {
     }
   })
 
-  it('macro-based tags hold per portion: low-carb, keto, Atkins, high-protein, intermittent fasting', () => {
+  it('every diet tag follows the unified overlay rules (src/test/dietRules.ts), sound and complete', () => {
     for (const r of newRecipes) {
-      const n = perPortion(r.slug)
-      const tags = r.diet_slugs
-      if (tags.includes('low-carb')) expect(n.carbs, `${r.slug} low-carb`).toBeLessThanOrEqual(30)
-      if (tags.includes('keto')) {
-        expect(n.carbs, `${r.slug} keto`).toBeLessThanOrEqual(15)
-        // keto is fat-led, as in 0006: at least half the energy from fat (QA 2026-10-11: mizeria)
-        expect((n.fat * 9) / n.kcal, `${r.slug} keto fat share`).toBeGreaterThanOrEqual(0.5)
-      }
-      if (tags.includes('atkins')) {
-        expect(n.carbs, `${r.slug} atkins`).toBeLessThanOrEqual(15)
-        expect(tags, `${r.slug} atkins needs keto`).toContain('keto')
-      }
-      if (tags.includes('high-protein')) {
-        expect(n.protein, `${r.slug} high-protein`).toBeGreaterThanOrEqual(30)
-      }
-      if (tags.includes('intermittent-fasting')) {
-        expect(n.kcal, `${r.slug} IF kcal`).toBeGreaterThanOrEqual(400)
-        expect(n.protein, `${r.slug} IF protein`).toBeGreaterThanOrEqual(25)
-        expect(
-          r.meal_types.some((m) => m === 'breakfast' || m === 'lunch' || m === 'dinner'),
-          `${r.slug} IF needs a meal slot`,
-        ).toBe(true)
-      }
-    }
-  })
-
-  it('DASH dishes have no added salt, cured fish, salty cheese or saturated-fat base', () => {
-    for (const r of newRecipes.filter((x) => x.diet_slugs.includes('dash'))) {
-      const bad = r.ingredients
-        .map((l) => l.ingredient_slug)
-        .filter((s) => DASH_FORBIDDEN.includes(s))
-      expect(bad, r.slug).toEqual([])
-    }
-  })
-
-  it('paleo dishes have no grain, legume, dairy, soy, seed oil or refined sugar', () => {
-    for (const r of newRecipes.filter((x) => x.diet_slugs.includes('paleo'))) {
-      for (const row of rows(r.slug)) {
-        expect(PALEO_FORBIDDEN_CATEGORIES, `${r.slug}: ${row.slug}`).not.toContain(row.category)
-        expect(PALEO_FORBIDDEN_SLUGS, `${r.slug}: ${row.slug}`).not.toContain(row.slug)
-        if (row.category === 'dairy-eggs') expect(row.slug, r.slug).toBe('egg')
-      }
-    }
-  })
-
-  it('Mediterranean dishes come from the basin and are cooked in olive oil or tahini', () => {
-    for (const r of newRecipes.filter((x) => x.diet_slugs.includes('mediterranean'))) {
-      expect(MEDITERRANEAN_BASIN, r.slug).toContain(CUISINE[r.slug])
-      const slugs = r.ingredients.map((l) => l.ingredient_slug)
-      expect(slugs.includes('olive-oil') || slugs.includes('tahini'), r.slug).toBe(true)
+      expect({ slug: r.slug, ...dietTagProblems(r, ingredientsBySlug, CUISINE[r.slug]) }).toEqual({
+        slug: r.slug,
+        remove: [],
+        add: [],
+      })
     }
   })
 

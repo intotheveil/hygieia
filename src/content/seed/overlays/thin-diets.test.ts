@@ -6,13 +6,13 @@
 //     against every base and earlier-overlay slug, no image yet, no patches;
 //   * the per-diet minimums that motivated it (carnivore, Whole30, low-FODMAP, IF, paleo) and the
 //     meal-type minimums (breakfast, snack) are met by the NEW rows alone;
-//   * every tag on a new row is true by the stricter rules the overlay header states — carnivore
-//     is animal-only (no plant oil), paleo/Whole30 exclude grains/legumes/dairy/processed meat,
-//     keto/atkins/low-carb/high-protein/IF are computed from the per-portion nutrition;
+//   * every tag on a new row follows the ONE rule set shared with overlay 0007 (src/test/dietRules.ts:
+//     carnivore, paleo, Whole30, low-FODMAP, keto/atkins/low-carb/high-protein/IF, DASH,
+//     Mediterranean), sound and complete;
 //   * the new ingredients carry USDA-style macros, a price range and both languages.
 
 import { describe, expect, it } from 'vitest'
-import { computeNutrition } from '../../../nutrition/compute'
+import { dietTagProblems } from '../../../test/dietRules'
 import { isFastingForbidden } from '../../../test/fastingRule'
 import { OVERLAID_SEED } from '../../../test/overlaidSeed'
 import { bundledSource, seedId } from '../../bundled'
@@ -32,31 +32,6 @@ const rowsOf = (slugs: readonly string[]) =>
   })
 const withTag = (tag: string) => newRecipes.filter((r) => r.diet_slugs.includes(tag))
 const linesOf = (r: (typeof newRecipes)[number]) => r.ingredients.map((l) => l.ingredient_slug)
-const perPortion = (r: (typeof newRecipes)[number]) =>
-  computeNutrition(r, ingredientsBySlug).perPortion
-
-const WHOLE30_BAD_CATEGORIES = ['grains-bread', 'pasta-rice', 'legumes', 'sweeteners']
-const PROCESSED_OR_EXCLUDED = [
-  'bacon',
-  'sausage',
-  'ham',
-  'prosciutto',
-  'salami',
-  'pastourma',
-  'turkey-slices',
-  'ketchup',
-  'mayonnaise',
-  'stock-cube',
-  'soy-sauce',
-  'peanuts',
-  'peanut-butter',
-  'corn',
-  'cornmeal',
-  'cornstarch',
-  'baking-powder',
-]
-const CARNIVORE_OK_SLUGS = ['water', 'salt', 'black-pepper', 'lard', 'tallow']
-const CARNIVORE_OK_CATEGORIES = ['meat', 'poultry', 'fish-seafood', 'dairy-eggs']
 
 describe('overlay 0006-thin-diets', () => {
   it('is registered in the overlay list, after 0005, and patches nothing', () => {
@@ -142,98 +117,13 @@ describe('overlay 0006-thin-diets', () => {
     }
   })
 
-  it('carnivore means animal products only: no plant oil, herb or vegetable', () => {
-    for (const r of withTag('carnivore')) {
-      for (const row of rowsOf(linesOf(r))) {
-        expect(
-          CARNIVORE_OK_CATEGORIES.includes(row.category) || CARNIVORE_OK_SLUGS.includes(row.slug),
-          `${r.slug}: ${row.slug} is not carnivore`,
-        ).toBe(true)
-      }
-    }
-  })
-
-  it('whole30 and paleo exclude grains, legumes, sweeteners, dairy (ghee/eggs aside) and processed meat', () => {
-    for (const tag of ['whole30', 'paleo']) {
-      for (const r of withTag(tag)) {
-        for (const row of rowsOf(linesOf(r))) {
-          expect(WHOLE30_BAD_CATEGORIES, `${tag} ${r.slug}: ${row.slug}`).not.toContain(
-            row.category,
-          )
-          expect(PROCESSED_OR_EXCLUDED, `${tag} ${r.slug}: ${row.slug}`).not.toContain(row.slug)
-          if (row.category === 'dairy-eggs') {
-            expect(['egg', 'egg-white', 'ghee'], `${tag} ${r.slug}: ${row.slug}`).toContain(
-              row.slug,
-            )
-          }
-        }
-      }
-    }
-    for (const r of withTag('whole30')) {
-      expect(linesOf(r), r.slug).not.toContain('maple-syrup')
-      expect(linesOf(r), r.slug).not.toContain('honey')
-    }
-  })
-
-  it('low-fodmap recipes avoid the extra Monash high-FODMAP items and keep the onion to its greens', () => {
-    const extra = [
-      'garlic-powder',
-      'cashews',
-      'pistachios',
-      'sweet-potato',
-      'pumpkin',
-      'avocado',
-      'beetroot',
-      'fennel',
-      'celeriac',
-      'peas',
-      'okra',
-      'coconut-flour',
-      'chickpea-flour',
-      'sun-dried-tomatoes',
-      'skyr',
-      'ham',
-      'turkey-slices',
-      'soy-sauce',
-    ]
-    for (const r of withTag('low-fodmap')) {
-      for (const slug of linesOf(r)) expect(extra, `${r.slug}: ${slug}`).not.toContain(slug)
-      const onion = r.ingredients.find((l) => l.ingredient_slug === 'spring-onion')
-      if (onion) expect(onion.note_en, `${r.slug}: spring onion`).toBe('green part only')
-    }
-  })
-
-  it('keto, atkins, low-carb and high-protein follow the per-portion numbers', () => {
+  it('every diet tag follows the unified overlay rules (src/test/dietRules.ts), sound and complete', () => {
     for (const r of newRecipes) {
-      const p = perPortion(r)
-      const fatShare = (p.fat * 9) / p.kcal
-      const proteinShare = (p.protein * 4) / p.kcal
-      const tags = r.diet_slugs
-      if (tags.includes('keto')) {
-        expect(p.carbs, `${r.slug} keto carbs`).toBeLessThanOrEqual(12)
-        expect(fatShare, `${r.slug} keto fat share`).toBeGreaterThanOrEqual(0.5)
-      }
-      if (tags.includes('atkins')) expect(p.carbs, `${r.slug} atkins`).toBeLessThanOrEqual(20)
-      if (tags.includes('low-carb')) expect(p.carbs, `${r.slug} low-carb`).toBeLessThanOrEqual(30)
-      if (tags.includes('high-protein')) {
-        expect(p.protein, `${r.slug} protein g`).toBeGreaterThanOrEqual(20)
-        expect(proteinShare, `${r.slug} protein share`).toBeGreaterThanOrEqual(0.25)
-      }
-      // complete as well as sound: a recipe that meets the keto numbers carries the tag
-      if (p.carbs <= 12 && fatShare >= 0.5) expect(tags, r.slug).toContain('keto')
-      if (p.carbs <= 30) expect(tags, r.slug).toContain('low-carb')
-    }
-  })
-
-  it('intermittent-fasting recipes are real meals: not snack-only, ≥ 400 kcal and ≥ 25 g protein', () => {
-    for (const r of withTag('intermittent-fasting')) {
-      const p = perPortion(r)
-      expect(
-        r.meal_types.every((m) => m === 'snack'),
-        `${r.slug} is a snack`,
-      ).toBe(false)
-      expect(p.kcal, `${r.slug} kcal`).toBeGreaterThanOrEqual(400)
-      expect(p.protein, `${r.slug} protein`).toBeGreaterThanOrEqual(25)
+      expect({ slug: r.slug, ...dietTagProblems(r, ingredientsBySlug) }).toEqual({
+        slug: r.slug,
+        remove: [],
+        add: [],
+      })
     }
   })
 

@@ -114,7 +114,7 @@ export const RECIPES: RecipeSeed[] = [
         quantity: 40,
         unit: 'g',
         note_el: 'μόνο το πράσινο μέρος',
-        note_en: 'green parts only',
+        note_en: 'green part only',
       },
       {
         ingredient_slug: 'nori',
@@ -189,7 +189,7 @@ export const RECIPES: RecipeSeed[] = [
         quantity: 30,
         unit: 'g',
         note_el: 'μόνο το πράσινο μέρος',
-        note_en: 'green parts only',
+        note_en: 'green part only',
       },
       {
         ingredient_slug: 'nori',
@@ -368,7 +368,7 @@ export const RECIPES: RecipeSeed[] = [
         quantity: 40,
         unit: 'g',
         note_el: 'μόνο το πράσινο μέρος',
-        note_en: 'green parts only',
+        note_en: 'green part only',
       },
       {
         ingredient_slug: 'olive-oil',
@@ -560,7 +560,7 @@ export const RECIPES: RecipeSeed[] = [
         quantity: 30,
         unit: 'g',
         note_el: 'μόνο το πράσινο μέρος',
-        note_en: 'green parts only',
+        note_en: 'green part only',
       },
       {
         ingredient_slug: 'sesame-oil',
@@ -1266,7 +1266,6 @@ export const RECIPES: RecipeSeed[] = [
       'dash',
       'fasting',
       'gluten-free',
-      'low-fodmap',
     ],
   },
   {
@@ -1622,8 +1621,8 @@ export const RECIPES: RecipeSeed[] = [
   },
   {
     slug: 'syrniki-russian-cottage-cheese-pancakes',
-    title_el: 'Σιρνίκι — ρωσικές τηγανίτες με τυρί κότατζ και μούρα',
-    title_en: 'Syrniki — Russian cottage-cheese pancakes with berries',
+    title_el: 'Σιρνίκι — ρωσικές τηγανίτες με τυρί κότατζ και μύρτιλα',
+    title_en: 'Syrniki — Russian cottage-cheese pancakes with blueberries',
     steps_el: [
       'Λιώστε το στραγγισμένο κότατζ με πιρούνι και ανακατέψτε το με το αυγό, τη ζάχαρη, τη βανίλια και το αλεύρι σε πηχτή, ελαφρά κολλώδη ζύμη.',
       'Με αλευρωμένα χέρια πλάστε το μείγμα σε 9 μικρές πίτες πάχους 1,5 εκατοστού και πασπαλίστε τες ελαφρά με αλεύρι.',
@@ -1803,7 +1802,7 @@ export const RECIPES: RecipeSeed[] = [
         quantity: 30,
         unit: 'g',
         note_el: 'μόνο το πράσινο μέρος',
-        note_en: 'green parts only',
+        note_en: 'green part only',
       },
       {
         ingredient_slug: 'hot-pepper',
@@ -2074,6 +2073,7 @@ export const RECIPES: RecipeSeed[] = [
       'flexitarian',
       'pescatarian',
       'fasting',
+      'keto',
       'low-carb',
       'high-protein',
     ],
@@ -2564,6 +2564,7 @@ export const RECIPES: RecipeSeed[] = [
       'mediterranean',
       'dash',
       'fasting',
+      'keto',
       'low-carb',
       'paleo',
       'gluten-free',
@@ -3472,7 +3473,10 @@ export const RECIPES: RecipeSeed[] = [
         unit: 'bunch',
       },
     ],
-    diet_slugs: ['mediterranean', 'high-protein', 'intermittent-fasting'],
+    diet_slugs: [
+      'mediterranean',
+      'intermittent-fasting',
+    ],
   },
   {
     slug: 'mercimek-corbasi-turkish-red-lentil-soup',
@@ -3925,7 +3929,10 @@ export const RECIPES: RecipeSeed[] = [
         unit: 'piece',
       },
     ],
-    diet_slugs: ['high-protein', 'gluten-free', 'intermittent-fasting'],
+    diet_slugs: [
+      'gluten-free',
+      'intermittent-fasting',
+    ],
   },
   {
     slug: 'tom-kha-gai-thai-coconut-chicken-soup',
@@ -4061,7 +4068,7 @@ export const RECIPES: RecipeSeed[] = [
         quantity: 50,
         unit: 'g',
         note_el: 'μόνο το πράσινο μέρος',
-        note_en: 'green parts only',
+        note_en: 'green part only',
       },
       {
         ingredient_slug: 'mint',
@@ -4272,7 +4279,12 @@ export const RECIPES: RecipeSeed[] = [
         unit: 'tbsp',
       },
     ],
-    diet_slugs: ['low-carb', 'high-protein', 'intermittent-fasting'],
+    diet_slugs: [
+      'keto',
+      'low-carb',
+      'high-protein',
+      'intermittent-fasting',
+    ],
   },
   {
     slug: 'nasu-dengaku-miso-glazed-aubergine',
@@ -4596,6 +4608,8 @@ export const RECIPES: RecipeSeed[] = [
         unit: 'tsp',
       },
     ],
-    diet_slugs: ['high-protein', 'intermittent-fasting'],
+    diet_slugs: [
+      'intermittent-fasting',
+    ],
   },
 ]
