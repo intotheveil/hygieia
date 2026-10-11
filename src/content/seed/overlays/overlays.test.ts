@@ -387,8 +387,9 @@ describe('the real overlay list (./index.ts)', () => {
     expect(sun?.body_el).toContain('Βάλ’ το ως τελευταίο βήμα')
     expect(sun?.body_el).not.toContain('το το')
     expect(out.health_tips).toHaveLength(HEALTH_TIPS.length)
-    // a table no overlay touches comes back as the SAME array (0003 adds ingredients, diets, recipes;
-    // 0004 patches every ingredient in place: base rows keep their order, new values)
+    // a table no overlay touches comes back as the SAME array (0003 and later overlays add
+    // ingredients, diets, recipes; 0004 patches every ingredient in place: base rows keep their
+    // order, new values)
     expect(out.exercises).toBe(EXERCISES)
     // every overlay's ingredient additions (0003: 2, 0006: 5, …) — derived, not pinned, so the next
     // content overlay does not have to edit this line
