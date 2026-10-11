@@ -1,5 +1,5 @@
 // SITE HEADER (P3.5): the one `<header>` (banner landmark) every route shares, rendered by
-// Layout. Brand link home · primary nav (Recipes · Fridge · Diets · Workouts · Tips · Skincare ·
+// Layout. Brand link home · primary nav (Recipes · Fridge · Diets · Workouts · Tips · Skincare · For women ·
 // Task plans) ·
 // AccountMenu · ThemeSwitch · LangSwitch. `NavLink` sets `aria-current="page"` on the active item;
 // the match is by prefix, so `/recipes/<slug>` keeps "Recipes" current. On narrow screens the nav
@@ -26,6 +26,7 @@ const NAV_PATHS: Record<NavId, string> = {
   workouts: '/workouts',
   tips: '/tips',
   skincare: '/skincare',
+  women: '/women',
   tasks: '/tasks',
 }
 

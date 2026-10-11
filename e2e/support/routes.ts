@@ -101,6 +101,7 @@ export const ROUTES: readonly AuditRoute[] = [
     h1: (t) => t.skincareTitle,
     ready: '#skincare-routines li',
   },
+  { path: '/hygieia/women', name: 'women', h1: (t) => t.womenTitle, ready: '#women-toc' },
   { path: '/hygieia/tasks', name: 'tasks', h1: (t) => t.tasksTitle, ready: '#tasks-topics li' },
   {
     path: `/hygieia/tasks/${TASK_TOPIC}`,

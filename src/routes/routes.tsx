@@ -37,6 +37,7 @@ const TipsPage = lazyPage(() => import('../tips/TipsPage').then((m) => m.TipsPag
 const SkincarePage = lazyPage(() => import('../skincare/SkincarePage').then((m) => m.SkincarePage))
 const SignInPage = lazyPage(() => import('../auth/SignInPage').then((m) => m.SignInPage))
 const CallbackPage = lazyPage(() => import('../auth/CallbackPage').then((m) => m.CallbackPage))
+const WomenPage = lazyPage(() => import('../women/WomenPage').then((m) => m.WomenPage))
 const TasksPage = lazyPage(() => import('../tasks/TasksPage').then((m) => m.TasksPage))
 const AccountPage = lazyPage(() => import('../account/AccountPage').then((m) => m.AccountPage))
 const AdminPage = lazyPage(() => import('../admin/AdminPage').then((m) => m.AdminPage))
@@ -69,6 +70,7 @@ export function AppRoutes() {
         <Route path="/workouts/plans" element={<PlansPage />} />
         <Route path="/tips" element={<TipsPage />} />
         <Route path="/skincare" element={<SkincarePage />} />
+        <Route path="/women" element={<WomenPage />} />
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/tasks/:topic" element={<TasksPage />} />
         <Route path="/auth" element={<SignInPage />} />

@@ -27,6 +27,7 @@ const EXPECTED_HREFS: Record<(typeof NAV_IDS)[number], string> = {
   workouts: '/workouts',
   tips: '/tips',
   skincare: '/skincare',
+  women: '/women',
   tasks: '/tasks',
 }
 
@@ -39,7 +40,7 @@ describe('SiteHeader', () => {
   beforeEach(() => window.localStorage.clear())
 
   it.each(LANGS)(
-    'is the banner with a brand link home and the seven module links (%s)',
+    'is the banner with a brand link home and the eight module links (%s)',
     (lang, t) => {
       renderAt('/', lang)
       const header = screen.getByRole('banner')
