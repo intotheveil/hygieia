@@ -18,12 +18,19 @@ import {
 } from '../enums'
 import type { Region } from '../enums'
 import { OVERLAYS, overlayTable } from './overlays'
-import { SKINCARE_PRODUCT_TYPES, SKINCARE_ROUTINES, SKINCARE_TIPS as BASE_TIPS } from './skincare'
+import {
+  SKINCARE_PRODUCT_TYPES as BASE_TYPES,
+  SKINCARE_ROUTINES as BASE_ROUTINES,
+  SKINCARE_TIPS as BASE_TIPS,
+} from './skincare'
 
 /**
- * The tips the app serves: the frozen base seed with every content overlay applied, so the tip
- * rules below bind an overlay's rewrites and sources too (overlay 0002, 2026-10-06).
+ * The rows the app serves: the frozen base seed with every content overlay applied, so every rule
+ * below binds an overlay's rewrites, sources and additions too (overlay 0002 patched the tips,
+ * 2026-10-06; overlay 0011 added product types, routines and tips, 2026-10-11).
  */
+const SKINCARE_PRODUCT_TYPES = overlayTable('skincare_product_types', BASE_TYPES, OVERLAYS)
+const SKINCARE_ROUTINES = overlayTable('skincare_routines', BASE_ROUTINES, OVERLAYS)
 const SKINCARE_TIPS = overlayTable('skincare_tips', BASE_TIPS, OVERLAYS)
 
 /**

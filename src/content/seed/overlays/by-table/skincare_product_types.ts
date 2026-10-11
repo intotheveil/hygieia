@@ -9,9 +9,11 @@
 // (../NNNN-<name>.ts). by-table.test.ts enforces the import rule. Erasable syntax only, explicit
 // `.ts` imports.
 
+import { SKINCARE_PRODUCT_TYPES as A0011 } from '../0011-skincare-more/skincare_product_types.ts'
 import type { OverlaySlice } from '../types.ts'
 
 export { overlayTable } from '../apply.ts'
 
-/** No overlay touches this table yet. */
-export const OVERLAYS: readonly OverlaySlice[] = []
+export const OVERLAYS: readonly OverlaySlice[] = [
+  { id: '0011-skincare-more', additions: { skincare_product_types: A0011 } },
+]

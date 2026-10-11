@@ -3,6 +3,52 @@
 The crew's trail: what was attempted, what passed, what's blocked, what's next. Newest first.
 The human reads this first on return (CLAUDE.md §5).
 
+### SKINCARE MORE — +27 product types, +20 routines, +46 sourced tips (overlay 0011) — 2026-10-11 — DONE (lane, not pushed)
+
+- **Scope:** expand skincare & cosmetics, women-weighted, men and nails covered, NO schema change (every row inside the CHECK
+  constraints of `20261006001100_hygieia_skincare.sql`). Overlay **0011** `0011-skincare-more`, additions only. Branch
+  `content/skincare-0011` (worktree `D:\projects\hygieia-wt\skincare`, from `main` `33563a4`). Served: **79 product types / 48 routines /
+  111 tips** (was 52 / 28 / 65).
+- **Files:** `src/content/seed/overlays/0011-skincare-more.ts` + `0011-skincare-more/{skincare_product_types,skincare_routines,skincare_tips}.ts`;
+  one line each in `overlays/index.ts` and `by-table/skincare_{product_types,routines,tips}.ts`; focused test `overlays/skincare-more.test.ts`;
+  migration `20261007001100_hygieia_overlay_skincare_more.sql` (only new seed file; EOL flips on the other 17 restored with `git checkout`).
+  Count-derived tests moved to the SERVED seed: `seed/skincare.test.ts` (product types + routines now overlaid like the tips — every generic
+  rule binds 0011), `skincare/SkincarePage.test.tsx` (same), `skincare/select.test.ts` (bundled face-routine count = served rows),
+  `overlays/overlays.test.ts` (tip total = base + overlay additions).
+- **Product types (27):** actives — tranexamic acid, bakuchiol, retinal serum, alpha-arbutin/kojic (EU 2024/996 caps), panthenol+ceramide
+  barrier serum, mandelic acid, 5 % urea face cream, rich lipid night cream (mature/perimenopause); sunscreen formats — tinted iron-oxide
+  mineral, reapplication spray, SPF powder, oil-control matte fluid, primer with SPF; make-up removal / budget — bi-phase eye remover, syndet
+  bar, salicylic wash; after-sun gel, thermal water mist, peptide eye cream, hydrogel eye patches, lip repair ointment; men — clear
+  shaving gel, ingrown-hair lotion; nails — hydrating nail treatment, gel soak-off kit, hand cream SPF, ridge-filling base coat.
+- **Routines (20):** pregnancy AM/PM (retinoid-free, no bakuchiol — pinned by test), melasma AM/PM, rosacea-prone AM/PM, adult acne AM/PM
+  (women), perimenopause AM/PM, after-sun PM, Greek-summer beach AM, budget AM/PM, men (gentle shave AM, ingrown hairs PM, retinol-free
+  anti-ageing PM), nails (gel soak-off removal, daily cuticle care, a week off gel). Face routines carry ONE regional style, never `global`
+  (the page's style filter and its tests rely on it; pinned in the focused test).
+- **Balance:** women-tagged routines 10 / tips 22 / types 11; men 3 / 3 / 3 (rest are `all`).
+- **Tips (46, every one sourced; 0 `needs_source`):** women-only 15 (adult acne, perimenopause, pregnancy, melasma/tranexamic, dark spots,
+  tinted SPF, SPF powder/primer as top-ups, eye make-up removal), men 3 (cleanser, fewer blades, ears/neck/scalp SPF), everyone 20 (rosacea
+  ×4, contact dermatitis, emollients, sunburn ×3, heat rash, spray SPF, water-resistant claims EU/US, Greek summer, EU retinol cap, EU
+  brightening caps, azelaic acid, bakuchiol evidence, benzoyl peroxide, darker-skin exfoliation, price ≠ quality), nails 8 (gel LED + hand
+  SPF, soak-off, artificial nails, brittle nails, gloves, biotin, nail changes → doctor, hands SPF). Sources opened 2026-10-11: AAD, NHS,
+  NIH ODS, FDA, eur-lex (2006/647, 1223/2009, 2024/996), PMC/PubMed reviews (tranexamic acid, melasma therapies, bakuchiol RCT + review,
+  azelaic acid review, brittle nails review). URLs checked live (HTTP 200; eur-lex/pubmed answer 202/203 bot pages).
+- **Gates (local):** lint 0 errors (23 pre-existing warnings) · typecheck clean · `npm test` 6096/6098, the 2 reds = load timeouts
+  (`scripts/recipe-photos.test.ts` 5 s, `src/App.test.tsx` findBy) both GREEN rerun alone · seed:check OK (18 = 7 base + 11 overlay) ·
+  db:check 25 · db:gate PASSED 374 · prove-red 34/34 · build OK · check:bundle OK (87 files) · check:pwa OK. e2e/Lighthouse not run
+  locally (machine load; CI is the arbiter — `e2e/local/skincare.spec.ts` already reads the served seed).
+- **Found, not fixed (out of scope):** two URLs cited by overlay 0002 now 404 on aad.org — `…/skin-care-basics/care/how-to-test-skin-care-products`
+  and `…/nail-care-secrets/basics/artificial-nails`; the old `…/sunscreen-patients/sunscreen-faqs` redirects to `/media/stats-sunscreen`.
+  A later patch overlay can repoint them.
+- **Schema proposals (NOT done):** `area` hair/scalp + body; a `makeup` category (foundation, concealer, colour corrector); `concerns`
+  melasma / rosacea / sensitivity / scalp as their own literals (today folded into pigmentation / redness); `audience` pregnancy flag or a
+  `pregnancy_safe` boolean on product types; a `spf` / `filter_type` column on sunscreens.
+- **Codex review REVISE → fixed (7):** EU retinol cap restated as 0.05 % RE body lotion / 0.3 % RE other leave-on + rinse-off (checked against
+  2024/996 Annex III); «ανθεκτικό στο νερό» replaces «αδιάβροχο» for sunscreen (el); LED-lamp claim dropped (tip slug now
+  `nails-gel-manicure-hand-sunscreen-or-gloves`); «Άπλωσέ την»; «μέσα σε γάντια βινυλίου»; shade «when UV index 3+, around midday» instead of
+  11–4 (tip + beach routine); «αφαίρεση με μούλιασμα σε ασετόνη» without the drilling claim. Broken 0002 AAD links: skipped (needs its own
+  patch overlay 0012 + migration; left for the lead). Re-gated: focused + skincare tests 4204 green, seed:check OK, db:gate 374.
+- **Next:** lead review → merge → push (CI e2e + Lighthouse) → operator applies `20261007001100` → approve 93 rows live.
+
 ### CRÊPES — 12 crêpes, 6 savoury + 6 sweet, 3 ingredients (overlay 0009) + photos (overlay 0010) — 2026-10-11 — DONE
 
 - **Scope:** the operator asked for crêpes («κρέπα», Greek street food), stressing they are SAVOURY too. Overlay **0009** `0009-crepes`

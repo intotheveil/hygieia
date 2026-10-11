@@ -10,6 +10,7 @@
 
 import { SKINCARE_TIPS as P0001 } from '../0001-fix-typos/skincare_tips.ts'
 import { SKINCARE_TIPS as P0002 } from '../0002-tip-sources/skincare_tips.ts'
+import { SKINCARE_TIPS as A0011 } from '../0011-skincare-more/skincare_tips.ts'
 import type { OverlaySlice } from '../types.ts'
 
 export { overlayTable } from '../apply.ts'
@@ -17,4 +18,5 @@ export { overlayTable } from '../apply.ts'
 export const OVERLAYS: readonly OverlaySlice[] = [
   { id: '0001-fix-typos', patches: { skincare_tips: P0001 } },
   { id: '0002-tip-sources', patches: { skincare_tips: P0002 } },
+  { id: '0011-skincare-more', additions: { skincare_tips: A0011 } },
 ]

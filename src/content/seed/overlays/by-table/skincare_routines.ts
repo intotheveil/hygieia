@@ -8,9 +8,11 @@
 // overlay touching nothing but this loader's tables may be imported whole (../NNNN-<name>.ts).
 // by-table.test.ts enforces the import rule. Erasable syntax only, explicit `.ts` imports.
 
+import { SKINCARE_ROUTINES as A0011 } from '../0011-skincare-more/skincare_routines.ts'
 import type { OverlaySlice } from '../types.ts'
 
 export { overlayTable } from '../apply.ts'
 
-/** No overlay touches this table yet. */
-export const OVERLAYS: readonly OverlaySlice[] = []
+export const OVERLAYS: readonly OverlaySlice[] = [
+  { id: '0011-skincare-more', additions: { skincare_routines: A0011 } },
+]
