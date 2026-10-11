@@ -18,11 +18,16 @@
 //     is passed in (`inSeasonSlugs`, from content/seasonal.ts): without it the season criterion
 //     narrows nothing, so the page can render before the calendar has loaded.
 //     Both keys are optional on the params so a filter without them stays canonical as before.
+//   - NUTRIENTS (2026-10-11): `?nutrient=iron,folate` keeps recipes where ONE PORTION is at least a
+//     source (≥ 15 % of the EU NRV) of ANY of them (nutrition/nutrients.ts). The values are the
+//     `NUTRIENTS` contract; unknown tokens are dropped. The engine needs the ingredient catalogue
+//     (`ingredientsBySlug`, grams per unit): without it no recipe qualifies — never all of them.
 
 import { MEAL_TYPES, type MealType } from '../content/enums.ts'
-import type { RecipeSeed } from '../content/types.ts'
+import type { IngredientSeed, RecipeSeed } from '../content/types.ts'
 import { normalizeForSearch } from '../fridge/match.ts'
 import type { Lang } from '../i18n/app.ts'
+import { isNutrient, isSourceOf, type Nutrient } from '../nutrition/nutrients.ts'
 
 /** The URL-backed part of a filter: what the user picked, independent of language. */
 export interface RecipeFilterParams {
@@ -36,6 +41,8 @@ export interface RecipeFilterParams {
   ingredientSlugs?: string[]
   /** `?season=now`: only recipes with ≥ SEASON_MIN_MATCHES in-season ingredients. */
   season?: boolean
+  /** Any-of nutrients (`?nutrient=`): one portion is at least a source of one of them. */
+  nutrients?: Nutrient[]
 }
 
 /** What `filterRecipes` takes: the params (each optional) plus the language whose title to match. */
@@ -43,6 +50,8 @@ export interface RecipeFilter extends Partial<RecipeFilterParams> {
   lang: Lang
   /** The ingredient slugs in season now; required for `season` to narrow anything. */
   inSeasonSlugs?: ReadonlySet<string>
+  /** The ingredient catalogue the nutrient criterion reads (grams per unit); absent = empty. */
+  ingredientsBySlug?: ReadonlyMap<string, IngredientSeed>
 }
 
 /** How many distinct in-season ingredients make a recipe "seasonal" for `?season=now`. */
@@ -77,6 +86,7 @@ export const RECIPE_FILTER_PARAM_KEYS = {
   query: 'q',
   ingredient: 'ingredient',
   season: 'season',
+  nutrient: 'nutrient',
 } as const
 
 /** The one value `?season=` accepts. */
@@ -100,6 +110,8 @@ export function filterRecipes<R extends RecipeSeed>(
   const needle = normalizeForSearch(filter.query ?? '')
   const ingredients = toSet(filter.ingredientSlugs)
   const inSeason = filter.season === true ? (filter.inSeasonSlugs ?? null) : null
+  const nutrients = toSet(filter.nutrients)
+  const catalogue = filter.ingredientsBySlug ?? NO_INGREDIENTS
 
   return recipes.filter(
     (recipe) =>
@@ -108,9 +120,13 @@ export function filterRecipes<R extends RecipeSeed>(
       (needle === '' || normalizeForSearch(recipeTitle(recipe, filter.lang)).includes(needle)) &&
       (ingredients === null ||
         recipe.ingredients.some((line) => ingredients.has(line.ingredient_slug))) &&
-      (inSeason === null || inSeasonCount(recipe, inSeason) >= SEASON_MIN_MATCHES),
+      (inSeason === null || inSeasonCount(recipe, inSeason) >= SEASON_MIN_MATCHES) &&
+      (nutrients === null ||
+        [...nutrients].some((nutrient) => isSourceOf(recipe, catalogue, nutrient))),
   )
 }
+
+const NO_INGREDIENTS: ReadonlyMap<string, IngredientSeed> = new Map()
 
 /** `null` when the criterion is absent or empty (= match everything). */
 function toSet<T>(values: readonly T[] | undefined): ReadonlySet<T> | null {
@@ -185,6 +201,8 @@ export function parseRecipeFilterParams(
   )
   if (ingredientSlugs.length > 0) out.ingredientSlugs = ingredientSlugs
   if (searchParams.get(RECIPE_FILTER_PARAM_KEYS.season) === SEASON_NOW) out.season = true
+  const nutrients = readList(searchParams, RECIPE_FILTER_PARAM_KEYS.nutrient).filter(isNutrient)
+  if (nutrients.length > 0) out.nutrients = nutrients
   return out
 }
 
@@ -204,6 +222,8 @@ export function serializeRecipeFilterParams(params: Partial<RecipeFilterParams>)
   const ingredients = dedupe(params.ingredientSlugs ?? [])
   if (ingredients.length > 0) out.set(RECIPE_FILTER_PARAM_KEYS.ingredient, ingredients.join(','))
   if (params.season === true) out.set(RECIPE_FILTER_PARAM_KEYS.season, SEASON_NOW)
+  const nutrients = dedupe(params.nutrients ?? [])
+  if (nutrients.length > 0) out.set(RECIPE_FILTER_PARAM_KEYS.nutrient, nutrients.join(','))
   return out
 }
 
@@ -218,6 +238,7 @@ export function isEmptyRecipeFilter(params: Partial<RecipeFilterParams>): boolea
     (params.mealTypes?.length ?? 0) === 0 &&
     (params.query ?? '').trim() === '' &&
     (params.ingredientSlugs?.length ?? 0) === 0 &&
-    params.season !== true
+    params.season !== true &&
+    (params.nutrients?.length ?? 0) === 0
   )
 }

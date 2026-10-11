@@ -13,6 +13,7 @@ import { dietsEn } from './features/diets.ts'
 import { fridgeEn } from './features/fridge.ts'
 import { featuresEn } from './features/index.ts'
 import { plansEn } from './features/plans.ts'
+import { nutrientsCopy, nutrientsEl, nutrientsEn } from './features/nutrients.ts'
 import { prefsCopy, prefsEl, prefsEn } from './features/prefs.ts'
 import { profileCopy, profileEl, profileEn } from './features/profile.ts'
 import { recipesEn } from './features/recipes.ts'
@@ -42,6 +43,7 @@ const APP_FEATURE_MODULES: Readonly<Record<string, object>> = {
 }
 const ROUTE_FEATURE_MODULES: Readonly<Record<string, object>> = {
   admin: adminEn,
+  nutrients: nutrientsEn,
   prefs: prefsEn,
   profile: profileEn,
   season: seasonEn,
@@ -74,6 +76,7 @@ const SAME_VALUE_ALLOWLIST: readonly string[] = [
   // Units are written Latin-script in Greek too ("320 kcal").
   'kcal',
   'ml',
+  'mg',
 ]
 
 /** Keys whose `en` leaf may carry Greek script: the switcher names the other language in its own script. */
@@ -272,6 +275,7 @@ describe('bilingual dictionary — app / route split (perf, 2026-10-06; features
   it('pairs each route feature with its own two literals in its <feature>Copy', () => {
     const copies = [
       [adminCopy, adminEl, adminEn],
+      [nutrientsCopy, nutrientsEl, nutrientsEn],
       [prefsCopy, prefsEl, prefsEn],
       [profileCopy, profileEl, profileEn],
       [seasonCopy, seasonEl, seasonEn],

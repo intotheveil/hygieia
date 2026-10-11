@@ -3,7 +3,8 @@
 // review), ingredient lines formatted by ./format.ts, steps in order, and a favourite button
 // through the per-user source (the bilingual note when that source is disabled). Under the
 // ingredients, the nutrition and cost panels (P4.3) run the pure engines on the recipe's own
-// resolved lines — no extra fetch — and share ONE per-portion / per-recipe toggle. Unknown slug →
+// resolved lines — no extra fetch — and share ONE per-portion / per-recipe toggle. Under the
+// nutrition panel, the per-portion micronutrient badges (./NutrientBadges.tsx, 2026-10-11). Unknown slug →
 // the app's NotFound. `source` is a prop (default: the app's `contentSource`) so tests can inject.
 //
 // FRAME FIRST (perf, 2026-10-06). The back link and the draft ribbon do not depend on the recipe,
@@ -39,11 +40,13 @@ import { useLang } from '../i18n/LangProvider'
 import { fill, plural } from '../i18n/fill.ts'
 import { useAsyncResult } from '../lib/useAsync.ts'
 import { computeNutrition } from '../nutrition/compute.ts'
+import { computeNutrients } from '../nutrition/nutrients.ts'
 import { NotFound } from '../routes/routes'
 import { useUserData } from '../user/useUserData'
 import { CostPanel } from './CostPanel'
 import { recipeTitle } from './filter.ts'
 import { dietName, formatRecipeLine } from './format.ts'
+import { NutrientBadges } from './NutrientBadges'
 import { NutritionPanel } from './NutritionPanel'
 import { photoHeight, recipePhotoSrc, recipePhotoSrcSet } from './photo.ts'
 import { framePhotoPath } from './photoSlugs.ts'
@@ -167,6 +170,10 @@ function RecipeBody({ recipe, diets }: { recipe: Recipe; diets: Diet[] }) {
     () => computeNutrition(recipe, ingredientsBySlug),
     [recipe, ingredientsBySlug],
   )
+  const nutrients = useMemo(
+    () => computeNutrients(recipe, ingredientsBySlug),
+    [recipe, ingredientsBySlug],
+  )
   const cost = useMemo(() => computeCost(recipe, ingredientsBySlug), [recipe, ingredientsBySlug])
 
   return (
@@ -209,6 +216,7 @@ function RecipeBody({ recipe, diets }: { recipe: Recipe; diets: Diet[] }) {
 
       <div className="flex flex-col gap-6">
         <NutritionPanel result={nutrition} scope={scope} onScopeChange={setScope} />
+        <NutrientBadges result={nutrients} />
         <CostPanel result={cost} scope={scope} ingredientsBySlug={ingredientsBySlug} />
       </div>
 

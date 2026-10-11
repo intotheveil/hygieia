@@ -24,6 +24,12 @@ export function formatWhole(value: number, lang: Lang): string {
   )
 }
 
+/** At most one decimal in the language's format (`2.9` / `2,9`); micronutrient amounts. */
+export function formatOneDecimal(value: number, lang: Lang): string {
+  if (!Number.isFinite(value)) return String(value)
+  return new Intl.NumberFormat(LOCALES[lang], { maximumFractionDigits: 1 }).format(value)
+}
+
 /** EUR with two decimals in the language's currency format (`€2.10` / `2,10 €`). */
 export function formatEuro(value: number, lang: Lang): string {
   if (!Number.isFinite(value)) return String(value)

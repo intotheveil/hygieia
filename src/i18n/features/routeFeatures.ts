@@ -11,6 +11,7 @@
 // Same rules as ./index.ts: one owner per key; a key another page needs lives in ./shared.ts.
 
 import { adminEl, adminEn, type AdminDictionary } from './admin.ts'
+import { nutrientsEl, nutrientsEn, type NutrientsDictionary } from './nutrients.ts'
 import { prefsEl, prefsEn, type PrefsDictionary } from './prefs.ts'
 import { profileEl, profileEn, type ProfileDictionary } from './profile.ts'
 import { seasonEl, seasonEn, type SeasonDictionary } from './season.ts'
@@ -22,6 +23,7 @@ import { workoutPlansEl, workoutPlansEn, type WorkoutPlansDictionary } from './w
 export interface RouteFeatureDictionary
   extends
     AdminDictionary,
+    NutrientsDictionary,
     PrefsDictionary,
     ProfileDictionary,
     SeasonDictionary,
@@ -31,6 +33,7 @@ export interface RouteFeatureDictionary
 
 export const routeFeaturesEn: RouteFeatureDictionary = {
   ...adminEn,
+  ...nutrientsEn,
   ...prefsEn,
   ...profileEn,
   ...seasonEn,
@@ -41,6 +44,7 @@ export const routeFeaturesEn: RouteFeatureDictionary = {
 
 export const routeFeaturesEl: RouteFeatureDictionary = {
   ...adminEl,
+  ...nutrientsEl,
   ...prefsEl,
   ...profileEl,
   ...seasonEl,
