@@ -14,6 +14,9 @@
 // recipes with ≥ 2 in-season ingredients, most seasonal first (recipes/filter.ts). The produce
 // calendar is loaded after the first paint (content/seasonalLoader.ts); while `?season=now` waits
 // for it the list shows its skeleton instead of an unfiltered flash.
+// NUTRIENTS (2026-10-11): a "Good source of" chip group writes `?nutrient=iron,…` (the NUTRIENTS
+// contract, nutrition/nutrients.ts); combinable with every other criterion. The engine reads the
+// ingredients already resolved on the loaded recipes' lines — no extra fetch.
 
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -32,11 +35,14 @@ import {
   type Recipe,
   type Result,
 } from '../content/source.ts'
+import { indexBySlug } from '../fridge/match.ts'
+import { nutrientsCopy } from '../i18n/features/nutrients.ts'
 import { seasonCopy } from '../i18n/features/season.ts'
 import { useLang } from '../i18n/LangProvider'
 import { plural } from '../i18n/fill.ts'
 import { useAsync, useAsyncResult } from '../lib/useAsync.ts'
 import { applyPrefsToRecipeParams } from '../prefs/apply.ts'
+import { NUTRIENTS, type Nutrient } from '../nutrition/nutrients.ts'
 import { readPrefs } from '../prefs/prefs.ts'
 import { RecipeCard } from './RecipeCard.tsx'
 import { dietName } from './format.ts'
@@ -98,6 +104,7 @@ const SEARCH_ID = 'recipe-search'
 
 export function RecipesPage({ source = contentSource, month }: RecipesPageProps) {
   const { lang, t } = useLang(seasonCopy)
+  const { t: tn } = useLang(nutrientsCopy)
   const seasonal = useAsync(loadSeasonal)
   const currentMonth: Month = month ?? ((new Date().getMonth() + 1) as Month)
   const load = useCallback(() => loadCatalogue(source), [source])
@@ -118,6 +125,16 @@ export function RecipesPage({ source = contentSource, month }: RecipesPageProps)
 
   const dietsBySlug = useMemo(
     () => new Map((catalogue?.diets ?? []).map((diet) => [diet.slug, diet] as const)),
+    [catalogue],
+  )
+  // Every ingredient the loaded recipes resolve (a hidden one is null and counts as 0).
+  const ingredientsBySlug = useMemo(
+    () =>
+      indexBySlug(
+        (catalogue?.recipes ?? []).flatMap((recipe) =>
+          recipe.lines.flatMap((line) => (line.ingredient === null ? [] : [line.ingredient])),
+        ),
+      ),
     [catalogue],
   )
   const knownDietSlugs = useMemo(
@@ -143,11 +160,11 @@ export function RecipesPage({ source = contentSource, month }: RecipesPageProps)
   const results = useMemo(() => {
     if (!catalogue) return []
     const sorted = sortRecipes(
-      filterRecipes(catalogue.recipes, { ...params, lang, inSeasonSlugs }),
+      filterRecipes(catalogue.recipes, { ...params, lang, inSeasonSlugs, ingredientsBySlug }),
       lang,
     )
     return params.season === true && inSeasonSlugs ? boostInSeason(sorted, inSeasonSlugs) : sorted
-  }, [catalogue, params, lang, inSeasonSlugs])
+  }, [catalogue, params, lang, inSeasonSlugs, ingredientsBySlug])
 
   function commit(next: RecipeFilterParams, options: { replace: boolean }) {
     const out = serializeRecipeFilterParams(next)
@@ -176,6 +193,19 @@ export function RecipesPage({ source = contentSource, month }: RecipesPageProps)
       },
       { replace: false },
     )
+  const toggleNutrient = (nutrient: Nutrient) => {
+    const current = params.nutrients ?? []
+    commit(
+      {
+        ...params,
+        query: rawQuery,
+        nutrients: current.includes(nutrient)
+          ? current.filter((n) => n !== nutrient)
+          : [...current, nutrient],
+      },
+      { replace: false },
+    )
+  }
   const setQuery = (query: string) => commit({ ...params, query }, { replace: true })
   const clear = () => commit({ dietSlugs: [], mealTypes: [], query: '' }, { replace: false })
 
@@ -238,6 +268,23 @@ export function RecipesPage({ source = contentSource, month }: RecipesPageProps)
               </div>
             </fieldset>
 
+            <fieldset className="flex flex-col gap-2">
+              <legend className="mb-2 text-sm font-medium tracking-wide text-sage-700 uppercase">
+                {tn.filterByNutrient}
+              </legend>
+              <div className="flex flex-wrap gap-2">
+                {NUTRIENTS.map((nutrient) => (
+                  <Chip
+                    key={nutrient}
+                    pressed={params.nutrients?.includes(nutrient) ?? false}
+                    onClick={() => toggleNutrient(nutrient)}
+                  >
+                    {tn.nutrientNames[nutrient]}
+                  </Chip>
+                ))}
+              </div>
+            </fieldset>
+
             <div className="flex max-w-md flex-col gap-1.5">
               <label htmlFor={SEARCH_ID} className="text-sm font-medium text-olive-900">
                 {t.searchRecipes}
@@ -255,6 +302,9 @@ export function RecipesPage({ source = contentSource, month }: RecipesPageProps)
 
           {params.season === true && (
             <p className="max-w-2xl text-sm text-olive-700">{t.seasonFilterNote}</p>
+          )}
+          {(params.nutrients?.length ?? 0) > 0 && (
+            <p className="max-w-2xl text-sm text-olive-700">{tn.nutrientFilterNote}</p>
           )}
 
           <div className="flex flex-wrap items-center gap-4">
