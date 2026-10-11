@@ -6,7 +6,7 @@
 > marked **❓ needs human input**.
 
 **Last updated:** 2026-10-11 by the lead (Claude Code, Opus 5.5) — +120 recipes (overlays 0006 thin diets + 0007 breakfast/snacks/world) merged on `main`,
-QA VALIDATED + review PASS; photos for all 120 merged (overlay 0008, `0276d92`); LIVE APPLY of 000600/000700/000800 PENDING (operator permission).
+QA VALIDATED + review PASS; photos for all 120 merged (overlay 0008, `0276d92`); LIVE: 302 recipes / 341 ingredients approved in the DB, ledger 22/22.
 **Status:** LIVE in configured mode at https://intotheveil.github.io/hygieia/ — `main` `bf3660f` (CI run 37488871183 green + deployed; Tasks Advisor live). P1–P6 claimed;
 P7 skincare + nails QA VALIDATED + REVIEW PASS, content live and ALL approved; P8 profile (entries, goals, achievements, saved items) +
 workout plans (builder, session logger, PRs) deployed, P8 QA/REVIEW NOT YET RUN; P9 Tasks Advisor being built in `wt/d` (see §3).
@@ -144,7 +144,7 @@ pending|approved|rejected` stamped by `stamp_review()` BEFORE UPDATE · per-user
 
 ## 3. CURRENT STATE (what's true RIGHT NOW — the thing a resuming session reads)
 
-- **STATE 2026-10-11 — 120 NEW RECIPES (overlays 0006 + 0007), code on `main` `1073d4d`+, NOT YET LIVE IN THE DB:**
+- **STATE 2026-10-11 — 120 NEW RECIPES (overlays 0006 + 0007), code on `main` `1073d4d`+, LIVE (DB applied 2026-10-11):**
   - Served seed 182 → **302 recipes**, 324 → **341 ingredients**. 0006 `thin-diets` (60: carnivore, whole30, low-FODMAP, IF, paleo; +5 ingredients),
     0007 `breakfast-snacks-world` (60: ≥ 25 breakfast, ≥ 20 snack, ≥ 30 international; +12 ingredients). Combined per diet: carnivore 29,
     whole30 55, IF 49, low-fodmap 88, paleo 76, keto 86, atkins 77, high-protein 83; meals: breakfast 91, snack 82, lunch 209, dinner 173.
@@ -152,10 +152,11 @@ pending|approved|rejected` stamped by `stamp_review()` BEFORE UPDATE · per-user
     called by `thin-diets.test.ts` and `breakfast-snacks-world.test.ts`. Rules in DECISIONS 2026-10-11 and §7.
   - Gates: QA VALIDATED (e28f1c0; CI run 38136501078 on branch `content/recipes-0006-0007` green incl. e2e + Lighthouse), review REVISE → fixed
     (`bd771d3` Greek + keto, `1073d4d` unified rules) → re-review PASS. Tests 5913, db:gate 370, prove-red 34/34, seed:check 14.
-  - **Live apply PENDING:** migrations `20261007000600_hygieia_overlay_thin_diets.sql` + `…000700_…_breakfast_snacks_world.sql` (additions only,
-    rows land `pending` → approve the 120 recipes + 17 ingredients after apply). The auto-mode classifier BLOCKED the lead's MCP apply
-    ("Production Deploy"); needs the operator: a persistent allow rule for `mcp__plugin_supabase_supabase__execute_sql`, or `npm run db:apply -- --apply`.
-    Until applied, the live site (configured mode, reads the DB) shows 182 recipes.
+  - **Live apply DONE 2026-10-11:** the operator hand-applied 000600/000700/000800 SQL; the lead then inserted the 3 ledger rows (LF sha256) and
+    approved every pending recipe (120) + ingredient (17) via MCP execute_sql. Verified: anon REST `Content-Range 0-301/302`, pending `[]`,
+    gimbap image_path served + its 960.webp 200 on Pages. `smoke:live` 15/16: the `profiles` anon probe now gets 401 "permission denied"
+    (anon has NO grant on profiles; 20261006000200 revokes it) where it used to get 200 `[]` — stricter, not a leak, cause unknown (not these
+    migrations). Follow-up: decide whether smoke:live should accept 401 there or the grant drifted; `db:live-check` not run (needs a PAT).
   - **Photos DONE (overlay 0008 `0008-recipe-photos-2`, merged `0276d92`):** all 302 served recipes have a photo. Rendered on the operator's
     desktop ComfyUI (port 8000, RTX 3090 ONLY; the 4070 is the operator's gaming GPU) behind their own jobs. 99/120 first render, 21 retried;
     qwen2.5vl accepted 12 that the by-eye pass rejected (by-eye review is mandatory). Weak overrides: steak-roasted-bone-marrow (bones cross-cut,
@@ -402,6 +403,12 @@ table (14)` is right; P1.QA.2's `(13)` is the typo.
 - **`page.route('**/sw.js', r => r.abort())` does NOT block a service worker in Playwright/Chromium (2026-10-06, review fix 2).** The SW script is fetched outside page interception, so that sabotage stays GREEN and proves nothing. The only valid "no SW" sabotage is `test.use({ serviceWorkers: 'block' })` — then the offline spec fails at step 1 (no controller), as it should. Treat any earlier "blocked sw.js → test went red" claim with suspicion unless it says how.
 
 ## 6. CHANGELOG (append-only — what happened, newest first)
+
+### 2026-10-11 — overlays 0006–0008 LIVE in the DB (lead, Opus 5.5)
+
+- Did: operator hand-applied the three migrations; lead added ledger rows + approved 120 recipes / 17 ingredients; verified via anon REST (302)
+  and smoke:live (15/16, the profiles probe 401 is a stricter grant, logged in §3). Left off: smoke-probe expectation for profiles; optional
+  re-render of 3 weak photos; reviewer follow-ups (dietRules sweep, paleo forbidden list).
 
 ### 2026-10-11 — photos for the 120 (overlay 0008) merged (lead, Opus 5.5)
 
