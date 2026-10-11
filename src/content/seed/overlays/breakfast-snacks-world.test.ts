@@ -321,7 +321,11 @@ describe('overlay 0007-breakfast-snacks-world', () => {
       const n = perPortion(r.slug)
       const tags = r.diet_slugs
       if (tags.includes('low-carb')) expect(n.carbs, `${r.slug} low-carb`).toBeLessThanOrEqual(30)
-      if (tags.includes('keto')) expect(n.carbs, `${r.slug} keto`).toBeLessThanOrEqual(15)
+      if (tags.includes('keto')) {
+        expect(n.carbs, `${r.slug} keto`).toBeLessThanOrEqual(15)
+        // keto is fat-led, as in 0006: at least half the energy from fat (QA 2026-10-11: mizeria)
+        expect((n.fat * 9) / n.kcal, `${r.slug} keto fat share`).toBeGreaterThanOrEqual(0.5)
+      }
       if (tags.includes('atkins')) {
         expect(n.carbs, `${r.slug} atkins`).toBeLessThanOrEqual(15)
         expect(tags, `${r.slug} atkins needs keto`).toContain('keto')
