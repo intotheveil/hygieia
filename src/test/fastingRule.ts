@@ -28,6 +28,7 @@ export const FASTING_FORBIDDEN_SLUGS = [
   'pesto',
   'dark-chocolate',
   'pita',
+  'hazelnut-cocoa-spread', // carries milk powder (overlay 0009)
 ] as const
 
 /** True when an ingredient breaks the fast. */

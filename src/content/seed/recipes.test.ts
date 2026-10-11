@@ -67,7 +67,7 @@ const CARNIVORE_ALLOWED_SLUGS = ['water'] as const
  * pita, phyllo, trahana, hilopites, rusk, orzo, semolina, seitan, and `flour` unless it is a
  * naturally gluten-free flour. Explicit additions: the seed's `oats` (uncertified — the diet's own
  * avoided list), `tortilla` (a wheat tortilla), `soy-sauce` (the common kind contains wheat),
- * `koulouri`, `breadsticks`, `granola`, `beer`. Explicit exceptions: `buckwheat`, `lentil-pasta`
+ * `koulouri`, `breadsticks`, `granola`, `beer`. Explicit exceptions: `buckwheat`, `buckwheat-flour`, `lentil-pasta`
  * and `rice-noodles` carry a matching word but are gluten-free by nature.
  */
 const GLUTEN_NAME_RE =
@@ -84,6 +84,7 @@ const GLUTEN_EXTRA_SLUGS = [
 ] as const
 const GLUTEN_EXCEPTIONS = [
   'buckwheat',
+  'buckwheat-flour',
   'lentil-pasta',
   'rice-noodles',
   ...GLUTEN_FREE_FLOURS,
