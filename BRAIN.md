@@ -5,8 +5,8 @@
 > intent; rewritten 2026-10-06 to the P1–P6 state (P1/P2 review item 1). Genuine unknowns are
 > marked **❓ needs human input**.
 
-**Last updated:** 2026-10-06 (evening, session saved by the operator) by the lead (Claude Code, Opus 5.5) — live: skincare + nails (P7,
-approved), /profile (P8.1/P8.2), workout plans (P8.3), six themes incl. Rose + Lavender; Tasks Advisor (P9) IN FLIGHT, uncommitted in `wt/d`.
+**Last updated:** 2026-10-11 by the lead (Claude Code, Opus 5.5) — +120 recipes (overlays 0006 thin diets + 0007 breakfast/snacks/world) merged on `main`,
+QA VALIDATED + review PASS; LIVE APPLY PENDING (operator permission); photos for the 120 rendering (overlay 0008, photo lane).
 **Status:** LIVE in configured mode at https://intotheveil.github.io/hygieia/ — `main` `bf3660f` (CI run 37488871183 green + deployed; Tasks Advisor live). P1–P6 claimed;
 P7 skincare + nails QA VALIDATED + REVIEW PASS, content live and ALL approved; P8 profile (entries, goals, achievements, saved items) +
 workout plans (builder, session logger, PRs) deployed, P8 QA/REVIEW NOT YET RUN; P9 Tasks Advisor being built in `wt/d` (see §3).
@@ -144,6 +144,23 @@ pending|approved|rejected` stamped by `stamp_review()` BEFORE UPDATE · per-user
 
 ## 3. CURRENT STATE (what's true RIGHT NOW — the thing a resuming session reads)
 
+- **STATE 2026-10-11 — 120 NEW RECIPES (overlays 0006 + 0007), code on `main` `1073d4d`+, NOT YET LIVE IN THE DB:**
+  - Served seed 182 → **302 recipes**, 324 → **341 ingredients**. 0006 `thin-diets` (60: carnivore, whole30, low-FODMAP, IF, paleo; +5 ingredients),
+    0007 `breakfast-snacks-world` (60: ≥ 25 breakfast, ≥ 20 snack, ≥ 30 international; +12 ingredients). Combined per diet: carnivore 29,
+    whole30 55, IF 49, low-fodmap 88, paleo 76, keto 86, atkins 77, high-protein 83; meals: breakfast 91, snack 82, lunch 209, dinner 173.
+  - **One diet-tag rule set** for overlay additions from 0006 on: `src/test/dietRules.ts` `dietTagProblems()` (sound + complete for keto/low-carb),
+    called by `thin-diets.test.ts` and `breakfast-snacks-world.test.ts`. Rules in DECISIONS 2026-10-11 and §7.
+  - Gates: QA VALIDATED (e28f1c0; CI run 38136501078 on branch `content/recipes-0006-0007` green incl. e2e + Lighthouse), review REVISE → fixed
+    (`bd771d3` Greek + keto, `1073d4d` unified rules) → re-review PASS. Tests 5913, db:gate 370, prove-red 34/34, seed:check 14.
+  - **Live apply PENDING:** migrations `20261007000600_hygieia_overlay_thin_diets.sql` + `…000700_…_breakfast_snacks_world.sql` (additions only,
+    rows land `pending` → approve the 120 recipes + 17 ingredients after apply). The auto-mode classifier BLOCKED the lead's MCP apply
+    ("Production Deploy"); needs the operator: a persistent allow rule for `mcp__plugin_supabase_supabase__execute_sql`, or `npm run db:apply -- --apply`.
+    Until applied, the live site (configured mode, reads the DB) shows 182 recipes.
+  - **Photos (overlay 0008 `0008-recipe-photos-2`)**: photo lane rendering the 120 through the operator's desktop ComfyUI (port 8000, RTX 3090
+    ONLY — the 4070 is the operator's gaming GPU), queued behind the operator's own jobs; RealVisXL copied to `F:ComfyModelscheckpoints`.
+  - Reviewer non-blocking follow-ups: a sweep binding `dietTagProblems` to EVERY overlay ≥ 0006 (today only the two focused tests call it);
+    `PALEO_FORBIDDEN_SLUGS` should add jam, halva, dark-chocolate, erythritol; banana quantity is not encoded in the low-FODMAP rule.
+
 - **STATE 2026-10-07 (`9869206`, CI run 37538432363 green + deployed):** overlays 0001–0004 live in code AND DB (ledger 18/18); overlays load per
   table (`src/content/seed/overlays/by-table/`, rolldown chunks whole modules — data must live in separate modules); RecipePage paints
   back link + ribbon in the first frame. CI cold: recipes 92, recipe 92, all 17 routes OK. Tests 4436 / 112 files, e2e 108. Tests assert
@@ -226,6 +243,17 @@ F2 fleet telemetry client (P6.1; the live half is OP6) · the `offline.spec.ts` 
 explicit `clientsClaim`, green since).
 
 ## 5. GOTCHAS (hard-won "don't do X, it breaks Y" — the knowledge that dies in old chats)
+
+- **Local e2e is meaningless while the operator games/renders (2026-10-11):** with AION2 + Blender running, 95/109 specs failed on `page.goto`
+  "load" timeouts while `pages-server` answered in ~10 ms. Don't debug the app — dispatch CI on a branch instead
+  (`git push origin HEAD:refs/heads/<branch>` + `gh workflow run deploy.yml --ref <branch>`; the deploy job only runs on `main`).
+- **Piping `npm run e2e | tail` hides the verdict and the exit code** (you get tail's 0). Redirect to a file and grep for `failed|passed`.
+- **This machine has TWO GPUs: the RTX 3090 is for ComfyUI only, the 4070 SUPER is the operator's (gaming).** The desktop ComfyUI (Electron,
+  port 8000, `C:UsersMasterDocumentsComfyUI` + `F:ComfyModels`) runs the operator's WAN video jobs — queue behind them, never `/free`,
+  `/interrupt` or restart it. A model copied into a scanned folder appears only after the FOLDER's mtime changes (`Copy-Item` does not bump it):
+  `(Get-Item <dir>).LastWriteTime = Get-Date`, then `/models/checkpoints` lists it — no restart needed.
+- **Live DB writes from the lead are blocked by the auto-mode classifier** ("Production Deploy") even after the operator says "free to deploy";
+  the MCP `execute_sql` needs a PERSISTENT allow rule in the operator's settings (as in OP4.b). Ask for it up front, don't work around it.
 
 - **`spaFallback` and `vite-plugin-pwa` both write into `dist/` at `writeBundle`.** Keep the plugin order
   react → tailwind → spaFallback → VitePWA and check `dist/404.html` still equals `index.html` after a
@@ -370,6 +398,16 @@ table (14)` is right; P1.QA.2's `(13)` is the typo.
 - **`page.route('**/sw.js', r => r.abort())` does NOT block a service worker in Playwright/Chromium (2026-10-06, review fix 2).** The SW script is fetched outside page interception, so that sabotage stays GREEN and proves nothing. The only valid "no SW" sabotage is `test.use({ serviceWorkers: 'block' })` — then the offline spec fails at step 1 (no controller), as it should. Treat any earlier "blocked sw.js → test went red" claim with suspicion unless it says how.
 
 ## 6. CHANGELOG (append-only — what happened, newest first)
+
+### 2026-10-11 — +120 recipes: overlays 0006 thin diets + 0007 breakfast/snacks/world (lead, Opus 5.5)
+
+- Did: operator asked for "many more recipes" → 120 (operator's pick), thin diets + breakfast/snack + world dishes, with photos. Two builder
+  lanes in worktrees (0006, 0007) → merged (`5032f2a`, `e28f1c0`) → QA VALIDATED (CI on a branch, local e2e starved by the operator's game)
+  → lead fix `bd771d3` (Greek: «το κύμινο» ×16, βρεγμένη επιφάνεια, μισές γαρίδες; keto fat-led) → review REVISE (two overlays had two
+  rule sets: 19 + 9 cross-failures) → `1073d4d` one shared `src/test/dietRules.ts`, 20 retags → re-review PASS. Photo lane started (0008).
+- Decided: unified overlay diet-tag rules (§7). Recipes deploy without waiting for photos; photos ship as overlay 0008.
+- Left off: **live apply of 000600 + 000700 blocked** (classifier) → operator permission or `db:apply`; then approve the 120 recipes + 17
+  ingredients by SQL, `db:live-check`/`smoke:live`; photo lane → review its contact sheet → merge 0008 → apply 000800 → deploy.
 
 ### 2026-10-06 — FIX: fridge-list rename via UPDATE … WHERE id (lane `wt/a`)
 
@@ -533,6 +571,10 @@ table (14)` is right; P1.QA.2's `(13)` is the typo.
 - Left off: deployed and verified; operator answers the spec questions (Q1, Q2) next.
 
 ## 7. DECISIONS (dated ADR-lite — the "why", so it's never re-litigated; full text in `DECISIONS.md`, one line each here)
+
+- **2026-10-11:** overlay additions from 0006 on obey ONE rule set (`src/test/dietRules.ts`): keto ≤ 15 g carbs + ≥ 50 % fat energy (complete);
+  atkins ⊂ keto; low-carb ≤ 30 g (complete); high-protein ≥ 25 g + ≥ 25 % energy; IF = meal, ≥ 400 kcal, ≥ 25 g protein; carnivore animal-only;
+  paleo allows ghee, forbids seed oils incl. sesame; one low-FODMAP list, spring onion «green part only». Base + 0003 not retagged. Fix data, never the rule.
 
 - **2026-10-05 ADR-0001:** public repo + GitHub Pages; "no Supabase" clause superseded by ADR-0003, hosting part stands.
 - **2026-10-05 ADR-0002:** bilingual by type — one `Dictionary`, two literals; a missing translation is a compile error.
