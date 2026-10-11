@@ -5,8 +5,8 @@
 > intent; rewritten 2026-10-06 to the P1–P6 state (P1/P2 review item 1). Genuine unknowns are
 > marked **❓ needs human input**.
 
-**Last updated:** 2026-10-11 (night) by the lead (Claude Code, Opus 5.5) — skincare overlay 0011 LIVE (79 product types, 48 routines,
-111 tips approved), 314 recipes, 344 ingredients, ledger 25/25; smoke:live 16/16; women-audience research report written.
+**Last updated:** 2026-10-12 by the lead (Claude Code, Opus 5.5) — women features LIVE: `/women` hub, recipe nutrient filters
+(`?nutrient=`), workout tracks + women's strength track (0013), aad link fix (0012); ledger 28/28, 150 exercises, 69 templates.
 **Status:** LIVE in configured mode at https://intotheveil.github.io/hygieia/ — `main` `bf3660f` (CI run 37488871183 green + deployed; Tasks Advisor live). P1–P6 claimed;
 P7 skincare + nails QA VALIDATED + REVIEW PASS, content live and ALL approved; P8 profile (entries, goals, achievements, saved items) +
 workout plans (builder, session logger, PRs) deployed, P8 QA/REVIEW NOT YET RUN; P9 Tasks Advisor being built in `wt/d` (see §3).
@@ -144,6 +144,13 @@ pending|approved|rejected` stamped by `stamp_review()` BEFORE UPDATE · per-user
 
 ## 3. CURRENT STATE (what's true RIGHT NOW — the thing a resuming session reads)
 
+- **STATE 2026-10-12 — WOMEN FEATURES LIVE:** (1) `/women` hub (`src/women/`, route feature `womenCopy`, nav `nav.women`): strength,
+  menopause (+ see-a-doctor box), nutrition, cycle-education sections, every card sourced; Codex wording review applied (`ba3b436`).
+  (2) Nutrient layer `src/nutrition/nutrients.ts`: USDA FDC SR Legacy per-100 g table (90 ingredients, FDC ids), EU NRV iron 14 mg /
+  calcium 800 mg / vit D 5 µg / folate 200 µg, "source" ≥15 % and "high" ≥30 % PER PORTION (informational, not regulated claims);
+  `/recipes?nutrient=iron|calcium|vitamin-d|folate`, badges on the recipe page. (3) `workout_templates.track` (`general|women-strength`,
+  migration 20261007001250), cell key now `unique (track, workout_type, level, intensity)`; overlay 0013 = 14 exercises + 6 templates
+  (`women-strength-*`); `/workouts?track=women-strength`, plan builder honours `?track=`. (4) overlay 0012 replaced 3 dead aad.org sources.
 - **STATE 2026-10-11 (night) — SKINCARE 0011 LIVE:** `main` `df7a1eb`+. Overlay 0011 `skincare-more` (+27 product types, +20 routines,
   +46 sourced tips; no schema change) applied by the operator, lead added ledger row 20261007001100 (checksum 5f76cc64…beae) and approved all 93.
   Anon REST: 79 / 48 / 111. Crêpe chicken + apple photos re-rendered via Codex (`33563a4`). Research report `docs/research/women-audience-content.md`
@@ -260,6 +267,12 @@ F2 fleet telemetry client (P6.1; the live half is OP6) · the `offline.spec.ts` 
 explicit `clientsClaim`, green since).
 
 ## 5. GOTCHAS (hard-won "don't do X, it breaks Y" — the knowledge that dies in old chats)
+
+- **`workout_templates` cells are saturated (2026-10-12).** The base seed fills all 63 (type × level × intensity) cells; new templates need a
+  new `track` value (enum in `src/content/enums.ts` WORKOUT_TRACKS + check constraint migration), never a new row in a `general` cell. Code
+  that reads a single template (`getWorkoutTemplate`, `templateFor`, `templateIdForCell`) filters by track — a schema migration that code
+  depends on must be applied live BEFORE the push (the configured build reads live). Hand applies must run files in timestamp order.
+- **A new route must be added to the pinned list in `scripts/check-lighthouse.test.ts`** as well as `routes.tsx` + `e2e/support/routes.ts`.
 
 - **Codex with write/network access cannot be launched by the lead (2026-10-11).** The auto-mode classifier blocks `codex exec` with
   `workspace-write` + network ("Create Unsafe Agents"). Do not work around it: hand the operator the exact command to run with `!`, always with
@@ -424,6 +437,15 @@ table (14)` is right; P1.QA.2's `(13)` is the typo.
 - **`page.route('**/sw.js', r => r.abort())` does NOT block a service worker in Playwright/Chromium (2026-10-06, review fix 2).** The SW script is fetched outside page interception, so that sabotage stays GREEN and proves nothing. The only valid "no SW" sabotage is `test.use({ serviceWorkers: 'block' })` — then the offline spec fails at step 1 (no controller), as it should. Treat any earlier "blocked sw.js → test went red" claim with suspicion unless it says how.
 
 ## 6. CHANGELOG (append-only — what happened, newest first)
+
+### 2026-10-12 — women features: hub, nutrient filters, strength track (lead, Opus 5.5)
+
+- Did: 3 parallel builder lanes in manual worktrees (`feat/{nutrients,women-hub,women-strength}`). Nutrients merged `949eb69`, hub `4cafd71`
+  (+ `/women` pinned in check-lighthouse route test — CI caught it), strength + aad fix merged after the operator applied 001200/001250/001300
+  (first attempt ran 001300 before 001250 → 42703, rolled back cleanly). Lead added ledger rows (28/28), approved 14 exercises + 6 templates.
+  Decided: a `track` column instead of more cells — the 63 (type × level × intensity) cells were saturated by the base seed.
+  Left off: optional bone-marrow img2img; optional editor pass on two skincare tip texts (patch test "behind the ear" vs AAD "inner arm";
+  "sunscreen before UV lamp" not on the AAD page); Greek Trends check for women topics (research report §6).
 
 ### 2026-10-11 (night) — skincare 0011, women-audience research, Codex photo redo (lead, Opus 5.5)
 
