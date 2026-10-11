@@ -24,7 +24,7 @@
 //                                    200 + JSON array; ≥ 1 row → PASS "approved rows: N"; 0 rows → WARN
 //                                    (approval is the operator's step, OP4.b — not a defect of the deploy)
 //    10. GET /rest/v1/recipes?select=id&status=eq.pending             200 [] (db-live-check's REST_PROBES)
-//    11. GET /rest/v1/profiles?select=user_id                          200 []
+//    11. GET /rest/v1/profiles?select=user_id                          200 [] or 401 42501 (no anon grant)
 //
 // Every probe prints one `PASS`/`WARN`/`FAIL` line; all probes run (nothing short-circuits) and the
 // summary names the FIRST failure: `SMOKE PASSED — N probes against <base> (<ms> ms)` exit 0, or
@@ -415,8 +415,8 @@ export async function runSmoke(opts = {}) {
     )
     for (const p of REST_PROBES) {
       const label = `anon GET ${p.path} (${PROFILE_HEADER}: ${SCHEMA})`
-      const mismatch = await restProbe({ url: supabaseUrl, anonKey, fetch: fetchImpl }, p)
-      if (mismatch === '') pass(label, '200 []')
+      const { mismatch, seen } = await restProbe({ url: supabaseUrl, anonKey, fetch: fetchImpl }, p)
+      if (mismatch === '') pass(label, seen)
       else fail(label, mismatch)
     }
   }

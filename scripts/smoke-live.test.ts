@@ -687,6 +687,20 @@ describe('the backend probes (anon through PostgREST)', () => {
     expect(r.fails[0]).toMatch(/anon can see profile row\(s\) live/)
   })
 
+  it('profiles with no anon grant (401 42501) → PASS naming the denial', async () => {
+    const denied: Answer = {
+      status: 401,
+      type: 'application/json',
+      body: JSON.stringify({ code: '42501', message: 'permission denied for table profiles' }),
+    }
+    const r = await runIt({ env: BACKEND_ENV, fake: fakeFetch({ rest: { profiles: denied } }) })
+    expect(r.code).toBe(0)
+    expect(r.fails).toEqual([])
+    expect(r.out).toContain(
+      `PASS  anon GET ${REST_PROBES[1].path} (Accept-Profile: hygieia) → 401 permission denied (42501)`,
+    )
+  })
+
   it('a schema-not-exposed answer on the approved probe is classified like db:live-check', async () => {
     const pgrst106: Answer = {
       status: 406,

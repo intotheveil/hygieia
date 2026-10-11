@@ -191,6 +191,30 @@ describe('the happy path', () => {
     expect(r.out.filter((l) => l.startsWith('PASS'))).toHaveLength(3)
   })
 
+  it('profiles with no anon grant (401 42501) passes; the same answer on the recipes probe fails', async () => {
+    const denied: Answer = {
+      status: 401,
+      body: { code: '42501', message: 'permission denied for table profiles' },
+    }
+    const live = (rest: Partial<Record<(typeof REST_PROBES)[number]['id'], Answer>>) =>
+      fakeLive({ ledger: rowsOf(ARCHIVE), rest })
+    const r = await runIt({ live: live({ profiles: denied }) })
+    expect(r.code).toBe(0)
+    expect(r.out).toContain(
+      `PASS  anon GET ${REST_PROBES[1].path} (${PROFILE_HEADER}: hygieia) → 401 permission denied (42501)`,
+    )
+    const onRecipes = await runIt({ live: live({ recipes: denied }) })
+    expect(onRecipes.code).toBe(1)
+    expect(onRecipes.err.at(-1)).toMatch(
+      /^LIVE-CHECK FAILED — recipes: HTTP 401: permission denied/,
+    )
+    // a 401 that is not 42501 (bad key) is still a failure on profiles
+    const badKey = await runIt({
+      live: live({ profiles: { status: 401, body: { message: 'Invalid API key' } } }),
+    })
+    expect(badKey.code).toBe(1)
+  })
+
   it('is read-only: every Management API query is a SELECT, nothing else is sent', async () => {
     const r = await runIt({})
     const mgmt = r.live.mgmt()

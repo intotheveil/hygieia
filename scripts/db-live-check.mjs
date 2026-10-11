@@ -54,11 +54,15 @@ export const REST_PROBES = /** @type {const} */ ([
     id: 'recipes',
     path: '/rest/v1/recipes?select=id&status=eq.pending',
     leak: 'anon can see pending recipe row(s) live — the select policy must hide status <> approved',
+    deniedOk: false,
   },
   {
     id: 'profiles',
     path: '/rest/v1/profiles?select=user_id',
     leak: 'anon can see profile row(s) live — profiles must be invisible to anon',
+    // 20261006000200 revokes every anon privilege on profiles, so PostgREST may answer 401 `42501`
+    // permission denied before RLS runs: as invisible as `200 []`, and stricter.
+    deniedOk: true,
   },
 ])
 
@@ -165,10 +169,21 @@ export function classifyRestAnswer(status, parsed, table, leak) {
 }
 
 /**
- * One anon GET against PostgREST. Returns '' on `200 []`, else the mismatch text.
+ * PostgREST's answer when the role holds no privilege on the table: 401 (anon) or 403, code 42501.
+ * @param {number} status
+ * @param {{ code: string | null }} parsed
+ * @returns {boolean}
+ */
+export function isPermissionDenied(status, parsed) {
+  return (status === 401 || status === 403) && parsed.code === '42501'
+}
+
+/**
+ * One anon GET against PostgREST. `mismatch` is '' on `200 []` (or, for a `deniedOk` probe, a 42501
+ * permission denied), else the mismatch text; `seen` names the passing answer.
  * @param {{ url: string, anonKey: string, fetch: typeof fetch }} rest
  * @param {(typeof REST_PROBES)[number]} probe
- * @returns {Promise<string>}
+ * @returns {Promise<{ mismatch: string, seen: string }>}
  */
 export async function restProbe(rest, probe) {
   /** @type {Response} */
@@ -184,9 +199,16 @@ export async function restProbe(rest, probe) {
       },
     })
   } catch (e) {
-    return `network error calling PostgREST: ${e instanceof Error ? e.message : String(e)}`
+    return {
+      mismatch: `network error calling PostgREST: ${e instanceof Error ? e.message : String(e)}`,
+      seen: '',
+    }
   }
-  return classifyRestAnswer(res.status, parseRestBody(await res.text()), probe.id, probe.leak)
+  const parsed = parseRestBody(await res.text())
+  if (probe.deniedOk && isPermissionDenied(res.status, parsed)) {
+    return { mismatch: '', seen: `${res.status} permission denied (42501)` }
+  }
+  return { mismatch: classifyRestAnswer(res.status, parsed, probe.id, probe.leak), seen: '200 []' }
 }
 
 /**
@@ -268,9 +290,9 @@ export async function runLiveCheck(opts = {}) {
   // 2 + 3. anon through PostgREST
   for (const probe of REST_PROBES) {
     const label = `anon GET ${probe.path} (${PROFILE_HEADER}: ${SCHEMA})`
-    const mismatch = await restProbe({ url, anonKey, fetch: fetchImpl }, probe)
+    const { mismatch, seen } = await restProbe({ url, anonKey, fetch: fetchImpl }, probe)
     if (mismatch === '') {
-      log(`PASS  ${label} → 200 []`)
+      log(`PASS  ${label} → ${seen}`)
     } else {
       log(`FAIL  ${label}: ${mismatch}`)
       failures.push(`${probe.id}: ${mismatch}`)
