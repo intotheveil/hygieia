@@ -27,6 +27,8 @@ export const HIGH_PROTEIN_MIN_SHARE = 0.25
 export const IF_MIN_KCAL = 400
 export const IF_MIN_PROTEIN_G = 25
 
+/** Monash: a ripe banana is low-FODMAP up to about a third of a medium one (35 g) per serving. */
+export const LOW_FODMAP_MAX_BANANA_G = 35
 /** The one wording of a low-FODMAP spring onion line (Monash: the green part only). */
 export const SPRING_ONION_NOTE_EN = 'green part only'
 export const SPRING_ONION_NOTE_EL = 'μόνο το πράσινο μέρος'
@@ -75,6 +77,10 @@ const PALEO_FORBIDDEN_SLUGS = [
   'chickpea-flour',
   'sugar',
   'brown-sugar',
+  'jam', // refined sugar
+  'halva', // refined sugar
+  'dark-chocolate', // refined sugar
+  'erythritol', // a processed sugar alcohol, not a whole food
   'baking-powder',
   'mayonnaise',
   'stock-cube',
@@ -293,6 +299,16 @@ export function dietTagProblems(
         (l.note_en !== SPRING_ONION_NOTE_EN || l.note_el !== SPRING_ONION_NOTE_EL)
       ) {
         bad('low-fodmap', `spring onion note "${l.note_en ?? ''}" / "${l.note_el ?? ''}"`)
+      }
+      if (l.ingredient_slug === 'banana') {
+        const row = ingredients.get('banana')
+        const grams =
+          l.unit === 'g'
+            ? l.quantity
+            : l.quantity * (row?.grams_per_unit ?? Number.POSITIVE_INFINITY)
+        if (grams / recipe.portions > LOW_FODMAP_MAX_BANANA_G) {
+          bad('low-fodmap', `banana ${Math.round(grams / recipe.portions)} g per portion`)
+        }
       }
     }
   }
