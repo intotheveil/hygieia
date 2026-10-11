@@ -12,6 +12,7 @@ import { SKINCARE_TIPS as P0001 } from '../0001-fix-typos/skincare_tips.ts'
 import { SKINCARE_TIPS as P0002 } from '../0002-tip-sources/skincare_tips.ts'
 import { SKINCARE_TIPS as A0011 } from '../0011-skincare-more/skincare_tips.ts'
 import { OVERLAY as O0012 } from '../0012-fix-aad-links.ts'
+import { OVERLAY as O0014 } from '../0014-tip-wording.ts'
 import { sliceOverlays } from '../apply.ts'
 import { SEED_OVERLAY_TABLES, type OverlaySlice } from '../types.ts'
 
@@ -21,6 +22,6 @@ export const OVERLAYS: readonly OverlaySlice[] = [
   { id: '0001-fix-typos', patches: { skincare_tips: P0001 } },
   { id: '0002-tip-sources', patches: { skincare_tips: P0002 } },
   { id: '0011-skincare-more', additions: { skincare_tips: A0011 } },
-  // 0012 touches skincare_tips only (sources), so it is imported whole.
-  ...sliceOverlays([O0012], SEED_OVERLAY_TABLES.skincare_tips),
+  // 0012 (sources) and 0014 (wording) touch skincare_tips only, so they are imported whole.
+  ...sliceOverlays([O0012, O0014], SEED_OVERLAY_TABLES.skincare_tips),
 ]
