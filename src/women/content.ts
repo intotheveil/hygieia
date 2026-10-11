@@ -104,8 +104,8 @@ const strength: WomenSection = {
       id: 'strength-bones',
       title: { en: 'Stronger bones', el: 'Πιο γερά οστά' },
       body: {
-        en: 'Bones respond to load. Muscle-strengthening work — weights, bands, even rising onto your toes — helps keep them strong, and a 2023 network meta-analysis found moderate-intensity resistance training three days a week the best option for bone density after menopause.',
-        el: 'Τα οστά ανταποκρίνονται στο φορτίο. Οι ασκήσεις ενδυνάμωσης — βάρη, λάστιχα, ακόμη και το να ανεβαίνεις στις μύτες των ποδιών — τα βοηθούν να μένουν γερά. Μια μετα-ανάλυση δικτύου του 2023 βρήκε ότι η προπόνηση αντίστασης μέτριας έντασης τρεις φορές την εβδομάδα είναι η καλύτερη επιλογή για την οστική πυκνότητα μετά την εμμηνόπαυση.',
+        en: 'Bones respond to load. Muscle-strengthening work — weights, bands, even rising onto your toes — helps keep them strong, and a 2023 network meta-analysis found moderate-intensity resistance training three days a week came out best for bone density after menopause in the studies it compared.',
+        el: 'Τα οστά ανταποκρίνονται στο φορτίο. Οι ασκήσεις ενδυνάμωσης — βάρη, λάστιχα, ακόμη και το να ανεβαίνεις στις μύτες των ποδιών — τα βοηθούν να μένουν γερά. Μια μετα-ανάλυση δικτύου του 2023 βρήκε ότι η προπόνηση αντίστασης μέτριας έντασης τρεις φορές την εβδομάδα είχε τα καλύτερα αποτελέσματα στην οστική πυκνότητα μετά την εμμηνόπαυση, ανάμεσα στα προγράμματα που σύγκρινε.',
       },
       sources: [SRC.iofExercise, SRC.rtBonePostmenopause],
     },
@@ -209,7 +209,7 @@ const menopause: WomenSection = {
       title: { en: 'Strength, balance and bones', el: 'Δύναμη, ισορροπία και οστά' },
       body: {
         en: 'Bone density can drop around menopause. Weight-bearing activity (walking, dancing) plus resistance training builds strength, and balance work such as tai chi or yoga lowers the risk of falls. The European Menopause and Andropause Society advises exercise to maximise bone strength.',
-        el: 'Η οστική πυκνότητα μπορεί να μειωθεί γύρω από την εμμηνόπαυση. Η δραστηριότητα με το βάρος του σώματος (περπάτημα, χορός) μαζί με προπόνηση αντίστασης χτίζει δύναμη, και οι ασκήσεις ισορροπίας, όπως τάι τσι ή γιόγκα, μειώνουν τον κίνδυνο πτώσεων. Η Ευρωπαϊκή Εταιρεία Εμμηνόπαυσης και Ανδρόπαυσης συστήνει άσκηση για όσο το δυνατόν πιο γερά οστά.',
+        el: 'Η οστική πυκνότητα μπορεί να μειωθεί γύρω από την εμμηνόπαυση. Οι δραστηριότητες που φορτίζουν τα οστά (περπάτημα, χορός) μαζί με προπόνηση αντίστασης χτίζει δύναμη, και οι ασκήσεις ισορροπίας, όπως τάι τσι ή γιόγκα, μειώνουν τον κίνδυνο πτώσεων. Η Ευρωπαϊκή Εταιρεία Εμμηνόπαυσης και Ανδρόπαυσης συστήνει άσκηση για όσο το δυνατόν πιο γερά οστά.',
       },
       sources: [
         SRC.emasExercise,
@@ -232,7 +232,7 @@ const menopause: WomenSection = {
       title: { en: 'Living with hot flushes', el: 'Ζώντας με τις εξάψεις' },
       body: {
         en: 'Wear light layers you can take off, keep a fan or a cool bedroom, and notice your own triggers — alcohol, caffeine, spicy or hot food are common ones. The evidence for these habits is limited, but they are low-risk and many women find them useful.',
-        el: 'Φόρα ελαφριά ρούχα σε στρώσεις που βγαίνουν εύκολα, έχε έναν ανεμιστήρα ή δροσερό υπνοδωμάτιο και πρόσεξε τι σου προκαλεί εξάψεις — συχνά είναι το αλκοόλ, ο καφές, το πικάντικο ή το καυτό φαγητό. Τα στοιχεία για αυτές τις συνήθειες είναι περιορισμένα, όμως δεν έχουν ρίσκο και πολλές γυναίκες τις βρίσκουν χρήσιμες.',
+        el: 'Φόρα ελαφριά ρούχα σε στρώσεις που βγαίνουν εύκολα, έχε έναν ανεμιστήρα ή δροσερό υπνοδωμάτιο και πρόσεξε τι σου προκαλεί εξάψεις — συχνά είναι το αλκοόλ, ο καφές, το πικάντικο ή το καυτό φαγητό. Τα στοιχεία για αυτές τις συνήθειες είναι περιορισμένα, όμως είναι γενικά χαμηλού κινδύνου και πολλές γυναίκες τις βρίσκουν χρήσιμες.',
       },
       sources: [SRC.menopauseSocietyHotFlashes, SRC.nhsMenopauseSelfHelp],
     },
@@ -292,8 +292,8 @@ const nutrition: WomenSection = {
       id: 'nutrition-vitamin-d',
       title: { en: 'Vitamin D', el: 'Βιταμίνη D' },
       body: {
-        en: 'Vitamin D helps your body manage calcium and phosphate for healthy bones, teeth and muscles. Your skin makes it in sunlight; food sources include oily fish (salmon, sardines, mackerel), egg yolks and fortified foods. Low levels are common even in Greece, so ask your doctor whether you should be tested.',
-        el: 'Η βιταμίνη D βοηθά το σώμα να διαχειρίζεται το ασβέστιο και τον φώσφορο για γερά οστά, δόντια και μυς. Το δέρμα τη φτιάχνει με τον ήλιο· από τις τροφές θα τη βρεις στα λιπαρά ψάρια (σολομός, σαρδέλες, σκουμπρί), στον κρόκο του αυγού και σε εμπλουτισμένα τρόφιμα. Τα χαμηλά επίπεδα είναι συχνά ακόμη και στην Ελλάδα, γι’ αυτό ρώτα τον γιατρό σου αν χρειάζεται να κάνεις εξέταση.',
+        en: 'Vitamin D helps your body manage calcium and phosphate for healthy bones, teeth and muscles. Your skin makes it in sunlight; food sources include oily fish (salmon, sardines, mackerel), egg yolks and fortified foods. Even in sunny Greece, a study of postmenopausal women in Athens found low levels common, so ask your doctor whether testing makes sense for you.',
+        el: 'Η βιταμίνη D βοηθά το σώμα να διαχειρίζεται το ασβέστιο και τον φώσφορο για γερά οστά, δόντια και μυς. Το δέρμα τη φτιάχνει με τον ήλιο· από τις τροφές θα τη βρεις στα λιπαρά ψάρια (σολομός, σαρδέλες, σκουμπρί), στον κρόκο του αυγού και σε εμπλουτισμένα τρόφιμα. Ακόμη και στην ηλιόλουστη Ελλάδα, μια μελέτη σε γυναίκες μετά την εμμηνόπαυση στην Αθήνα βρήκε συχνά χαμηλά επίπεδα, γι’ αυτό ρώτα τον γιατρό σου αν έχει νόημα να κάνεις εξέταση.',
       },
       sources: [SRC.nhsVitaminD, SRC.athensVitaminD],
       nutrient: { slug: 'vitamin-d', name: { en: 'vitamin D', el: 'βιταμίνη D' } },
@@ -335,8 +335,8 @@ const cycle: WomenSection = {
       id: 'cycle-evidence',
       title: { en: 'The evidence is weak', el: 'Τα στοιχεία είναι αδύναμα' },
       body: {
-        en: 'A 2023 umbrella review found the studies inconsistent and mostly low quality, and concluded it is premature to say that hormone changes across the cycle meaningfully affect strength or how you adapt to training. Phase-based programmes are not evidence-based.',
-        el: 'Μια ανασκόπηση ανασκοπήσεων του 2023 βρήκε τις μελέτες ασυνεπείς και κυρίως χαμηλής ποιότητας, και κατέληξε ότι είναι πρόωρο να πούμε πως οι ορμονικές αλλαγές μέσα στον κύκλο επηρεάζουν ουσιαστικά τη δύναμη ή την προσαρμογή στην προπόνηση. Τα προγράμματα ανά φάση του κύκλου δεν στηρίζονται σε επιστημονικά στοιχεία.',
+        en: 'A 2023 umbrella review found the studies inconsistent and mostly low quality, and concluded it is premature to say that hormone changes across the cycle meaningfully affect strength or how you adapt to training. Phase-based programmes are not currently supported by strong evidence.',
+        el: 'Μια ανασκόπηση ανασκοπήσεων του 2023 βρήκε τις μελέτες ασυνεπείς και κυρίως χαμηλής ποιότητας, και κατέληξε ότι είναι πρόωρο να πούμε πως οι ορμονικές αλλαγές μέσα στον κύκλο επηρεάζουν ουσιαστικά τη δύναμη ή την προσαρμογή στην προπόνηση. Τα προγράμματα ανά φάση του κύκλου δεν υποστηρίζονται προς το παρόν από ισχυρά επιστημονικά στοιχεία.',
       },
       sources: [SRC.cycleUmbrella2023],
     },
@@ -354,16 +354,19 @@ const cycle: WomenSection = {
       title: { en: 'Listen to your body', el: 'Άκου το σώμα σου' },
       body: {
         en: 'On a day with cramps, fatigue or poor sleep, it is fine to go lighter, do fewer sets or swap in walking, swimming, cycling or yoga — gentle exercise may even ease period pain. On a good day, train as planned.',
-        el: 'Μια μέρα με πόνους περιόδου, κούραση ή κακό ύπνο, δεν πειράζει να κάνεις κάτι πιο ελαφρύ, λιγότερα σετ ή να το αλλάξεις με περπάτημα, κολύμπι, ποδήλατο ή γιόγκα — η ήπια άσκηση μπορεί μάλιστα να ανακουφίσει τον πόνο της περιόδου. Μια καλή μέρα, προπονήσου κανονικά.',
+        el: 'Τις μέρες που έχεις πόνους περιόδου, κούραση ή κακό ύπνο, δεν πειράζει να κάνεις κάτι πιο ελαφρύ, λιγότερα σετ ή να το αλλάξεις με περπάτημα, κολύμπι, ποδήλατο ή γιόγκα — η ήπια άσκηση μπορεί μάλιστα να ανακουφίσει τον πόνο της περιόδου. Τις καλές μέρες, προπονήσου κανονικά.',
       },
       sources: [SRC.nhsPeriodPain, SRC.cycleUmbrella2023],
     },
     {
       id: 'cycle-no-plan',
-      title: { en: 'No need to plan around phases', el: 'Δεν χρειάζεται να οργανώνεις τις φάσεις' },
+      title: {
+        en: 'No need to plan around phases',
+        el: 'Δεν χρειάζεται να προγραμματίζεις με βάση τις φάσεις',
+      },
       body: {
         en: 'Keep a steady programme and adjust on the day. Sleep, food, stress and motivation matter at least as much as your cycle. If you notice a pattern in how you feel, use it — you do not need an app or a tracker for that.',
-        el: 'Κράτα ένα σταθερό πρόγραμμα και προσάρμοσέ το τη μέρα που χρειάζεται. Ο ύπνος, το φαγητό, το άγχος και η διάθεση μετράνε τουλάχιστον όσο ο κύκλος σου. Αν προσέξεις ένα μοτίβο στο πώς νιώθεις, αξιοποίησέ το — δεν χρειάζεσαι εφαρμογή παρακολούθησης γι’ αυτό.',
+        el: 'Κράτα ένα σταθερό πρόγραμμα και προσάρμοσέ το τη μέρα που χρειάζεται. Ο ύπνος, το φαγητό, το άγχος και το κίνητρο μετράνε τουλάχιστον όσο ο κύκλος σου. Αν προσέξεις ένα μοτίβο στο πώς νιώθεις, αξιοποίησέ το — δεν χρειάζεσαι εφαρμογή παρακολούθησης γι’ αυτό.',
       },
       sources: [SRC.cycleUmbrella2023],
     },
