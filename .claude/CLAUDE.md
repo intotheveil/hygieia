@@ -2,7 +2,7 @@
      CORE    (§0 §3 §4 §5 §6 §7 §9 §10) come from .zeus/kit/CLAUDE.core.md and are synced fleet-wide.
      PROJECT (§1 §2 §8 §11) come from this repo's .claude/CLAUDE.project.md and are yours.
      Edit a CORE section in the kit, not here, or the next sync will overwrite it.
-     Composed 2026-10-06T11:37:20.828Z for hygieia. -->
+     Composed 2026-10-13T19:28:01.673Z for hygieia. -->
 
 # PROJECT CONSTITUTION — hygieia
 
@@ -125,6 +125,17 @@ decomposes a spec into tasks and delegates to the subagents in `.claude/agents/`
 - `reviewer`  — quality judgment AFTER qa passes; grades against the rubric in §6.
 - `researcher` — web research the codebase cannot answer; writes ONE sourced report to
   `docs/research/<topic>.md` and never touches product code.
+
+**Models and local AI.** Each agent's model is pinned in its frontmatter: `planner` and
+`reviewer` run on **opus** (judgment), `builder`, `test-writer`, `qa` and `researcher` on
+**sonnet**, `explore` on **haiku**. Do not override a tier on dispatch without a reason logged
+in `BUILD_LOG.md`. **Pythia** is the fleet's local AI: Ollama on the Windows desktop at
+`http://127.0.0.1:11434` (loopback only; her brain is `D:\local-ai\BRAIN.md`). Use her through
+`node D:/projects/zeus-hq/scripts/pythia.mjs status | models | ask <model> <prompt> | embed
+<model> <text>` for bulk or offline work where a local model is good enough: embeddings
+(`bge-m3`), bulk summaries and classification, first drafts. Cloud Claude stays the default
+for code, review and anything the product ships. Pythia exists only on that desktop; on any
+other machine, skip her.
 
 **Task loop:** builder → test-writer → (commit candidate).
 **One writer per checkout.** Code-producing agents running in parallel each get their own git
